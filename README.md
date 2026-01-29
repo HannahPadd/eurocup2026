@@ -21,6 +21,8 @@ chmod +x build-testing.sh
 docker compose -f docker-compose-testing.yaml build --no-cache
 docker compose -f docker-compose-testing.yaml up
 ```
+Navigate to the viewer by going to 
+http://localhost:5137
 
 ## Contributing
 [Contributing](https://github.com/HannahPadd/eurocup2026/blob/main/contributing.md)
