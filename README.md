@@ -3,6 +3,8 @@ Software for managing tournaments. Mainly developed for use with the itg eurocup
 
 
 ## Building
+First make sure you have docker installed.
+
 Clone the repo
 ```
 git clone https://github.com/HannahPadd/eurocup2026.git
