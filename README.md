@@ -22,7 +22,7 @@ docker compose -f docker-compose-testing.yaml build --no-cache
 docker compose -f docker-compose-testing.yaml up
 ```
 Navigate to the viewer by going to 
-http://localhost:5137
+http://127.0.0.1:80
 
 ## Contributing
 [Contributing](https://github.com/HannahPadd/eurocup2026/blob/main/contributing.md)
