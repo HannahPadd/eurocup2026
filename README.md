@@ -23,4 +23,4 @@ docker compose -f docker-compose-testing.yaml up
 ```
 
 ## Contributing
-Coming soon
+[Contributing](https://github.com/HannahPadd/eurocup2026/blob/main/contributing.md)
