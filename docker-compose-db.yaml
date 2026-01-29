@@ -1,0 +1,23 @@
+services:
+
+  mariadb:
+    image: mariadb
+    container_name: mariadb
+    restart: always
+    ports:
+      - 127.0.0.1:3306:3306
+    volumes:
+    - ./db:/var/lib/mysql:Z
+    environment:
+        MARIADB_DATABASE: "tournament"
+        MARIADB_ROOT_PASSWORD: example
+        DATABASE_HOST: "mariadb"
+        DATABASE_NAME: "tournament"
+        DATABASE_USER: "root"
+        DATABASE_PASSWORD: "example"
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 127.0.0.1:8080:8080
