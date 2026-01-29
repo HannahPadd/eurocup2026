@@ -33,7 +33,8 @@ First start the server then go to the tournament_viewer directory and run
 npm i
 npm run dev
 ```
-This starts the viewer in watch mode so you can live preview changes.
+This starts the viewer in watch mode so you can live preview changes
+Navigate to the viewer by going to http://localhost:5137
 
 ## Next steps
 After you're done run build-testing.sh to test if building still works.
