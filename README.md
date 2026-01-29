@@ -12,8 +12,8 @@ git clone https://github.com/HannahPadd/eurocup2026.git
 
 ### Linux/OS X
 ```
-chmod +x build-dev.sh
-./build-dev.sh
+chmod +x build-testing.sh
+./build-testing.sh
 ```
 
 ### Windows
