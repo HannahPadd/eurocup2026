@@ -1,7 +1,7 @@
 services:
-  tournament-manager-frontend:
+  tournament-viewer:
     build:
-      context: ./tournament_manager_frontend
+      context: ./tournament_viewer
       dockerfile: Dockerfile
       args:
         - VITE_API_BASE_URL="api.itgeurocup.com"
@@ -9,17 +9,17 @@ services:
 
     restart: always
     volumes:
-        - ./tournament_manager_frontend/src:/app/src
+        - ./tournament_viewer/src:/app/src
     ports:
       - 127.0.0.1:80:80
 
-  tournament-manager-backend:
+  tournament-server:
     build:
-      context: ./tournament_manager_backend
+      context: ./tournament_server
       dockerfile: Dockerfile
     restart: always
     volumes:
-        - ./tournament_manager_backend/src:/app/src
+        - ./tournament_server/src:/app/src
     ports: 
       - 127.0.0.1:3000:3000
 
