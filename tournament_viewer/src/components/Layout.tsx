@@ -35,7 +35,9 @@ const Layout= () => {
     return (
         <main className="App">
             <Navbar theme={theme} setTheme={setTheme}/>
-            <Outlet />
+            <div className="pt-6">
+                <Outlet />
+            </div>
         </main>
     )
 }

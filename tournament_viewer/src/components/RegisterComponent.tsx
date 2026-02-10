@@ -2,6 +2,7 @@ import { createPlayer } from '../services/player/player.api';
 import { useRef, useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { Link } from 'react-router-dom';
 
 const USER_REGEX = /^[A-z][A-z0-9-_]{3,23}$/;
 const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%]).{8,24}$/;
@@ -104,9 +105,9 @@ export default function RegisterCompontent() {
                 <section>
                     <h1>Success!</h1>
                     <p>
-                        {/*TODO
-                        Redirect to player page*/}
-                        <a href="#">Sign in</a>
+                        <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-gray-300 px-3 py-1 text-xs text-gray-900 hover:bg-gray-100">
+                            Sign in
+                        </Link>
                     </p>
                 </section>
             ) : (
@@ -252,16 +253,16 @@ export default function RegisterCompontent() {
                             Sign up!
                         </button>
                     </div>
+                    <p>
+                        Already registered?<br />
+                        <span className="">
+                            <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border  px-3 py-1 text-xs  border-gray-300 px-3 py-1 text-xs text-gray-300 hover:bg-gray-800">
+                                Sign in
+                            </Link>
+                    </span>
+                    </p>
                 </form>
 
-                <p>
-                    Already registered?<br />
-                    <span className="">
-                        {/*TODO
-                        Redirect to login page*/}
-                        <a href="#">Sign in</a>
-                    </span>
-                </p>
 
             </section>
             )}
