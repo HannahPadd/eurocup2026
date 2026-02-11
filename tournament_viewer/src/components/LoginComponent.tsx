@@ -92,14 +92,26 @@ export default function SignIn() {
 
                 <button id="signin" className='bg-lighter text-white p-2 rounded-lg w-full mt-2'>Sign in</button>
             </form>
-            <p className="text-center text-sm">
-                Need an Account?<br/>
-                <span className="inline-block">
-                    <Link to="/signup" className="mt-2 inline-flex items-center justify-center rounded border border-gray-300 px-3 py-1 text-xs text-gray-300 hover:bg-gray-800">
+            <div className="space-y-4 text-center">
+                <div className="space-y-2">
+                    <p className="text-sm opacity-80">Need an Account?</p>
+                    <Link
+                        to="/signup"
+                        className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                    >
                         Sign Up
                     </Link>
-                </span>
-            </p>
+                </div>
+                <div className="space-y-2">
+                    <p className="text-sm opacity-80">Go to official website</p>
+                    <a
+                        href="http://itgeurocup.com"
+                        className="inline-flex items-center justify-center rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900"
+                    >
+                        ITGEUROCUP
+                    </a>
+                </div>
+            </div>
         </section>
 
     )

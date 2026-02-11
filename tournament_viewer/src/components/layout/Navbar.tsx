@@ -26,9 +26,22 @@ export default function Navbar() {
             >
               Tournament
             </Link>
-            <Link to="/" className="text-white hover:text-gray-200 px-3 py-2">
-              Overview
-            </Link>
+            {auth?.username ? (
+              <Link
+                to="/"
+                className="text-white hover:text-gray-200 px-3 py-2"
+              >
+                Overview
+              </Link>
+            ) : null}
+            {auth?.username ? (
+              <a
+                href="http://itgeurocup.com"
+                className="text-white hover:text-gray-200 px-3 py-2"
+              >
+                Official site
+              </a>
+            ) : null}
             {auth?.username ? (
               <button type="button" onClick={handleLogout} className="px-3 py-2">
                 Logout
@@ -82,13 +95,24 @@ export default function Navbar() {
             >
               Tournament
             </Link>
-            <Link
-              to="/"
-              className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
-              onClick={() => setMenuOpen(false)}
-            >
-              Overview
-            </Link>
+            {auth?.username ? (
+              <Link
+                to="/"
+                className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+                onClick={() => setMenuOpen(false)}
+              >
+                Overview
+              </Link>
+            ) : null}
+            {auth?.username ? (
+              <a
+                href="http://itgeurocup.com"
+                className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+                onClick={() => setMenuOpen(false)}
+              >
+                Official site
+              </a>
+            ) : null}
             {auth?.username ? (
               <button
                 type="button"
