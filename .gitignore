@@ -107,3 +107,5 @@ tournament_manager_backend/.env.production.local
 tournament_manager_backend/.env.local
 
 
+AGENTS.md
+tournament_viewer/dev-dist
