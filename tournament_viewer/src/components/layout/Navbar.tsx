@@ -1,9 +1,17 @@
+import { Link } from "react-router-dom";
+import useAuth from "../../hooks/useAuth";
+
 interface NavbarProps {
   theme: string;
   setTheme: (theme: string) => void;
 }
 
 export default function Navbar({ theme, setTheme }: NavbarProps) {
+  const { auth, setAuth } = useAuth();
+
+  const handleLogout = () => {
+    setAuth(null);
+  };
   return (
     <nav className="w-full h-16 navbar-bg">
       <div className="lg:container lg:mx-auto mx-3 flex flex-row gap-10 items-center h-full">
@@ -25,7 +33,13 @@ export default function Navbar({ theme, setTheme }: NavbarProps) {
           </select>
         </div>
         <div>
-          <a href="/login">Login</a>
+          {auth?.username ? (
+            <button type="button" onClick={handleLogout}>
+              Logout
+            </button>
+          ) : (
+            <Link to="/login">Login</Link>
+          )}
         </div>
       </div>
     </nav>

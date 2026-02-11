@@ -1,4 +1,4 @@
-import { createContext, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 
 export interface Auth {
     username: string,
@@ -18,7 +18,18 @@ const AuthContext = createContext<AuthContextProps>({
 });
 
 export const AuthProvider = ({ children }: { children?: React.ReactNode}) => {
-    const [auth, setAuth] = useState<Auth | null>(null);
+    const [auth, setAuth] = useState<Auth | null>(() => {
+        const stored = localStorage.getItem("auth");
+        return stored ? (JSON.parse(stored) as Auth) : null;
+    });
+
+    useEffect(() => {
+        if (auth) {
+            localStorage.setItem("auth", JSON.stringify(auth));
+        } else {
+            localStorage.removeItem("auth");
+        }
+    }, [auth]);
 
     return (
         <AuthContext.Provider value={{ auth, setAuth }}>
@@ -28,4 +39,3 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode}) => {
 }
 
 export default AuthContext;
-
