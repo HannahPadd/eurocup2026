@@ -22,7 +22,10 @@ export class AuthService {
     
     async validateUser(username: string, password: string) {
         const user = await this.accountRepo.findOneBy({ username });
-        const isMatch = await bcrypt.compare(password, user?.password);
+        if (!user || !user.password) {
+            throw new UnauthorizedException();
+        }
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             throw new UnauthorizedException();
         }
@@ -56,4 +59,3 @@ export class AuthService {
         };
     }
 }
-

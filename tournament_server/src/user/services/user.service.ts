@@ -24,7 +24,7 @@ export class UserService {
         
         const user = await this.accountRepo.findOneBy({username: dto.username})
         if (user) {
-            throw new UnprocessableEntityException;
+            throw new UnprocessableEntityException('Username already exists');
         }
 
         else {
