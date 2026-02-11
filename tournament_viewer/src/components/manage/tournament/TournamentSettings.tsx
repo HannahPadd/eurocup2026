@@ -24,7 +24,7 @@ export default function TournamentSettings({
           <h2 className="theme-text">
             {controls
               ? "Configure your tournament"
-              : "History of TagTeamTournament 2024"}
+              : "History of Tournaments"}
             !
           </h2>
         </div>

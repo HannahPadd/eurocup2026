@@ -3,36 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-.theme-TagTeam {
-  font-family: "dinpro", sans-serif;
-  background-color: #280202;
-  color: #fff;
-}
-.theme-TagTeam h1,
-.theme-TagTeam h2,
-.theme-TagTeam h3 {
-  font-family: "NeufreitEx", sans-serif;
-  color: #fff;
-}
-.theme-TagTeam .animate-first-place {
-  animation: first-place 0.5s infinite;
-}
-
-.theme-Eurocup {
-  font-family: "dinpro", sans-serif;
-}
-.theme-Eurocup h1,
-.theme-Eurocup h2,
-.theme-Eurocup h3 {
-  font-family: "NeufreitEx", sans-serif;
-  color: #e0e0e0;
-}
-.theme-Eurocup .animate-first-place {
-  animation: first-place 0.5s infinite;
-}
-
-/* Theme CSS will be loaded dynamically */
-
 /* Create an animation on class animate-first-place that scales 95% to 105% */
 
 .animate-first-place {

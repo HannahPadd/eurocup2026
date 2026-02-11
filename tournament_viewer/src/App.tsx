@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import RequireAuth from "./components/RequireAuth";
 
 import "./index.css";
+import "./themes/Eurocup.css";
 import ViewPage from "./pages/ViewPage";
 import ManagePage from "./pages/ManagePage";
 import SignUpPage from "./pages/SignUpPage";

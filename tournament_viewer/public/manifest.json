@@ -1,11 +1,11 @@
 {
-  "name": "TagTeamTournament Standings",
-  "short_name": "TagTeamTournament",
+  "name": "ITG Eurocup Standings",
+  "short_name": "ITG Eurocup",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#18181b",
   "theme_color": "#18181b",
-  "description": "View standings for TagTeamTournament and Eurocup.",
+  "description": "View standings for Eurocup.",
   "icons": [
     {
       "src": "/icon.png",
