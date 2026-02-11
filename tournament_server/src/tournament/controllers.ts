@@ -1,4 +1,5 @@
-import { DivisionsController } from './controllers/bracket.controller';
+import { BracketController } from './controllers/bracket.controller';
+import { DivisionsController } from './controllers/divisions.controller';
 import { MatchesController } from './controllers/matches.controller';
 import { PhasesController } from './controllers/phases.controller';
 import { PlayersController } from './controllers/players.controller';
@@ -14,7 +15,7 @@ import { StreamViewController } from './controllers/streamview.controller';
 
 
 export const Controllers = [
-    DivisionsController,
+    BracketController,
     MatchesController,
     PhasesController,
     PlayersController,
