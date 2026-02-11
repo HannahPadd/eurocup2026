@@ -8,16 +8,16 @@ import { PersistenceModule } from '@persistence/persistence.module';
 import { MatchManagerModule } from 'src/match-manager/match-manager.module';
 
 @Module({
-        imports: [
+    imports: [
         PersistenceModule,
         TournamentModule,
         MatchManagerModule
     ],
+    controllers: [BackwardCompatibilityController],
     providers: [
         ...TournamentModuleServices,
         ...MatchManagerServices,
-        ...MatchManagerGateways,
-        BackwardCompatibilityController
+        ...MatchManagerGateways
     ],
 })
 export class BackwardsCompatModule {}

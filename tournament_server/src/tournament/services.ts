@@ -12,6 +12,7 @@ import { SetupService } from './services/setup.service';
 import { MatchAssignmentService } from './services/match_assignment.service';
 import { StreamViewService } from './services/streamview.service';
 import { UserService } from '../user/services/user.service';
+import { QualifiersService } from './services/qualifiers.service';
 
 export { DivisionsService }
 export { MatchesService }
@@ -27,6 +28,7 @@ export { SetupService }
 export { MatchAssignmentService }
 export { StreamViewService }
 export { UserService as AccountService }
+export { QualifiersService }
 
 export const Services = [
     DivisionsService,
@@ -43,4 +45,5 @@ export const Services = [
     MatchAssignmentService,
     StreamViewService,
     UserService,
+    QualifiersService,
   ]

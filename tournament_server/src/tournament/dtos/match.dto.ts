@@ -25,7 +25,7 @@ export class CreateMatchDto {
   notes: string;
 
   @ApiProperty({ description: 'The list of player ids participating to the match', example: [1, 2, 3] })
-  @IsNotEmpty()
+  @IsOptional()
   @IsArray()
   playerIds: number[];
 

@@ -27,13 +27,15 @@ export class MatchesService{
 
         match.players = [];
 
-        for (const playerId of dto.playerIds) {
-            const player = await this.playerRepository.findOneBy({ id: playerId });
+        if (dto.playerIds && dto.playerIds.length > 0) {
+            for (const playerId of dto.playerIds) {
+                const player = await this.playerRepository.findOneBy({ id: playerId });
 
-            if (!player) {
-                throw new NotFoundException(`Player with ID ${playerId} not found`);
+                if (!player) {
+                    throw new NotFoundException(`Player with ID ${playerId} not found`);
+                }
+                match.players.push(player);
             }
-            match.players.push(player);
         }
 
         match.multiplier = 1;

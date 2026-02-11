@@ -1,13 +1,35 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import useAuth from "../hooks/useAuth";
 
-const qualifierTracks = [
-  "Tech Lower",
-  "Tech Middle",
-  "Tech High",
-  "Stamina",
-];
+type QualifierSubmission = {
+  percentage: number;
+  screenshotUrl: string;
+  updatedAt: string;
+};
+
+type QualifierSong = {
+  song: {
+    id: number;
+    title: string;
+    group: string;
+    difficulty: number;
+  };
+  submission?: QualifierSubmission;
+};
+
+type QualifierPhase = {
+  phaseId: number;
+  phaseName: string;
+  songs: QualifierSong[];
+};
+
+type QualifierDivision = {
+  divisionId: number;
+  divisionName: string;
+  phases: QualifierPhase[];
+};
 
 const registrationTracks = [
   "Tech competition",
@@ -21,8 +43,169 @@ const registrationTracks = [
 export default function LandingPage() {
   const { auth } = useAuth();
   const playerName = auth?.username || "Player";
+  const [playerId, setPlayerId] = useState<number | null>(null);
+  const [qualifiers, setQualifiers] = useState<QualifierDivision[]>([]);
+  const [qualifierInputs, setQualifierInputs] = useState<
+    Record<number, { percentage: string; screenshotUrl: string }>
+  >({});
+  const [qualifierLoading, setQualifierLoading] = useState(false);
+  const [qualifierSaving, setQualifierSaving] = useState(false);
+  const [qualifierError, setQualifierError] = useState<string | null>(null);
   const [useTicketRegistration, setUseTicketRegistration] = useState(false);
   const [mockRegistered, setMockRegistered] = useState(false);
+
+  useEffect(() => {
+    const loadPlayer = async () => {
+      if (!auth?.username) {
+        setPlayerId(null);
+        return;
+      }
+      try {
+        const response = await axios.get("players");
+        const players = response.data as { id: number; playerName: string }[];
+        const player = players.find((item) => item.playerName === auth.username);
+        if (!player) {
+          setQualifierError("Player profile not found for this account.");
+          setPlayerId(null);
+          return;
+        }
+        setPlayerId(player.id);
+      } catch (error) {
+        console.error("Error loading player profile:", error);
+        setQualifierError("Unable to load player profile.");
+      }
+    };
+
+    loadPlayer();
+  }, [auth?.username]);
+
+  const applyQualifierData = (data: QualifierDivision[]) => {
+    setQualifiers(data);
+    const nextInputs: Record<
+      number,
+      { percentage: string; screenshotUrl: string }
+    > = {};
+    for (const division of data) {
+      for (const phase of division.phases) {
+        for (const { song, submission } of phase.songs) {
+          nextInputs[song.id] = {
+            percentage: submission ? String(submission.percentage) : "",
+            screenshotUrl: submission?.screenshotUrl ?? "",
+          };
+        }
+      }
+    }
+    setQualifierInputs(nextInputs);
+  };
+
+  useEffect(() => {
+    const loadQualifiers = async () => {
+      if (!playerId) {
+        setQualifiers([]);
+        setQualifierInputs({});
+        return;
+      }
+      setQualifierLoading(true);
+      setQualifierError(null);
+      try {
+        const response = await axios.get<QualifierDivision[]>("qualifiers", {
+          params: { playerId },
+        });
+        applyQualifierData(response.data ?? []);
+      } catch (error) {
+        console.error("Error loading qualifiers:", error);
+        setQualifierError("Unable to load qualifiers.");
+      } finally {
+        setQualifierLoading(false);
+      }
+    };
+
+    loadQualifiers();
+  }, [playerId]);
+
+  const qualifierSongs = useMemo(
+    () =>
+      qualifiers.flatMap((division) =>
+        division.phases.flatMap((phase) =>
+          phase.songs.map((song) => ({
+            division,
+            phase,
+            song,
+          }))
+        )
+      ),
+    [qualifiers]
+  );
+
+  const updateQualifierInput = (
+    songId: number,
+    field: "percentage" | "screenshotUrl",
+    value: string
+  ) => {
+    setQualifierInputs((prev) => ({
+      ...prev,
+      [songId]: {
+        percentage: prev[songId]?.percentage ?? "",
+        screenshotUrl: prev[songId]?.screenshotUrl ?? "",
+        [field]: value,
+      },
+    }));
+  };
+
+  const saveQualifiers = async () => {
+    if (!playerId) {
+      setQualifierError("Player profile is required to submit qualifiers.");
+      return;
+    }
+    setQualifierSaving(true);
+    setQualifierError(null);
+    try {
+      const submissions: {
+        songId: number;
+        percentage: number;
+        screenshotUrl: string;
+      }[] = [];
+      for (const { song } of qualifierSongs) {
+        const entry = qualifierInputs[song.song.id];
+        if (!entry?.percentage || !entry?.screenshotUrl) {
+          continue;
+        }
+        const percentage = Number(entry.percentage);
+        if (Number.isNaN(percentage)) {
+          setQualifierError("Qualifier scores must be numbers.");
+          setQualifierSaving(false);
+          return;
+        }
+        submissions.push({
+          songId: song.song.id,
+          percentage,
+          screenshotUrl: entry.screenshotUrl,
+        });
+      }
+
+      await Promise.all(
+        submissions.map((submission) =>
+          axios.post(
+            `qualifier/${playerId}/${submission.songId}`,
+            {
+              percentage: submission.percentage,
+              screenshotUrl: submission.screenshotUrl,
+            }
+          )
+        )
+      );
+
+      const refreshed = await axios.get<QualifierDivision[]>("qualifiers", {
+        params: { playerId },
+      });
+      applyQualifierData(refreshed.data ?? []);
+    } catch (error) {
+      console.error("Error saving qualifiers:", error);
+      setQualifierError("Unable to save qualifiers.");
+    } finally {
+      setQualifierSaving(false);
+    }
+  };
 
   return (
     <div className="text-white mx-auto">
@@ -44,31 +227,74 @@ export default function LandingPage() {
             Submit a score (e.g. 77.77) and the URL of your screenshot.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-4">
-            {qualifierTracks.map((track) => (
-              <div
-                key={track}
-                className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center bg-white/5 border border-white/10 rounded-lg p-4"
-              >
-                <div className="font-semibold">{track}</div>
-                <input
-                  type="text"
-                  placeholder="Score (77.77)"
-                  className="w-full rounded-md bg-white text-black px-3 py-2"
-                />
-                <input
-                  type="url"
-                  placeholder="Screenshot URL"
-                  className="w-full rounded-md bg-white text-black px-3 py-2"
-                />
+            {qualifierLoading && (
+              <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+                Loading qualifier songs...
               </div>
-            ))}
+            )}
+            {!qualifierLoading && qualifierSongs.length === 0 && (
+              <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+                No qualifier songs configured yet.
+              </div>
+            )}
+            {qualifierSongs.map(({ division, phase, song }) => {
+              const input = qualifierInputs[song.song.id] || {
+                percentage: "",
+                screenshotUrl: "",
+              };
+              return (
+                <div
+                  key={`${division.divisionId}-${phase.phaseId}-${song.song.id}`}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center bg-white/5 border border-white/10 rounded-lg p-4"
+                >
+                  <div>
+                    <div className="font-semibold">{song.song.title}</div>
+                    <div className="text-xs text-gray-300">
+                      {division.divisionName} • {phase.phaseName} •{" "}
+                      {song.song.group} {song.song.difficulty}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Score (77.77)"
+                    className="w-full rounded-md bg-white text-black px-3 py-2"
+                    value={input.percentage}
+                    onChange={(event) =>
+                      updateQualifierInput(
+                        song.song.id,
+                        "percentage",
+                        event.target.value
+                      )
+                    }
+                  />
+                  <input
+                    type="url"
+                    placeholder="Screenshot URL"
+                    className="w-full rounded-md bg-white text-black px-3 py-2"
+                    value={input.screenshotUrl}
+                    onChange={(event) =>
+                      updateQualifierInput(
+                        song.song.id,
+                        "screenshotUrl",
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+              );
+            })}
           </div>
+          {qualifierError && (
+            <p className="mt-3 text-sm text-red-200">{qualifierError}</p>
+          )}
           <div className="mt-4 flex justify-end">
             <button
               type="button"
-              className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+              onClick={saveQualifiers}
+              disabled={qualifierSaving || qualifierLoading}
             >
-              Save qualifiers
+              {qualifierSaving ? "Saving..." : "Save qualifiers"}
             </button>
           </div>
         </section>
