@@ -29,15 +29,17 @@ function App() {
         <Route path="unauthorized" element={<Unauthorized />} />
 
         { /* Protected routes */ }
-        { /* Admin routes */ }
-        <Route element={<RequireAuth /*allowedRoles={["admin"]} *//>}>
+        { /* Logged in user Route */}
+        <Route element={<RequireAuth requireAdmin={false} />}></Route>
           <Route path="/" element={<LandingPage />} />
+        </Route>
+        { /* Admin routes */ }
+        <Route element={<RequireAuth requireAdmin={true} />}>
           <Route path="manage" element={<ManagePage />} />
         </Route>
 
         {/* Catch all */}
         <Route path="*" element={<Missing />} />
-        </Route>
       </Routes>
       { /*
         <div>

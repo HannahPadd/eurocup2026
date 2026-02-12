@@ -2,8 +2,8 @@ import { createContext, useEffect, useState } from "react";
 
 export interface Auth {
     username: string,
-    accessToken: string
-    roles: []
+    accessToken: string,
+    isAdmin: boolean
 }
 
 interface AuthContextProps {
