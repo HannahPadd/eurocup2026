@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePlayerDto, UpdatePlayerDto } from '../dtos';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Player, Team } from '@persistence/entities'
+import { Division, Player, Team } from '@persistence/entities'
 
 @Injectable()
 export class PlayerService {
@@ -10,7 +10,9 @@ export class PlayerService {
     @InjectRepository(Player)
     private playersRepo: Repository<Player>,
     @InjectRepository(Team)
-    private teamsRepo: Repository<Team>
+    private teamsRepo: Repository<Team>,
+    @InjectRepository(Division)
+    private divisionRepo: Repository<Division>
   ) { }
   /*TODO
   Avoid double registrations */
@@ -61,8 +63,20 @@ export class PlayerService {
       delete dto.teamId;
     }
 
+    if (dto.divisionId) {
+      const divisionArr = await Promise.all(
+        dto.divisionId.map(async (divisionId) => {
+          const division = await this.divisionRepo.findOneBy({id: divisionId })
+          if (!division) {
+            throw new NotFoundException(`Division with id ${divisionId} not found`);
+          }
+          return division
+        })
+      )
+      player.divisions = divisionArr
+    }
+
     this.playersRepo.merge(player, dto);
-    
     return await this.playersRepo.save(player);
   }
 

@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsNumber, IsString, IsOptional, } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Bracket, Score, Team }  from '@persistence/entities';
+import { Bracket, Division, Score, Team }  from '@persistence/entities';
 import { ApiProperty } from '@nestjs/swagger';
 import { PrimaryGeneratedColumn } from 'typeorm';
 
@@ -172,6 +172,9 @@ export class CreatePlayerDto {
   @Type(() => Number)
   teamId: number;
 
+  @IsOptional()
+  divisions: Division[];
+
   @ApiProperty({
   example: 1,
   description: 'ID of the bracket table this player belongs to',
@@ -188,7 +191,7 @@ export class UpdatePlayerDto {
     example: 'localstorage/picture.png',
     description: 'url of the player profile picture',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => String)
   playerPictureUrl: string;
@@ -197,7 +200,7 @@ export class UpdatePlayerDto {
     example: 'example@example.com',
     description: 'New email of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => String)
   email: string;
@@ -206,7 +209,7 @@ export class UpdatePlayerDto {
     example: 'Password!',
     description: 'New player password',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => String)
   password: string;
@@ -234,7 +237,7 @@ export class UpdatePlayerDto {
     example: 'John Doe',
     description: 'Name of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => String)
   playerName: string;
@@ -243,7 +246,7 @@ export class UpdatePlayerDto {
   example: '5 years',
   description: 'Time the player has been actively playing',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => String)
   playedFor: string;
@@ -252,7 +255,7 @@ export class UpdatePlayerDto {
   example: 'Netherlands',
   description: 'Country the player represents',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => String)
   country: string;
@@ -261,7 +264,7 @@ export class UpdatePlayerDto {
   example: '15',
   description: 'Highest stamina pass the player has achieved',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   highestStaminaPass: number;
@@ -270,7 +273,7 @@ export class UpdatePlayerDto {
   example: '??',
   description: 'I don\'t know',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   staminaLevel: number;
@@ -279,7 +282,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The footspeed level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   footSpeedLevel: number;
@@ -288,7 +291,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The crossover tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   crossOverTechLevel: number;
@@ -297,7 +300,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The footswitch tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   footSwitchTechLevel: number;
@@ -306,7 +309,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The sideswitch tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   sideSwitchTechLevel: number;
@@ -315,7 +318,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The bracket tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   bracketTechLevel: number;
@@ -324,7 +327,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The doublestep tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   doubleStepTechLevel: number;
@@ -333,7 +336,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The jack tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   jackTechLevel: number;
@@ -342,7 +345,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The xmod tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   xmodTechLevel: number;
@@ -351,7 +354,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The burst tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   burstTechLevel: number;
@@ -360,7 +363,7 @@ export class UpdatePlayerDto {
   example: '12',
   description: 'The rhythms tech level of the player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   rhythmsTechLevel: number;
@@ -369,7 +372,7 @@ export class UpdatePlayerDto {
   example: 1,
   description: 'ID of the scores table for this player',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   scoresId: number;
@@ -388,11 +391,16 @@ export class UpdatePlayerDto {
 
   team?: Team
 
+  @IsOptional()
+  divisionId: number[];
+  
+  divisions: Division[];
+
   @ApiProperty({
   example: 1,
   description: 'ID of the bracket table this player belongs to',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Type(() => Number)
   BracketId: number;

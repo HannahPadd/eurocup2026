@@ -1,0 +1,51 @@
+services:
+  tournament-viewer:
+    build:
+      context: ./tournament_viewer
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL="api.itgeurocup.com"
+        - VITE_API_KEY=""
+
+    restart: always
+    volumes:
+        - ./tournament_viewer/src:/app/src
+    ports:
+      - 127.0.0.1:80:80
+
+  tournament-server:
+    build:
+      context: ./tournament_server
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+        - ./tournament_server/src:/app/src
+    ports: 
+      - 127.0.0.1:3000:3000
+
+    environment:
+        MARIADB_DATABASE: "tournament"
+        DATABASE_HOST: "mariadb"
+        DATABASE_NAME: "tournament"
+        DATABASE_USER: "root"
+        DATABASE_PASSWORD: "example"
+        PORT: "3000"
+        JWT_SECRET: example_secret
+
+  mariadb:
+    image: mariadb
+    restart: always
+    ports:
+      - 127.0.0.1:3306:3306
+    environment:
+      MARIADB_ROOT_PASSWORD: example
+      MARIADB_DATABASE: "tournament"
+    volumes:
+    - ./db:/var/lib/mysql:Z
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 127.0.0.1:8080:8080
+  
