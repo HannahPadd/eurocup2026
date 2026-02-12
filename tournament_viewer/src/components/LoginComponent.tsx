@@ -90,8 +90,7 @@ export default function SignIn() {
                 <p>
                     Need an Account?<br />
                     <span className="line">
-                        {/*TODO: Link to Create account */}
-                        <a href="#">Sign Up</a>
+                        <a href="/signup">Sign Up</a>
                     </span>
                 </p>
             </section>

@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 
-const USER_REGEX = /^[A-z][A-z0-9-_]{3,23}$/;
+const USER_REGEX = /^[A-Za-z0-9-\_]{3,23}$/;
 const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%]).{8,24}$/;
 const EMAIL_REGEX = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g;
 
@@ -69,7 +69,7 @@ export default function RegisterCompontent() {
 
         //Validate form data
         const vname = USER_REGEX.test(user);
-        const vpwd = USER_REGEX.test(pwd);
+        const vpwd = PWD_REGEX.test(pwd);
         const vpwdmatch = matchPwd;
         const vemail = EMAIL_REGEX.test(email);
 
@@ -106,7 +106,7 @@ export default function RegisterCompontent() {
                     <p>
                         {/*TODO
                         Redirect to player page*/}
-                        <a href="#">Sign in</a>
+                        <a href="/login">Sign in</a>
                     </p>
                 </section>
             ) : (
@@ -259,7 +259,7 @@ export default function RegisterCompontent() {
                     <span className="">
                         {/*TODO
                         Redirect to login page*/}
-                        <a href="#">Sign in</a>
+                        <a href="/login">Sign in</a>
                     </span>
                 </p>
 
