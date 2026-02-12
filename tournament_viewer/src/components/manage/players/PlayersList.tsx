@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 const getPlayerDisplayName = (player: Player) =>
   (player.playerName ?? player.name ?? "").trim() || "Unnamed player";
 
+
 export default function PlayersList() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -260,6 +261,14 @@ function PlayerItem({
       <div>
         <span>Name: </span>
         <span>{getPlayerDisplayName(player)}</span>
+      </div>
+
+      {/*TODO:
+        Display player divisions here
+      */}
+      <div>
+        <span>Divisions: </span>
+        <span></span>
       </div>
       <div className={"flex flex-row gap-2 items-center"}>
         <span>Team: </span>
