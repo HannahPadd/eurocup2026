@@ -2,7 +2,7 @@ services:
   tournament-viewer:
     build:
       context: ./tournament_viewer
-      dockerfile: Dockerfile
+      dockerfile: DockerfileDev
       args:
         - VITE_API_BASE_URL="api.itgeurocup.com"
         - VITE_API_KEY=""
@@ -11,12 +11,12 @@ services:
     volumes:
         - ./tournament_viewer/src:/app/src
     ports:
-      - 127.0.0.1:80:80
+      - 127.0.0.1:5173:5173
 
   tournament-server:
     build:
       context: ./tournament_server
-      dockerfile: Dockerfile
+      dockerfile: DockerfileDev
     restart: always
     volumes:
         - ./tournament_server/src:/app/src

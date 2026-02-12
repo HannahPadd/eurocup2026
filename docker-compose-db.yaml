@@ -1,7 +1,7 @@
 services:
 
   mariadb:
-    image: mariadb
+    image: mariadb:lts
     container_name: mariadb
     restart: always
     ports:
