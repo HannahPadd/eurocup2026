@@ -191,7 +191,7 @@ export default function SongsList() {
 
 function SongItem({ song }: { song: Song }) {
   return (
-    <div className="text-red-400">
+    <div className="text-white">
       <h3 className="text-2xl theme-text">Song Information</h3>
       <div className="mt-2">
         <h3 className=" theme-text">Title: </h3>

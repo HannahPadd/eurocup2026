@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import useAuth from "../hooks/useAuth";
+import { Division } from "../models/Division";
 
 type QualifierSubmission = {
   percentage: number;
@@ -31,14 +32,12 @@ type QualifierDivision = {
   phases: QualifierPhase[];
 };
 
-const registrationTracks = [
-  "Tech competition",
-  "Stamina",
-  "Doubles",
-  "Variety",
-  "Pump it Up",
-  "StepmaniaX",
-];
+type PlayerProfile = {
+  id: number;
+  playerName?: string;
+  divisions?: Division[];
+  hasRegistered?: boolean;
+};
 
 export default function LandingPage() {
   const { auth } = useAuth();
@@ -51,8 +50,14 @@ export default function LandingPage() {
   const [qualifierLoading, setQualifierLoading] = useState(false);
   const [qualifierSaving, setQualifierSaving] = useState(false);
   const [qualifierError, setQualifierError] = useState<string | null>(null);
-  const [useTicketRegistration, setUseTicketRegistration] = useState(false);
-  const [mockRegistered, setMockRegistered] = useState(false);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [selectedDivisionIds, setSelectedDivisionIds] = useState<number[]>([]);
+  const [registrationLoading, setRegistrationLoading] = useState(false);
+  const [registrationSaving, setRegistrationSaving] = useState(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(
+    null
+  );
+  const [registrationLocked, setRegistrationLocked] = useState(false);
 
   useEffect(() => {
     const loadPlayer = async () => {
@@ -78,6 +83,46 @@ export default function LandingPage() {
 
     loadPlayer();
   }, [auth?.username]);
+
+  useEffect(() => {
+    const loadDivisions = async () => {
+      try {
+        const response = await axios.get<Division[]>("divisions");
+        setDivisions(response.data ?? []);
+      } catch (error) {
+        console.error("Error loading divisions:", error);
+        setRegistrationError("Unable to load registration divisions.");
+      }
+    };
+
+    loadDivisions();
+  }, []);
+
+  useEffect(() => {
+    const loadRegistration = async () => {
+      if (!playerId) {
+        setSelectedDivisionIds([]);
+        return;
+      }
+      setRegistrationLoading(true);
+      setRegistrationError(null);
+      try {
+        const response = await axios.get<PlayerProfile>(`players/${playerId}`);
+        const existing = response.data?.divisions ?? [];
+        const registered =
+          response.data?.hasRegistered ?? existing.length > 0;
+        setSelectedDivisionIds(existing.map((division) => division.id));
+        setRegistrationLocked(registered);
+      } catch (error) {
+        console.error("Error loading registration:", error);
+        setRegistrationError("Unable to load registration status.");
+      } finally {
+        setRegistrationLoading(false);
+      }
+    };
+
+    loadRegistration();
+  }, [playerId]);
 
   const applyQualifierData = (data: QualifierDivision[]) => {
     setQualifiers(data);
@@ -207,6 +252,62 @@ export default function LandingPage() {
     }
   };
 
+  const toggleDivisionSelection = (divisionId: number) => {
+    setSelectedDivisionIds((prev) =>
+      prev.includes(divisionId)
+        ? prev.filter((id) => id !== divisionId)
+        : [...prev, divisionId]
+    );
+  };
+
+  const saveRegistration = async () => {
+    if (!playerId) {
+      setRegistrationError("Player profile is required to register.");
+      return;
+    }
+    setRegistrationSaving(true);
+    setRegistrationError(null);
+    try {
+      const registered = selectedDivisionIds.length > 0;
+      await axios.patch(`players/${playerId}`, {
+        divisionId: selectedDivisionIds,
+        hasRegistered: registered,
+      });
+      setRegistrationLocked(registered);
+    } catch (error) {
+      console.error("Error saving registration:", error);
+      setRegistrationError("Unable to save registration.");
+    } finally {
+      setRegistrationSaving(false);
+    }
+  };
+
+  const requestRegistrationChange = async () => {
+    if (!playerId) {
+      setRegistrationError("Player profile is required to update registration.");
+      return;
+    }
+    setRegistrationSaving(true);
+    setRegistrationError(null);
+    try {
+      await axios.patch(`players/${playerId}`, {
+        divisionId: [],
+        hasRegistered: false,
+      });
+      setSelectedDivisionIds([]);
+      setRegistrationLocked(false);
+    } catch (error) {
+      console.error("Error resetting registration:", error);
+      setRegistrationError("Unable to reset registration.");
+    } finally {
+      setRegistrationSaving(false);
+    }
+  };
+
+  const selectedDivisions = divisions.filter((division) =>
+    selectedDivisionIds.includes(division.id)
+  );
+
   return (
     <div className="text-white mx-auto">
       <div className="flex flex-col gap-2">
@@ -302,134 +403,18 @@ export default function LandingPage() {
         <div className="space-y-6">
           <section className="bg-black/20 border border-white/10 rounded-xl p-6">
             <h2 className="text-2xl font-semibold theme-text">
-              Register for tournament
-            </h2>
-          <div className="mt-4 flex items-center gap-2">
-            <input
-              id="use-ticket"
-              type="checkbox"
-              className="h-4 w-4"
-              checked={useTicketRegistration}
-              onChange={(event) =>
-                setUseTicketRegistration(event.target.checked)
-              }
-            />
-            <label htmlFor="use-ticket" className="text-gray-200">
-              Use my ticket registration
-            </label>
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              id="mock-registered"
-              type="checkbox"
-              className="h-4 w-4"
-              checked={mockRegistered}
-              onChange={(event) => setMockRegistered(event.target.checked)}
-            />
-            <label htmlFor="mock-registered" className="text-gray-200">
-              Mock player has registered
-            </label>
-          </div>
-          {mockRegistered ? (
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition"
-              >
-                Request changing registration
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {registrationTracks.map((track) => (
-                  <label
-                    key={track}
-                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition ${
-                      useTicketRegistration
-                        ? "cursor-not-allowed border-white/5 bg-white/5 text-gray-500"
-                        : "border-white/10 bg-white/5 text-white"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      disabled={useTicketRegistration}
-                    />
-                    <span>{track}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p
-                  className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
-                  role="alert"
-                >
-                  Registration after submit can only be edited on request.
-                </p>
-                <button
-                  type="button"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition"
-                >
-                  Submit
-                </button>
-              </div>
-            </>
-          )}
-          </section>
-
-          <section className="bg-black/20 border border-white/10 rounded-xl p-6">
-            <h2 className="text-2xl font-semibold theme-text">
               Qualifier status
             </h2>
             <p className="mt-2 text-sm text-gray-300">
               See how your submitted qualifiers place you right now.
             </p>
-            {mockRegistered ? (
+            {registrationLocked && selectedDivisions.length > 0 ? (
               <div className="mt-5 space-y-3">
-              <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-400/20 text-yellow-200">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                  </svg>
-                </span>
-                <span className="flex-1">Qualified for Tech middle</span>
-                <button
-                  type="button"
-                  className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
+              {selectedDivisions.map((division) => (
+                <div
+                  key={division.id}
+                  className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
                 >
-                  See rules
-                </button>
-              </div>
-              <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-200">
-                  <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                      aria-hidden="true"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </span>
-                  <span className="flex-1">Signed up for Stamina</span>
-                  <button
-                    type="button"
-                    className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
-                  >
-                    See rules
-                  </button>
-                </div>
-                <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-200">
                     <svg
                       viewBox="0 0 24 24"
@@ -444,7 +429,9 @@ export default function LandingPage() {
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </span>
-                  <span className="flex-1">Signed up for Pump it up</span>
+                  <span className="flex-1">
+                    Signed up for {division.name}
+                  </span>
                   <button
                     type="button"
                     className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
@@ -452,6 +439,7 @@ export default function LandingPage() {
                     See rules
                   </button>
                 </div>
+              ))}
               </div>
             ) : (
               <div
@@ -461,6 +449,86 @@ export default function LandingPage() {
                 You have to register first.
               </div>
             )}
+          </section>
+
+          <section className="bg-black/20 border border-white/10 rounded-xl p-6">
+            <h2 className="text-2xl font-semibold theme-text">
+              Register for tournament
+            </h2>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {registrationLoading && (
+              <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                Loading divisions...
+              </div>
+            )}
+            {!registrationLoading && divisions.length === 0 && (
+              <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                No divisions available yet.
+              </div>
+            )}
+            {divisions.map((division) => (
+              <label
+                key={division.id}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition ${
+                  registrationLocked
+                    ? "cursor-not-allowed border-white/10 bg-white/5 text-white/70"
+                    : "border-white/10 bg-white/5 text-white"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  disabled={registrationLoading || registrationLocked}
+                  checked={selectedDivisionIds.includes(division.id)}
+                  onChange={() => toggleDivisionSelection(division.id)}
+                />
+                <span>{division.name}</span>
+              </label>
+            ))}
+          </div>
+          {registrationError && (
+            <p className="mt-3 text-sm text-red-200">{registrationError}</p>
+          )}
+          {registrationLocked ? (
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p
+                className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100"
+                role="alert"
+              >
+                You are registered.
+              </p>
+              <button
+                type="button"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={requestRegistrationChange}
+                disabled={
+                  registrationSaving ||
+                  registrationLoading
+                }
+              >
+                {registrationSaving ? "Updating..." : "Request register change"}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p
+                className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
+                role="alert"
+              >
+                Registration after submit can only be edited on request.
+              </p>
+              <button
+                type="button"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={saveRegistration}
+                disabled={
+                  registrationSaving || registrationLoading
+                }
+              >
+                {registrationSaving ? "Submitting..." : "Submit"}
+              </button>
+            </div>
+          )}
           </section>
         </div>
       </div>

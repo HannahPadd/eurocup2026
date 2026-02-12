@@ -53,7 +53,7 @@ export default function DivisionList({
     }
   };
   return (
-    <div className="flex flex-row gap-3 text-black">
+    <div className="flex flex-wrap items-center gap-3 text-black">
       <Select
         className="min-w-[300px]"
         placeholder="Select division"
@@ -75,14 +75,15 @@ export default function DivisionList({
         <>
           <button
             onClick={createDivision}
-            className="text-green-700"
+            className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
             title="Create new division"
           >
             <FontAwesomeIcon icon={faPlus} />
+            Add division
           </button>
           <button
             onClick={deleteDivision}
-            className="text-red-700 disabled:text-red-200"
+            className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={selectedDivisionId === -1}
             title={
               selectedDivisionId === -1
@@ -91,6 +92,7 @@ export default function DivisionList({
             }
           >
             <FontAwesomeIcon icon={faTrash} />
+            Delete
           </button>
         </>
       )}

@@ -19,27 +19,26 @@ function App() {
   return (
     <>
       <Routes>
-        <Route path="*" element={<ViewPage />} />
-
-        {/* Public Routes */}
         <Route path="/" element={<Layout />}>
-        <Route path="tournament" element={<ViewPage />} />
-        <Route path="signup" element={<SignUpPage />} />
-        <Route path="login" element={<LoginPage />} />
-        <Route path="unauthorized" element={<Unauthorized />} />
+          {/* Public Routes */}
+          <Route path="tournament" element={<ViewPage />} />
+          <Route path="signup" element={<SignUpPage />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="unauthorized" element={<Unauthorized />} />
 
-        { /* Protected routes */ }
-        { /* Logged in user Route */}
-        <Route element={<RequireAuth requireAdmin={false} />}></Route>
-          <Route path="/" element={<LandingPage />} />
-        </Route>
-        { /* Admin routes */ }
-        <Route element={<RequireAuth requireAdmin={true} />}>
-          <Route path="manage" element={<ManagePage />} />
-        </Route>
+          { /* Protected routes */ }
+          { /* Logged in user Route */}
+          <Route element={<RequireAuth requireAdmin={false} />}>
+            <Route index element={<LandingPage />} />
+          </Route>
+          { /* Admin routes */ }
+          <Route element={<RequireAuth requireAdmin={false} />}>
+            <Route path="manage" element={<ManagePage />} />
+          </Route>
 
-        {/* Catch all */}
-        <Route path="*" element={<Missing />} />
+          {/* Catch all */}
+          <Route path="*" element={<Missing />} />
+        </Route>
       </Routes>
       { /*
         <div>

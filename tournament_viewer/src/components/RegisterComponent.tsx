@@ -2,7 +2,9 @@ import { createUser } from '../services/user.api';
 import { useRef, useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Division } from '../models/Division';
 
 const USER_REGEX = /^[A-z][A-z0-9-_]{3,23}$/;
 const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%]).{8,24}$/;
@@ -13,6 +15,7 @@ export default function RegisterCompontent() {
 
     const userRef = useRef<HTMLInputElement>(null);
     const errRef = useRef<HTMLDivElement>(null);
+    const navigate = useNavigate();
 
     const [user, setUser] = useState('');
     const [validName, setValidName] = useState(false);
@@ -33,9 +36,13 @@ export default function RegisterCompontent() {
     const [grooveStatsApi, setGrooveStatsApi] = useState('');
     const [validGrooveStatsApi, setValidGrooveStatsApi] = useState(false);
     const [grooveStatsApiFocus, setGrooveStatsApiFocus] = useState(false);
+    const [country, setCountry] = useState('');
 
     const [errMsg, setErrMsg] = useState('');
     const [success, setSuccess] = useState(false);
+    const [divisions, setDivisions] = useState<Division[]>([]);
+    const [selectedDivisionIds, setSelectedDivisionIds] = useState<number[]>([]);
+    const [divisionLoading, setDivisionLoading] = useState(false);
 
     /*
     useEffect(() => {
@@ -64,6 +71,29 @@ export default function RegisterCompontent() {
         //const result = grooveStatsApi;
         setValidGrooveStatsApi(true);
     }, [grooveStatsApi])
+
+    useEffect(() => {
+        const loadDivisions = async () => {
+            setDivisionLoading(true);
+            try {
+                const response = await axios.get<Division[]>("divisions");
+                setDivisions(response.data ?? []);
+            } catch (error) {
+                console.error("Error loading divisions:", error);
+            } finally {
+                setDivisionLoading(false);
+            }
+        };
+        loadDivisions();
+    }, []);
+
+    const toggleDivisionSelection = (divisionId: number) => {
+        setSelectedDivisionIds((prev) =>
+            prev.includes(divisionId)
+                ? prev.filter((id) => id !== divisionId)
+                : [...prev, divisionId]
+        );
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -96,9 +126,15 @@ export default function RegisterCompontent() {
                 username: user,
                 email: email,
                 password: pwd,
-                grooveStatsApi: grooveStatsApi
+                grooveStatsApi: grooveStatsApi,
+                country: country,
+                divisionId: selectedDivisionIds
             });
             setSuccess(true);
+            navigate("/login", {
+                replace: true,
+                state: { alert: "Registration complete. Please sign in." },
+            });
         } catch (error: any) {
             setSuccess(false);
             setErrMsg(error?.message || "Unable to create user.");
@@ -118,7 +154,7 @@ export default function RegisterCompontent() {
                 <section>
                     <h1>Success!</h1>
                     <p>
-                        <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-gray-300 px-3 py-1 text-xs text-gray-900 hover:bg-gray-100">
+                        <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-white/60 px-3 py-1 text-xs text-white hover:bg-white/10">
                             Sign in
                         </Link>
                     </p>
@@ -246,7 +282,6 @@ export default function RegisterCompontent() {
                             name="groovestatsapi"
                             className="w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             autoComplete="off"
-                            required
                             onChange={(e) => setGrooveStatsApi(e.target.value)}
                             maxLength={50}
                             aria-invalid={validGrooveStatsApi ? "false" : "true"}
@@ -260,16 +295,55 @@ export default function RegisterCompontent() {
                     </div>
 
                     <div>
+                        <label htmlFor='country' className="block mb-1">Country:</label>
+                        <input
+                            type="text"
+                            id="country"
+                            name="country"
+                            className="w-full p-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            autoComplete="off"
+                            onChange={(e) => setCountry(e.target.value)}
+                            maxLength={50}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block mb-1">Register for tournament:</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {divisionLoading && (
+                                <div className="text-sm text-gray-500">Loading divisions...</div>
+                            )}
+                            {!divisionLoading && divisions.length === 0 && (
+                                <div className="text-sm text-gray-500">No divisions available.</div>
+                            )}
+                            {divisions.map((division) => (
+                                <label
+                                    key={division.id}
+                                    className="flex items-center gap-2 rounded border border-white/60 px-3 py-2 text-sm text-white"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4"
+                                        checked={selectedDivisionIds.includes(division.id)}
+                                        onChange={() => toggleDivisionSelection(division.id)}
+                                    />
+                                    <span>{division.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
                         <button 
                         disabled={!validName || !validEmail || !validPwd || !validMatch ? true : false}
                         className="bg-lighter text-white p-2 rounded-lg w-full mt-2">
                             Sign up!
                         </button>
                     </div>
-                    <p>
+                    <p className="text-center">
                         Already registered?<br />
-                        <span className="">
-                            <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-gray-300 px-3 py-1 text-xs text-gray-900 hover:bg-gray-100">
+                        <span className="inline-flex w-full justify-center">
+                            <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-white/60 px-3 py-1 text-xs text-white hover:bg-white/10">
                                 Sign in
                             </Link>
                     </span>

@@ -141,7 +141,7 @@ export default function PlayersList() {
     <div>
       <div className="flex flex-col justify-start gap-3 ">
         <div className="flex flex-row gap-3 ">
-          <h2 className="text-red-700">Players List</h2>
+          <h2 className="theme-text">Players List</h2>
           <button
             onClick={createPlayer}
             title="Add new player"
@@ -165,7 +165,7 @@ export default function PlayersList() {
               </div>
             )}
             {!loading && loadError && (
-              <div className="text-center py-2 text-red-600">{loadError}</div>
+              <div className="text-center py-2 theme-text">{loadError}</div>
             )}
             {!loading &&
               !loadError &&
@@ -209,7 +209,7 @@ export default function PlayersList() {
                   .toLowerCase()
                   .includes(search.toLowerCase()),
               ).length === 0 && (
-                <div className="text-center py-2 text-red-500">
+                <div className="text-center py-2 theme-text">
                   No player found
                 </div>
               )}
@@ -231,6 +231,23 @@ export default function PlayersList() {
                 removeFromTeam={removeFromTeam}
                 createTeam={createTeam}
                 deleteTeam={deleteTeam}
+                onUpdateFlags={async (playerId, updates) => {
+                  try {
+                    const response = await axios.patch<Player>(
+                      `players/${playerId}`,
+                      updates,
+                    );
+                    setPlayers(
+                      (prev) =>
+                        prev.map((p) =>
+                          p.id === playerId ? response.data : p,
+                        ),
+                    );
+                    toast.success("Player updated");
+                  } catch (error) {
+                    toast.error("Unable to update player");
+                  }
+                }}
               />
             )}
           </div>
@@ -247,6 +264,7 @@ function PlayerItem({
   removeFromTeam,
   createTeam,
   deleteTeam,
+  onUpdateFlags,
 }: {
   player: Player;
   teams: Team[];
@@ -254,10 +272,14 @@ function PlayerItem({
   removeFromTeam: (playerId: number) => void;
   createTeam: () => void;
   deleteTeam: (teamId: number) => void;
+  onUpdateFlags: (
+    playerId: number,
+    updates: { isAdmin?: boolean; hasRegistered?: boolean },
+  ) => void;
 }) {
   return (
-    <div className={"flex flex-col gap-2 text-red-400"}>
-      <h3 className="text-2xl text-red-700">Player Information</h3>
+    <div className={"flex flex-col gap-2 theme-text"}>
+      <h3 className="text-2xl theme-text">Player Information</h3>
       <div>
         <span>Name: </span>
         <span>{getPlayerDisplayName(player)}</span>
@@ -269,6 +291,30 @@ function PlayerItem({
       <div>
         <span>Divisions: </span>
         <span></span>
+      </div>
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={player.isAdmin ?? false}
+            onChange={(event) =>
+              onUpdateFlags(player.id, { isAdmin: event.target.checked })
+            }
+          />
+          <span>isAdmin</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={player.hasRegistered ?? false}
+            onChange={(event) =>
+              onUpdateFlags(player.id, { hasRegistered: event.target.checked })
+            }
+          />
+          <span>hasRegistered</span>
+        </label>
       </div>
       <div className={"flex flex-row gap-2 items-center"}>
         <span>Team: </span>
@@ -303,7 +349,7 @@ function PlayerItem({
           <FontAwesomeIcon icon={faTrash} />
         </button>
       </div>
-      <h3 className="mt-3 text-red-700">Player Scores</h3>
+      <h3 className="mt-3 theme-text">Player Scores</h3>
       <p>No scores on record for this player.</p>
     </div>
   );

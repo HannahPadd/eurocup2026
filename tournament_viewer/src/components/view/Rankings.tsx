@@ -132,7 +132,9 @@ function PlayerRanking({ players }: { players: Player[] }) {
   const fontAwesomeIcons = [faMedal, faMedal, faMedal, faSpoon];
 
   useEffect(() => {
-    setSortedPlayers([...players].sort((a, b) => b.score - a.score));
+    setSortedPlayers(
+      [...players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),
+    );
   }, [players]);
 
   return (

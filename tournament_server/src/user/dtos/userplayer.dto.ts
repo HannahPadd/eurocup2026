@@ -226,6 +226,16 @@ export class CreateUserPlayerDto {
     @IsOptional()
     @Type(() => Number)
     BracketId: number;
+
+    @ApiProperty({
+    example: [1, 2],
+    description: 'Division IDs the player is registering for',
+    required: false,
+    })
+    @IsOptional()
+    @IsNumber({}, { each: true })
+    @Type(() => Number)
+    divisionId: number[];
 }
 
 export class UpdateUserPlayerDto {

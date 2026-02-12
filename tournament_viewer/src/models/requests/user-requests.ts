@@ -3,4 +3,6 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   grooveStatsApi?: string;
+  country?: string;
+  divisionId?: number[];
 }

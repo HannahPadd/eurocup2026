@@ -72,6 +72,9 @@ export class Player {
   @Column({ default: ""})
   groovestatsApi: string;
 
+  @Column({ default: false })
+  hasRegistered: boolean;
+
   @OneToMany(() => Score, (score) => score.player, { cascade: true })
   scores: Score[];
 
@@ -93,4 +96,3 @@ export class Player {
   @JoinColumn()
   bracket: Bracket;
 }
-

@@ -5,7 +5,12 @@ import { Match } from "../../../models/Match";
 import Select from "react-select";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPlus, faTag, faTrash, faMusic } from "@fortawesome/free-solid-svg-icons";
+import {
+  faPlus,
+  faTag,
+  faTrash,
+  faMusic,
+} from "@fortawesome/free-solid-svg-icons";
 import OkModal from "../../layout/OkModal";
 import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 
@@ -158,6 +163,7 @@ export default function PhaseList({
   ) => {
     await axios.post(`tournament/addSongToMatch`, {
       divisionId,
+      phaseId,
       matchId,
       group,
       level,
@@ -172,6 +178,7 @@ export default function PhaseList({
   ) => {
     await axios.post(`tournament/addSongToMatch`, {
       divisionId,
+      phaseId,
       matchId,
       songId,
     });
@@ -187,7 +194,7 @@ export default function PhaseList({
   };
 
   return (
-    <div className="flex flex-row gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       <Select
         className="min-w-[300px]"
         placeholder="Select phase"
@@ -209,14 +216,15 @@ export default function PhaseList({
         <>
           <button
             onClick={createPhase}
-            className="text-green-700"
+            className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
             title="Create new division"
           >
             <FontAwesomeIcon icon={faPlus} />
+            Add phase
           </button>
           <button
             onClick={markAsSeeding}
-            className="text-blue-700 disabled:text-blue-300"
+            className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!selectedPhase}
             title={
               selectedPhase
@@ -225,10 +233,11 @@ export default function PhaseList({
             }
           >
             <FontAwesomeIcon icon={faTag} />
+            Mark seeding
           </button>
           <button
             onClick={openQualifierMatchModal}
-            className="text-purple-700 disabled:text-purple-300"
+            className="inline-flex items-center gap-2 rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!selectedPhase}
             title={
               selectedPhase
@@ -237,10 +246,11 @@ export default function PhaseList({
             }
           >
             <FontAwesomeIcon icon={faMusic} />
+            Qualifier songs
           </button>
           <button
             onClick={deletePhase}
-            className="text-red-700 disabled:text-red-200"
+            className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={selectedPhaseId === -1}
             title={
               selectedPhaseId === -1
@@ -249,6 +259,7 @@ export default function PhaseList({
             }
           >
             <FontAwesomeIcon icon={faTrash} />
+            Delete
           </button>
         </>
       )}

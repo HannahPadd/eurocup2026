@@ -406,5 +406,21 @@ export class UpdatePlayerDto {
   BracketId: number;
 
   bracket?: Bracket
+
+  @ApiProperty({
+  example: true,
+  description: 'Whether the player has completed registration',
+  required: false,
+  })
+  @IsOptional()
+  hasRegistered: boolean;
+
+  @ApiProperty({
+  example: false,
+  description: 'Whether the player account is an admin',
+  required: false,
+  })
+  @IsOptional()
+  isAdmin: boolean;
   
 }

@@ -3,7 +3,7 @@ import { compare, genSalt, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from "typeorm";
-import { Bracket, Player, Match, Round, Account, Score, Team } from '@persistence/entities';
+import { Bracket, Player, Match, Round, Account, Score, Team, Division } from '@persistence/entities';
 import { CreateUserPlayerDto, UpdateUserPlayerDto } from '../dtos';
 
 
@@ -16,6 +16,8 @@ export class UserService {
         private accountRepo: Repository<Account>,
         @InjectRepository(Player)
         private playerRepo: Repository<Player>,
+        @InjectRepository(Division)
+        private divisionRepo: Repository<Division>,
         private jwtService: JwtService
     ) { }
 
@@ -52,6 +54,20 @@ export class UserService {
             //player.scores = score;
             //player.team = team;
             //player.bracket = bracket;
+
+            if (dto.divisionId && dto.divisionId.length > 0) {
+                const divisions = await Promise.all(
+                    dto.divisionId.map(async (divisionId) => {
+                        const division = await this.divisionRepo.findOneBy({ id: divisionId });
+                        if (!division) {
+                            throw new NotFoundException(`Division with id ${divisionId} not found`);
+                        }
+                        return division;
+                    })
+                );
+                player.divisions = divisions;
+                player.hasRegistered = true;
+            }
 
             await this.playerRepo.save(player);
 

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePlayerDto, UpdatePlayerDto } from '../dtos';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Division, Player, Team } from '@persistence/entities'
+import { Account, Division, Player, Team } from '@persistence/entities'
 
 @Injectable()
 export class PlayerService {
@@ -12,7 +12,9 @@ export class PlayerService {
     @InjectRepository(Team)
     private teamsRepo: Repository<Team>,
     @InjectRepository(Division)
-    private divisionRepo: Repository<Division>
+    private divisionRepo: Repository<Division>,
+    @InjectRepository(Account)
+    private accountRepo: Repository<Account>
   ) { }
   /*TODO
   Avoid double registrations */
@@ -36,15 +38,55 @@ export class PlayerService {
   }
 
   async findAll() {
-    return await this.playersRepo.find();
+    const { entities, raw } = await this.playersRepo
+      .createQueryBuilder("player")
+      .distinct(true)
+      .leftJoinAndSelect("player.divisions", "division")
+      .leftJoin("account", "account", "account.playerId = player.id")
+      .addSelect("account.isAdmin", "account_isAdmin")
+      .getRawAndEntities();
+
+    return entities.map((player, index) => {
+      (player as Player & { isAdmin?: boolean }).isAdmin =
+        raw[index]?.account_isAdmin ?? false;
+      return player;
+    });
   }
 
   async findOne(id: number) {
-    return await this.playersRepo.findOneBy({ id });
+    const { entities, raw } = await this.playersRepo
+      .createQueryBuilder("player")
+      .distinct(true)
+      .leftJoinAndSelect("player.divisions", "division")
+      .leftJoin("account", "account", "account.playerId = player.id")
+      .addSelect("account.isAdmin", "account_isAdmin")
+      .where("player.id = :id", { id })
+      .getRawAndEntities();
+
+    const player = entities[0] ?? null;
+    if (player) {
+      (player as Player & { isAdmin?: boolean }).isAdmin =
+        raw[0]?.account_isAdmin ?? false;
+    }
+    return player;
   }
 
   async findByName(playerName: string) {
-    return await this.playersRepo.findOneBy({ playerName });
+    const { entities, raw } = await this.playersRepo
+      .createQueryBuilder("player")
+      .distinct(true)
+      .leftJoinAndSelect("player.divisions", "division")
+      .leftJoin("account", "account", "account.playerId = player.id")
+      .addSelect("account.isAdmin", "account_isAdmin")
+      .where("player.playerName = :playerName", { playerName })
+      .getRawAndEntities();
+
+    const player = entities[0] ?? null;
+    if (player) {
+      (player as Player & { isAdmin?: boolean }).isAdmin =
+        raw[0]?.account_isAdmin ?? false;
+    }
+    return player;
   }
 
   async update(id: number, dto: UpdatePlayerDto) {
@@ -74,10 +116,26 @@ export class PlayerService {
         })
       )
       player.divisions = divisionArr
+      player.hasRegistered = divisionArr.length > 0;
+    }
+
+    if (dto.hasRegistered !== undefined) {
+      player.hasRegistered = dto.hasRegistered;
+    }
+
+    if (dto.isAdmin !== undefined) {
+      const account = await this.accountRepo.findOne({
+        where: { player: { id } },
+      });
+      if (account) {
+        account.isAdmin = dto.isAdmin;
+        await this.accountRepo.save(account);
+      }
     }
 
     this.playersRepo.merge(player, dto);
-    return await this.playersRepo.save(player);
+    await this.playersRepo.save(player);
+    return await this.findOne(id);
   }
 
   async remove(id: number) {

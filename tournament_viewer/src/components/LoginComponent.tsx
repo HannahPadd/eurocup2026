@@ -11,7 +11,7 @@ export default function SignIn() {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const from = location.state?.from?.pathname || "/manage";
+    const from = location.state?.from?.pathname || "/";
 
     const userRef = useRef<HTMLInputElement>(null);
     const errRef = useRef<HTMLDivElement>(null);
@@ -40,7 +40,8 @@ export default function SignIn() {
             setAuth({username: user, accessToken: accessToken, isAdmin: isAdmin});
             setUser('');
             setPwd('');
-            navigate(from, {replace: true})
+            const destination = from ?? (isAdmin ? "/manage" : "/");
+            navigate(destination, {replace: true})
 
         } catch (err: any) {
             if (!err?.response) {

@@ -491,7 +491,10 @@ export default function MatchTable({
                                     setSongIdPlayerId({
                                       playerId: player.id,
                                       songId: round.song.id,
-                                      playerName: player.name,
+                                      playerName:
+                                        player.name ??
+                                        player.playerName ??
+                                        "Unknown player",
                                       songTitle: round.song.title,
                                     });
                                   }}
