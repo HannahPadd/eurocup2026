@@ -35,9 +35,9 @@ export default function SignIn() {
                 password: pwd
             }, LOGIN_URL);
             const accessToken = response?.data.access_token;
-            const roles = response?.data?.roles;
+            const isAdmin = response?.data?.isAdmin;
 
-            setAuth({username: user, accessToken: accessToken, roles: roles});
+            setAuth({username: user, accessToken: accessToken, isAdmin: isAdmin});
             setUser('');
             setPwd('');
             navigate(from, {replace: true})

@@ -1,3 +1,5 @@
+import { Division } from "./Division";
+
 export interface Player {
   id: number;
   name?: string;
@@ -22,4 +24,5 @@ export interface Player {
   tournaments?: string;
   score?: number;
   teamId?: number;
+  divisions?: Division[];
 }

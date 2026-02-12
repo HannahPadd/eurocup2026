@@ -5,13 +5,15 @@ import {
   ManyToOne, 
   OneToMany, 
   ManyToMany, 
-  JoinColumn } from 'typeorm';
+  JoinColumn, 
+  JoinTable} from 'typeorm';
 
 import { Score } from './score.entity'
 import { Team } from './team.entity'
 import { Match } from './match.entity';
 import { MatchAssignment } from './match_assignment.entity';
 import { Bracket } from './bracket.entity';
+import { Division } from './division.entity';
 
 
 @Entity()
@@ -82,6 +84,10 @@ export class Player {
 
   @OneToMany(() => MatchAssignment, (matchAssignment) => matchAssignment.player, { eager: true })
   matchAssignments: MatchAssignment[];
+
+  @ManyToMany(() => Division)
+  @JoinTable()
+  divisions: Division[]
 
   @ManyToOne(() => Bracket, (bracket) => bracket.player)
   @JoinColumn()

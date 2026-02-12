@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 type DivisionListProps = {
-  onDivisionSelect: (division: Division | null) => void;
+  onDivisionSelect: (division: Division |null) => void;
   controls?: boolean;
 };
 

@@ -21,6 +21,9 @@ export class Account {
     @Column()
     password: string;
 
+    @Column({ default: false })
+    isAdmin: boolean;
+
     @Column({ default: "" })
     refreshToken: string;
 
