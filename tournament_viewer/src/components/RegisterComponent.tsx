@@ -71,11 +71,7 @@ export default function RegisterCompontent() {
         //Validate form data
         const vname = USER_REGEX.test(user);
         const vpwd = PWD_REGEX.test(pwd);
-<<<<<<< HEAD
-        const vpwdmatch = matchPwd;
-=======
         const vpwdmatch = pwd === matchPwd;
->>>>>>> origin/main
         const vemail = EMAIL_REGEX.test(email);
 
         if (!vname) {
@@ -122,15 +118,9 @@ export default function RegisterCompontent() {
                 <section>
                     <h1>Success!</h1>
                     <p>
-<<<<<<< HEAD
-                        {/*TODO
-                        Redirect to player page*/}
-                        <a href="/login">Sign in</a>
-=======
                         <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-gray-300 px-3 py-1 text-xs text-gray-900 hover:bg-gray-100">
                             Sign in
                         </Link>
->>>>>>> origin/main
                     </p>
                 </section>
             ) : (
@@ -286,17 +276,6 @@ export default function RegisterCompontent() {
                     </p>
                 </form>
 
-<<<<<<< HEAD
-                <p>
-                    Already registered?<br />
-                    <span className="">
-                        {/*TODO
-                        Redirect to login page*/}
-                        <a href="/login">Sign in</a>
-                    </span>
-                </p>
-=======
->>>>>>> origin/main
 
             </section>
             )}
