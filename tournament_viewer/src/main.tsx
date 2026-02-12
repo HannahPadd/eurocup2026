@@ -6,7 +6,10 @@ import axios from "axios";
 import { AuthProvider } from "./context/AuthContext.tsx";
 
 //TODO: REPLACE WITH ACTUAL URL WHEN MAKING PR
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL!;
+axios.defaults.baseURL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_PUBLIC_API_URL ||
+  "http://localhost:3000";
 axios.defaults.withCredentials = true;
 
 

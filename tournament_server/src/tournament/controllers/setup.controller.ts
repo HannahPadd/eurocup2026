@@ -3,7 +3,7 @@ import { SetupService } from '../services';
 import {  Setup } from '@persistence/entities';
 import { CreateSetupDto, UpdateSetupDto } from '../dtos';
 
-@Controller('divisions')
+@Controller('setups')
 export class SetupController {
     constructor(private readonly service: SetupService) { }
 

@@ -1,33 +1,141 @@
-interface NavbarProps {
-  theme: string;
-  setTheme: (theme: string) => void;
-}
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import useAuth from "../../hooks/useAuth";
 
-export default function Navbar({ theme, setTheme }: NavbarProps) {
+export default function Navbar() {
+  const { auth, setAuth } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    setAuth(null);
+  };
   return (
-    <nav className="w-full h-16 navbar-bg">
-      <div className="lg:container lg:mx-auto mx-3 flex flex-row gap-10 items-center h-full">
+    <nav className="w-full h-16 navbar-bg relative z-50">
+      <div className="lg:container lg:mx-auto mx-3 flex flex-row gap-6 items-center h-full">
         <span className="hidden lg:inline">
           <img src="/icon.png" alt="logo" className="h-12 w-12 rounded-lg" />
         </span>
         <h2 className="text-white font-bold text-xl">
           Eurocup 2026 Standings
         </h2>
-        <div className="ml-auto flex items-center">
-          <select
-            id="theme-select"
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            className="bg-gray-800 text-white px-2 py-1 rounded"
+        <div className="ml-auto flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
+            <Link
+              to="/tournament"
+              className="text-white hover:text-gray-200 px-3 py-2"
+            >
+              Tournament
+            </Link>
+            {auth?.username ? (
+              <Link
+                to="/"
+                className="text-white hover:text-gray-200 px-3 py-2"
+              >
+                Overview
+              </Link>
+            ) : null}
+            {auth?.username ? (
+              <a
+                href="http://itgeurocup.com"
+                className="text-white hover:text-gray-200 px-3 py-2"
+              >
+                Official site
+              </a>
+            ) : null}
+            {auth?.username ? (
+              <button type="button" onClick={handleLogout} className="px-3 py-2">
+                Logout
+              </button>
+            ) : (
+              <Link to="/login" className="px-3 py-2">
+                Login
+              </Link>
+            )}
+          </div>
+          <button
+            type="button"
+            className="md:hidden text-white"
+            aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
           >
-            <option value="TagTeam">TagTeam</option>
-            <option value="Eurocup">Eurocup</option>
-          </select>
-        </div>
-        <div>
-          <a href="/login">Login</a>
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {menuOpen ? (
+                <>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </>
+              ) : (
+                <>
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </>
+              )}
+            </svg>
+          </button>
         </div>
       </div>
+      {menuOpen ? (
+        <div className="md:hidden absolute left-0 right-0 top-full border-t border-white/10 bg-black/90">
+          <div className="mx-3 py-3 flex flex-col gap-2">
+            <Link
+              to="/tournament"
+              className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+              onClick={() => setMenuOpen(false)}
+            >
+              Tournament
+            </Link>
+            {auth?.username ? (
+              <Link
+                to="/"
+                className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+                onClick={() => setMenuOpen(false)}
+              >
+                Overview
+              </Link>
+            ) : null}
+            {auth?.username ? (
+              <a
+                href="http://itgeurocup.com"
+                className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+                onClick={() => setMenuOpen(false)}
+              >
+                Official site
+              </a>
+            ) : null}
+            {auth?.username ? (
+              <button
+                type="button"
+                onClick={() => {
+                  handleLogout();
+                  setMenuOpen(false);
+                }}
+                className="text-left px-3 py-2 rounded-md"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="px-3 py-2 rounded-md"
+              >
+                Login
+              </Link>
+            )}
+          </div>
+        </div>
+      ) : null}
     </nav>
   );
 }

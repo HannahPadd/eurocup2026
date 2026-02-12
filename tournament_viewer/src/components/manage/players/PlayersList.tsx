@@ -7,22 +7,60 @@ import { Team } from "../../../models/Team.ts";
 import Select from "react-select";
 import { toast } from "react-toastify";
 
+const getPlayerDisplayName = (player: Player) =>
+  (player.playerName ?? player.name ?? "").trim() || "Unnamed player";
+
 export default function PlayersList() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<number>(-1);
 
   const [search, setSearch] = useState<string>("");
 
   useEffect(() => {
-    axios.get<Player[]>("players").then((response) => {
-      setPlayers(response.data.sort((a, b) => a.name.localeCompare(b.name)));
-    });
+    let isMounted = true;
 
-    axios.get<Team[]>("teams").then((response) => {
-      setTeams(response.data.sort((a, b) => a.name.localeCompare(b.name)));
-    });
+    const loadData = async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const [playersResponse, teamsResponse] = await Promise.all([
+          axios.get<Player[]>("players"),
+          axios.get<Team[]>("teams"),
+        ]);
+        if (!isMounted) {
+          return;
+        }
+        setPlayers(
+          playersResponse.data.sort((a, b) =>
+            getPlayerDisplayName(a).localeCompare(getPlayerDisplayName(b)),
+          ),
+        );
+        setTeams(
+          teamsResponse.data.sort((a, b) => a.name.localeCompare(b.name)),
+        );
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+        setLoadError(
+          "Unable to load players. Check your API key and server connection.",
+        );
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const getSelectedPlayer = () => {
@@ -33,9 +71,11 @@ export default function PlayersList() {
     const name = prompt("Enter player name");
 
     if (name) {
-      axios.post<Player>("players", { name }).then((response) => {
-        setPlayers([...players, response.data]);
-      });
+      axios
+        .post<Player>("players", { name, playerName: name })
+        .then((response) => {
+          setPlayers([...players, response.data]);
+        });
     }
   };
 
@@ -110,7 +150,7 @@ export default function PlayersList() {
           </button>
         </div>
         <div className="flex flex-row gap-5">
-          <div className="bg-gray-100 w-[200px] h-[400px] overflow-auto">
+          <div className="bg-gray-100 text-gray-900 w-[200px] h-[400px] overflow-auto">
             <input
               className="p-1 w-full border-blu border outline-none"
               type="search"
@@ -118,45 +158,65 @@ export default function PlayersList() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            {players
-              .filter((p) =>
-                search.length < 0
-                  ? true
-                  : p.name.toLowerCase().includes(search.toLowerCase()),
-              )
-              .map((player) => {
-                return (
-                  <div
-                    key={player.id}
-                    role="button"
-                    onClick={() => setSelectedPlayerId(player.id)}
-                    className={`${
-                      selectedPlayerId === player.id
-                        ? "bg-rossoTag text-white"
-                        : "hover:bg-red-700 hover:text-white"
-                    } cursor-pointer py-2 px-3 flex justify-between items-center gap-3 `}
-                  >
-                    <span>{player.name}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deletePlayer(player.id);
-                      }}
-                      className="text-sm"
+            {loading && (
+              <div className="text-center py-2 text-gray-500">
+                Loading players...
+              </div>
+            )}
+            {!loading && loadError && (
+              <div className="text-center py-2 text-red-600">{loadError}</div>
+            )}
+            {!loading &&
+              !loadError &&
+              players
+                .filter((p) =>
+                  search.length === 0
+                    ? true
+                    : getPlayerDisplayName(p)
+                        .toLowerCase()
+                        .includes(search.toLowerCase()),
+                )
+                .map((player) => {
+                  const displayName = getPlayerDisplayName(player);
+                  return (
+                    <div
+                      key={player.id}
+                      role="button"
+                      onClick={() => setSelectedPlayerId(player.id)}
+                      className={`${
+                        selectedPlayerId === player.id
+                          ? "bg-rossoTag text-white"
+                          : "hover:bg-red-700 hover:text-white"
+                      } cursor-pointer py-2 px-3 flex justify-between items-center gap-3 `}
                     >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
-                );
-              })}
+                      <span>{displayName}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletePlayer(player.id);
+                        }}
+                        className="text-sm"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </div>
+                  );
+                })}
             {search.length > 0 &&
               players.filter((p) =>
-                p.name.toLowerCase().includes(search.toLowerCase()),
+                getPlayerDisplayName(p)
+                  .toLowerCase()
+                  .includes(search.toLowerCase()),
               ).length === 0 && (
                 <div className="text-center py-2 text-red-500">
                   No player found
                 </div>
               )}
+            {!loading && !loadError && players.length === 0 && (
+              <div className="text-center py-2 text-gray-500">
+                No players yet.
+              </div>
+            )}
           </div>
           <div>
             {selectedPlayerId < 0 && (
@@ -199,7 +259,7 @@ function PlayerItem({
       <h3 className="text-2xl text-red-700">Player Information</h3>
       <div>
         <span>Name: </span>
-        <span>{player.name}</span>
+        <span>{getPlayerDisplayName(player)}</span>
       </div>
       <div className={"flex flex-row gap-2 items-center"}>
         <span>Team: </span>

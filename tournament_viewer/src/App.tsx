@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import RequireAuth from "./components/RequireAuth";
 
 import "./index.css";
+import "./themes/Eurocup.css";
 import ViewPage from "./pages/ViewPage";
 import ManagePage from "./pages/ManagePage";
 import SignUpPage from "./pages/SignUpPage";
@@ -11,6 +12,7 @@ import "react-toastify/dist/ReactToastify.css";
 import LoginPage from "./pages/LoginPage";
 import Layout from "./components/Layout";
 import Missing from "./pages/Missing";
+import LandingPage from "./pages/LandingPage";
 
 function App() {
 
@@ -21,7 +23,7 @@ function App() {
 
         {/* Public Routes */}
         <Route path="/" element={<Layout />}>
-        <Route path="view" element={<ViewPage />} />
+        <Route path="tournament" element={<ViewPage />} />
         <Route path="signup" element={<SignUpPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="unauthorized" element={<Unauthorized />} />
@@ -29,7 +31,7 @@ function App() {
         { /* Protected routes */ }
         { /* Admin routes */ }
         <Route element={<RequireAuth /*allowedRoles={["admin"]} *//>}>
-          <Route path="/" element={<ViewPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="manage" element={<ManagePage />} />
         </Route>
 

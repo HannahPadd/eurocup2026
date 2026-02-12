@@ -4,7 +4,7 @@ import { Division } from '@persistence/entities';
 import { CreateDivisionDto, UpdateDivisionDto } from '../dtos';
 
 @Controller('bracket')
-export class DivisionsController {
+export class BracketController {
     constructor(private readonly service: DivisionsService) { }
 
     @Get()

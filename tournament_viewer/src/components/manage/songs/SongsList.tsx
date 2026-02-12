@@ -148,7 +148,7 @@ export default function SongsList() {
                     className={`${
                       selectedSongId === song.id
                         ? "bg-rossoTag text-white"
-                        : "hover:bg-rossoTag hover:text-white"
+                        : "text-gray-900 hover:bg-rossoTag hover:text-white"
                     } cursor-pointer py-2 px-3 flex justify-between items-center gap-3 `}
                   >
                     <span>{song.title}</span>

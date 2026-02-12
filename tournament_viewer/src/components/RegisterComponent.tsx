@@ -1,11 +1,12 @@
-import { createPlayer } from '../services/player/player.api';
+import { createUser } from '../services/user.api';
 import { useRef, useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faTimes, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { Link } from 'react-router-dom';
 
 const USER_REGEX = /^[A-Za-z0-9-\_]{3,23}$/;
 const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%]).{8,24}$/;
-const EMAIL_REGEX = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g;
+const EMAIL_REGEX = /^[\w.-]+@([\w-]+\.)+[\w-]{2,}$/;
 
 
 export default function RegisterCompontent() {
@@ -70,24 +71,41 @@ export default function RegisterCompontent() {
         //Validate form data
         const vname = USER_REGEX.test(user);
         const vpwd = PWD_REGEX.test(pwd);
+<<<<<<< HEAD
         const vpwdmatch = matchPwd;
+=======
+        const vpwdmatch = pwd === matchPwd;
+>>>>>>> origin/main
         const vemail = EMAIL_REGEX.test(email);
 
-        if (!vname || !vpwd || !vpwdmatch || !vemail) {
-            setErrMsg("Invalid Entry");
+        if (!vname) {
+            setErrMsg("Username must be 4-24 characters and start with a letter.");
+            return;
+        }
+        if (!vemail) {
+            setErrMsg("Email address is invalid.");
+            return;
+        }
+        if (!vpwd) {
+            setErrMsg("Password must be 8-24 chars with upper, lower, number, and !@#$%.");
+            return;
+        }
+        if (!vpwdmatch) {
+            setErrMsg("Passwords do not match.");
             return;
         }
         
         try {
-            createPlayer({
-                name: user,
+            await createUser({
+                username: user,
                 email: email,
                 password: pwd,
-                groovestatsApi: grooveStatsApi
-            })
+                grooveStatsApi: grooveStatsApi
+            });
             setSuccess(true);
-        } catch (error) {
+        } catch (error: any) {
             setSuccess(false);
+            setErrMsg(error?.message || "Unable to create user.");
         }
     }
 
@@ -104,9 +122,15 @@ export default function RegisterCompontent() {
                 <section>
                     <h1>Success!</h1>
                     <p>
+<<<<<<< HEAD
                         {/*TODO
                         Redirect to player page*/}
                         <a href="/login">Sign in</a>
+=======
+                        <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-gray-300 px-3 py-1 text-xs text-gray-900 hover:bg-gray-100">
+                            Sign in
+                        </Link>
+>>>>>>> origin/main
                     </p>
                 </section>
             ) : (
@@ -252,8 +276,17 @@ export default function RegisterCompontent() {
                             Sign up!
                         </button>
                     </div>
+                    <p>
+                        Already registered?<br />
+                        <span className="">
+                            <Link to="/login" className="mt-2 inline-flex items-center justify-center rounded border border-gray-300 px-3 py-1 text-xs text-gray-900 hover:bg-gray-100">
+                                Sign in
+                            </Link>
+                    </span>
+                    </p>
                 </form>
 
+<<<<<<< HEAD
                 <p>
                     Already registered?<br />
                     <span className="">
@@ -262,6 +295,8 @@ export default function RegisterCompontent() {
                         <a href="/login">Sign in</a>
                     </span>
                 </p>
+=======
+>>>>>>> origin/main
 
             </section>
             )}

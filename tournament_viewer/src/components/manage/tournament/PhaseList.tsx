@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Phase } from "../../../models/Phase";
 import { Division } from "../../../models/Division";
+import { Match } from "../../../models/Match";
 import Select from "react-select";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faTag, faTrash, faMusic } from "@fortawesome/free-solid-svg-icons";
+import OkModal from "../../layout/OkModal";
+import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 
 type PhaseListProps = {
   divisionId: number;
@@ -19,6 +22,11 @@ export default function PhaseList({
 }: PhaseListProps) {
   const [phases, setPhases] = useState<Phase[]>([]);
   const [selectedPhaseId, setSelectedPhaseId] = useState<number>(-1);
+  const [qualifierMatches, setQualifierMatches] = useState<Match[]>([]);
+  const [qualifierMatchId, setQualifierMatchId] = useState<number | null>(null);
+  const [qualifierMatchModalOpen, setQualifierMatchModalOpen] = useState(false);
+  const [qualifierSongModalOpen, setQualifierSongModalOpen] = useState(false);
+  const [qualifierError, setQualifierError] = useState<string | null>(null);
 
   useEffect(() => {
     axios.get<Division>(`divisions/${divisionId}`).then((response) => {
@@ -29,9 +37,19 @@ export default function PhaseList({
         onPhaseSelect(phases[0]);
       }
     });
+    setQualifierMatches([]);
+    setQualifierMatchId(null);
+    setQualifierMatchModalOpen(false);
+    setQualifierSongModalOpen(false);
+    setQualifierError(null);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [divisionId]);
+
+  const selectedPhase = useMemo(
+    () => phases.find((phase) => phase.id === selectedPhaseId) ?? null,
+    [phases, selectedPhaseId],
+  );
 
   const createPhase = () => {
     const name = prompt("Enter phase name");
@@ -43,6 +61,122 @@ export default function PhaseList({
       });
     }
   };
+
+  const markAsSeeding = () => {
+    if (!selectedPhase) {
+      return;
+    }
+    const name = selectedPhase.name ?? "";
+    if (name.toLowerCase().includes("seeding")) {
+      setQualifierError("Phase already marked as seeding.");
+      return;
+    }
+    const updatedName = `Seeding - ${name}`.trim();
+    axios
+      .patch<Phase>(`phases/${selectedPhase.id}`, { name: updatedName })
+      .then((response) => {
+        setPhases(
+          phases.map((phase) =>
+            phase.id === response.data.id ? response.data : phase,
+          ),
+        );
+        setQualifierError(null);
+      })
+      .catch((error) => {
+        console.error("Error updating phase:", error);
+        setQualifierError("Unable to mark phase as seeding.");
+      });
+  };
+
+  const openQualifierMatchModal = async () => {
+    if (!selectedPhase) {
+      return;
+    }
+    setQualifierError(null);
+    try {
+      const response = await axios.get<Match[]>(
+        `tournament/expandphase/${selectedPhase.id}`,
+      );
+      setQualifierMatches(response.data);
+      if (response.data.length > 0) {
+        setQualifierMatchId(response.data[0].id);
+      } else {
+        setQualifierMatchId(null);
+      }
+      setQualifierMatchModalOpen(true);
+    } catch (error) {
+      console.error("Error loading matches:", error);
+      setQualifierError("Unable to load matches for this phase.");
+    }
+  };
+
+  const openQualifierSongModal = () => {
+    if (!qualifierMatchId || !selectedPhase) {
+      setQualifierError("Select a match to manage qualifier songs.");
+      return;
+    }
+    setQualifierMatchModalOpen(false);
+    setQualifierSongModalOpen(true);
+  };
+
+  const createQualifierMatch = async () => {
+    if (!selectedPhase) {
+      return;
+    }
+    setQualifierError(null);
+    try {
+      const response = await axios.post<Match>(`tournament/addMatch`, {
+        divisionId,
+        phaseId: selectedPhase.id,
+        matchName: "Qualifier",
+        subtitle: "Seeding",
+        multiplier: 1,
+        group: "",
+        scoringSystem: "EurocupScoreCalculator",
+        isManualMatch: true,
+        levels: "",
+        songIds: [],
+        playerIds: [],
+      });
+      const createdMatch = response.data;
+      setQualifierMatches([createdMatch]);
+      setQualifierMatchId(createdMatch.id);
+      setQualifierMatchModalOpen(false);
+      setQualifierSongModalOpen(true);
+    } catch (error) {
+      console.error("Error creating qualifier match:", error);
+      setQualifierError("Unable to create qualifier match.");
+    }
+  };
+
+  const addSongToMatchByRoll = async (
+    divisionId: number,
+    phaseId: number,
+    matchId: number,
+    group: string,
+    level: string,
+  ) => {
+    await axios.post(`tournament/addSongToMatch`, {
+      divisionId,
+      matchId,
+      group,
+      level,
+    });
+  };
+
+  const addSongToMatchBySongId = async (
+    divisionId: number,
+    phaseId: number,
+    matchId: number,
+    songId: number,
+  ) => {
+    await axios.post(`tournament/addSongToMatch`, {
+      divisionId,
+      matchId,
+      songId,
+    });
+  };
+
   const deletePhase = () => {
     if (window.confirm("Are you sure you want to delete this phase?")) {
       axios.delete(`phases/${selectedPhaseId}`).then(() => {
@@ -81,6 +215,30 @@ export default function PhaseList({
             <FontAwesomeIcon icon={faPlus} />
           </button>
           <button
+            onClick={markAsSeeding}
+            className="text-blue-700 disabled:text-blue-300"
+            disabled={!selectedPhase}
+            title={
+              selectedPhase
+                ? "Mark phase as seeding"
+                : "Select phase to mark seeding"
+            }
+          >
+            <FontAwesomeIcon icon={faTag} />
+          </button>
+          <button
+            onClick={openQualifierMatchModal}
+            className="text-purple-700 disabled:text-purple-300"
+            disabled={!selectedPhase}
+            title={
+              selectedPhase
+                ? "Manage qualifier songs"
+                : "Select phase to manage qualifiers"
+            }
+          >
+            <FontAwesomeIcon icon={faMusic} />
+          </button>
+          <button
             onClick={deletePhase}
             className="text-red-700 disabled:text-red-200"
             disabled={selectedPhaseId === -1}
@@ -93,6 +251,76 @@ export default function PhaseList({
             <FontAwesomeIcon icon={faTrash} />
           </button>
         </>
+      )}
+      <OkModal
+        title="Qualifier songs"
+        okText={qualifierMatches.length > 0 ? "Select match" : "Close"}
+        open={qualifierMatchModalOpen}
+        onClose={() => setQualifierMatchModalOpen(false)}
+        onOk={() => {
+          if (qualifierMatches.length === 0) {
+            setQualifierMatchModalOpen(false);
+            return;
+          }
+          openQualifierSongModal();
+        }}
+      >
+        {qualifierMatches.length === 0 ? (
+          <p className="text-sm text-gray-600">
+            No matches exist in this phase. Create a match in the Matches view,
+            then return here to add qualifier songs.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600">
+              Select the match that should hold qualifier songs for this phase.
+            </p>
+            <Select
+              options={qualifierMatches.map((match) => ({
+                value: match.id,
+                label: match.name,
+              }))}
+              value={
+                qualifierMatchId
+                  ? {
+                      value: qualifierMatchId,
+                      label:
+                        qualifierMatches.find((match) => match.id === qualifierMatchId)
+                          ?.name ?? "Select match",
+                    }
+                  : null
+              }
+              onChange={(selected) =>
+                setQualifierMatchId(selected ? selected.value : null)
+              }
+              menuPortalTarget={document.body}
+              styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+            />
+          </div>
+        )}
+        {qualifierMatches.length === 0 && (
+          <button
+            type="button"
+            className="mt-4 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white"
+            onClick={createQualifierMatch}
+          >
+            Create qualifier match
+          </button>
+        )}
+      </OkModal>
+      <AddEditSongToMatchModal
+        divisionId={divisionId}
+        phaseId={selectedPhase?.id ?? -1}
+        matchId={qualifierMatchId ?? -1}
+        open={qualifierSongModalOpen}
+        onClose={() => setQualifierSongModalOpen(false)}
+        onAddSongToMatchByRoll={addSongToMatchByRoll}
+        onAddSongToMatchBySongId={addSongToMatchBySongId}
+        onEditSongToMatchByRoll={addSongToMatchByRoll}
+        onEditSongToMatchBySongId={addSongToMatchBySongId}
+      />
+      {qualifierError && (
+        <span className="text-xs text-red-600 ml-2">{qualifierError}</span>
       )}
     </div>
   );
