@@ -14,10 +14,16 @@ RUN npm ci
 # Copy the rest of the source code
 COPY ./ ./
 
-# Build the app using the secret
-# The secret is only available during this RUN
+ARG VITE_API_BASE_URL
+
+# Build the app using either a build arg or an optional secret.
+# Secrets are only available during this RUN.
 RUN --mount=type=secret,id=vite_api_base_url \
-    export VITE_API_BASE_URL="$(cat /run/secrets/vite_api_base_url)" && \
+    if [ -f /run/secrets/vite_api_base_url ]; then \
+      export VITE_API_BASE_URL="$(cat /run/secrets/vite_api_base_url)"; \
+    else \
+      export VITE_API_BASE_URL="${VITE_API_BASE_URL}"; \
+    fi && \
     npm run build
 
 ################################

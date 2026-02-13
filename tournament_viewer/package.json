@@ -16,6 +16,7 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@headlessui/react": "^1.7.19",
     "react-use-websocket": "^3.0.0",
+    "@microsoft/signalr": "^8.0.0",
     "@react-spring/web": "^9.7.3",
     "axios": "^1.7.2",
     "jose": "^6.1.3",

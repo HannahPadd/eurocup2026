@@ -4,8 +4,8 @@ services:
       context: ./tournament_viewer
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL="api.itgeurocup.com"
-        - VITE_API_KEY=""
+        VITE_API_BASE_URL: "api.itgeurocup.com"
+        VITE_API_KEY: ""
 
     restart: always
     volumes:
@@ -43,7 +43,7 @@ services:
       MARIADB_ROOT_PASSWORD: example
       MARIADB_DATABASE: "tournament"
     volumes:
-    - ./db:/var/lib/mysql:Z
+    - ./db-testing:/var/lib/mysql:Z
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       start_period: 10s

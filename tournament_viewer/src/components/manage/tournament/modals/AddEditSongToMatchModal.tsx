@@ -4,6 +4,24 @@ import { Song } from "../../../../models/Song";
 import axios from "axios";
 import Select from "react-select";
 
+const selectStyles = {
+  control: (base: any) => ({ ...base, color: "#111827" }),
+  singleValue: (base: any) => ({ ...base, color: "#111827" }),
+  input: (base: any) => ({ ...base, color: "#111827" }),
+  placeholder: (base: any) => ({ ...base, color: "#6B7280" }),
+  option: (base: any, state: any) => ({
+    ...base,
+    color: "#111827",
+    backgroundColor: state.isSelected
+      ? "#E5E7EB"
+      : state.isFocused
+        ? "#F3F4F6"
+        : "#FFFFFF",
+  }),
+  menu: (base: any) => ({ ...base, color: "#111827" }),
+  menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+};
+
 type AddSongToMatchModalProps = {
   divisionId: number;
   matchId: number;
@@ -181,7 +199,7 @@ export default function AddEditSongToMatchModal({
                     : setSelectedGroupName("")
                 }
                 menuPortalTarget={document.body}
-                styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+                styles={selectStyles}
               ></Select>
             </div>
 
@@ -191,7 +209,7 @@ export default function AddEditSongToMatchModal({
               <input
                 value={difficultyInput}
                 onChange={(e) => setDifficultyInput(e.target.value)}
-                className="border border-gray-300 px-2 py-2 mr-2 rounded-lg"
+                className="border border-gray-300 px-2 py-2 mr-2 rounded-lg text-gray-900"
                 type="number"
                 placeholder="Type difficulty"
               />
@@ -207,7 +225,7 @@ export default function AddEditSongToMatchModal({
               }}
               value={{ value: selectedSong?.id, label: selectedSong?.title }}
               menuPortalTarget={document.body}
-              styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+              styles={selectStyles}
             />
           </div>
         )}

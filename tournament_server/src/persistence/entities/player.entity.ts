@@ -1,36 +1,36 @@
-import { 
-  Entity, 
-  Column, 
-  PrimaryGeneratedColumn, 
-  ManyToOne, 
-  OneToMany, 
-  ManyToMany, 
-  JoinColumn, 
-  JoinTable} from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  OneToMany,
+  ManyToMany,
+  JoinColumn,
+  JoinTable,
+} from 'typeorm';
 
-import { Score } from './score.entity'
-import { Team } from './team.entity'
+import { Score } from './score.entity';
+import { Team } from './team.entity';
 import { Match } from './match.entity';
 import { MatchAssignment } from './match_assignment.entity';
 import { Bracket } from './bracket.entity';
 import { Division } from './division.entity';
-
 
 @Entity()
 export class Player {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ default: "" })
+  @Column({ default: '' })
   playerPictureUrl: string;
 
   @Column()
   playerName: string;
 
-  @Column({ default: "" })
+  @Column({ default: '' })
   playedFor: string;
 
-  @Column({ default: "No country specified"} )
+  @Column({ default: 'No country specified' })
   country: string;
 
   @Column({ default: -1 })
@@ -39,7 +39,7 @@ export class Player {
   @Column({ default: -1 })
   statminaLevel: number;
 
-  @Column({ default : -1 })
+  @Column({ default: -1 })
   footSpeedLevel: number;
 
   @Column({ default: -1 })
@@ -60,16 +60,16 @@ export class Player {
   @Column({ default: -1 })
   jackTechLevel: number;
 
-  @Column({ default: -1})
+  @Column({ default: -1 })
   xmodTechLevel: number;
 
-  @Column({ default: -1})
+  @Column({ default: -1 })
   burstTechLevel: number;
 
   @Column({ default: -1 })
   rhythmsTechLevel: number;
 
-  @Column({ default: ""})
+  @Column({ default: '' })
   groovestatsApi: string;
 
   @Column({ default: false })
@@ -78,19 +78,25 @@ export class Player {
   @OneToMany(() => Score, (score) => score.player, { cascade: true })
   scores: Score[];
 
-  @ManyToOne(() => Team, (team) => team.players, { orphanedRowAction: "nullify" })
+  @ManyToOne(() => Team, (team) => team.players, {
+    orphanedRowAction: 'nullify',
+  })
   @JoinColumn()
   team: Team;
 
   @ManyToMany(() => Match, (match) => match.players)
   matches: Match[];
 
-  @OneToMany(() => MatchAssignment, (matchAssignment) => matchAssignment.player, { eager: true })
+  @OneToMany(
+    () => MatchAssignment,
+    (matchAssignment) => matchAssignment.player,
+    { eager: true },
+  )
   matchAssignments: MatchAssignment[];
 
   @ManyToMany(() => Division)
   @JoinTable()
-  divisions: Division[]
+  divisions: Division[];
 
   @ManyToOne(() => Bracket, (bracket) => bracket.player)
   @JoinColumn()

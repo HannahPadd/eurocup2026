@@ -47,10 +47,7 @@ export async function editMatchNotes(
   notes: string,
 ): Promise<string> {
   try {
-    const response = await axios.put<Match>("matches", {
-      matchId,
-      notes,
-    });
+    const response = await axios.patch<Match>(`matches/${matchId}`, { notes });
 
     return response.data.notes;
   } catch (error) {

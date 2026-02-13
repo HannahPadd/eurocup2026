@@ -10,6 +10,24 @@ import {Division} from "../../../../models/Division";
 import {Phase} from "../../../../models/Phase";
 import {CreateMatchRequest} from "../../../../models/requests/match-requests";
 
+const selectStyles = {
+    control: (base: any) => ({...base, color: "#111827"}),
+    singleValue: (base: any) => ({...base, color: "#111827"}),
+    input: (base: any) => ({...base, color: "#111827"}),
+    placeholder: (base: any) => ({...base, color: "#6B7280"}),
+    option: (base: any, state: any) => ({
+        ...base,
+        color: "#111827",
+        backgroundColor: state.isSelected
+            ? "#E5E7EB"
+            : state.isFocused
+                ? "#F3F4F6"
+                : "#FFFFFF",
+    }),
+    menu: (base: any) => ({...base, color: "#111827"}),
+    menuPortal: (base: any) => ({...base, zIndex: 9999}),
+};
+
 type CreateMatchModal = {
     open: boolean;
     onClose: () => void;
@@ -129,7 +147,7 @@ export default function CreateMatchModal({
                 <div className="w-full">
                     <h3>Name</h3>
                     <input
-                        className="w-full border border-gray-300 px-2 py-2 rounded-lg"
+                        className="w-full border border-gray-300 px-2 py-2 rounded-lg text-gray-900"
                         type="text"
                         value={matchName}
                         onChange={(e) => setMatchName(e.target.value)}
@@ -139,7 +157,7 @@ export default function CreateMatchModal({
                 <div className="w-full">
                     <h3>Subtitle</h3>
                     <input
-                        className="w-full border border-gray-300 px-2 py-2 rounded-lg"
+                        className="w-full border border-gray-300 px-2 py-2 rounded-lg text-gray-900"
                         type="text"
                         value={subtitle}
                         onChange={(e) => setSubtitle(e.target.value)}
@@ -149,7 +167,7 @@ export default function CreateMatchModal({
                 <div className="w-full">
                     <h3>Multiplier</h3>
                     <input
-                        className="w-full border border-gray-300 px-2 py-2 rounded-lg"
+                        className="w-full border border-gray-300 px-2 py-2 rounded-lg text-gray-900"
                         type="number"
                         value={multiplier}
                         onChange={(e) => setMultiplier(+e.target.value)}
@@ -164,7 +182,7 @@ export default function CreateMatchModal({
                         value={{value: scoringSystem, label: scoringSystem}}
                         onChange={(selected) => setScoringSystem(selected!.value)}
                         menuPortalTarget={document.body}
-                        styles={{menuPortal: (base) => ({...base, zIndex: 9999})}}
+                        styles={selectStyles}
                     ></Select>
                 </div>
                 <div>
@@ -187,7 +205,7 @@ export default function CreateMatchModal({
                         }}
                         value={selectedPlayers.map((p) => ({value: p.id, label: p.name}))}
                         menuPortalTarget={document.body}
-                        styles={{menuPortal: (base) => ({...base, zIndex: 9999})}}
+                        styles={selectStyles}
                     />
                 </div>
                 <div className="w-full">
@@ -235,7 +253,7 @@ export default function CreateMatchModal({
                                             : setSelectedGroupName("")
                                     }
                                     menuPortalTarget={document.body}
-                                    styles={{menuPortal: (base) => ({...base, zIndex: 9999})}}
+                                    styles={selectStyles}
                                 ></Select>
                             </div>
 
@@ -265,7 +283,7 @@ export default function CreateMatchModal({
                                 <input
                                     value={difficultyInput}
                                     onChange={(e) => setDifficultyInput(e.target.value)}
-                                    className="border border-gray-300 px-2 py-2 mr-2 rounded-lg"
+                                    className="border border-gray-300 px-2 py-2 mr-2 rounded-lg text-gray-900"
                                     type="number"
                                     placeholder="Type difficulty"
                                 />
@@ -299,7 +317,7 @@ export default function CreateMatchModal({
                                     label: s.title,
                                 }))}
                                 menuPortalTarget={document.body}
-                                styles={{menuPortal: (base) => ({...base, zIndex: 9999})}}
+                                styles={selectStyles}
                             />
                         </div>
                     )}

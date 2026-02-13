@@ -41,7 +41,7 @@ export default function OkModal({
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white">
+            <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white text-gray-900">
               {title.length > 0 && (
                 <Dialog.Title
                   as="h3"
@@ -51,7 +51,7 @@ export default function OkModal({
                 </Dialog.Title>
               )}
               <div className="mt-2">
-                <div className="text-sm text-gray-500">{children}</div>
+                <div className="text-sm text-gray-900">{children}</div>
               </div>
               <div className="mt-4 flex flex-row-reverse">
                 <button
