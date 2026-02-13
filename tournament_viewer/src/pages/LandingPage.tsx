@@ -4,6 +4,14 @@ import axios from "axios";
 import useAuth from "../hooks/useAuth";
 import { Division } from "../models/Division";
 
+const qualifierBarCount = 15;
+const qualifierBarColor = (index: number) => {
+  const ratio = (index + 1) / qualifierBarCount;
+  if (ratio <= 0.4) return "bg-green-500";
+  if (ratio <= 0.75) return "bg-orange-400";
+  return "bg-red-500";
+};
+
 type QualifierSubmission = {
   percentage: number;
   screenshotUrl: string;
@@ -350,9 +358,25 @@ export default function LandingPage() {
                 >
                   <div>
                     <div className="font-semibold">{song.song.title}</div>
-                    <div className="text-xs text-gray-300">
-                      {division.divisionName} • {phase.phaseName} •{" "}
-                      {song.song.group} {song.song.difficulty}
+                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-300">
+                      <span>{division.divisionName}</span>
+                      <span className="text-gray-400">
+                        {song.song.difficulty}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: qualifierBarCount }).map(
+                          (_, i) => (
+                            <span
+                              key={i}
+                              className={`${
+                                i + 1 <= song.song.difficulty
+                                  ? qualifierBarColor(i)
+                                  : "bg-gray-600"
+                              } h-[0.6rem] w-1.5 mt-[0.1rem] rounded-sm`}
+                            ></span>
+                          ),
+                        )}
+                      </div>
                     </div>
                   </div>
                   <input
@@ -455,37 +479,35 @@ export default function LandingPage() {
             <h2 className="text-2xl font-semibold theme-text">
               Register for tournament
             </h2>
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {registrationLoading && (
-              <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
-                Loading divisions...
-              </div>
-            )}
-            {!registrationLoading && divisions.length === 0 && (
-              <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
-                No divisions available yet.
-              </div>
-            )}
-            {divisions.map((division) => (
-              <label
-                key={division.id}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition ${
-                  registrationLocked
-                    ? "cursor-not-allowed border-white/10 bg-white/5 text-white/70"
-                    : "border-white/10 bg-white/5 text-white"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  disabled={registrationLoading || registrationLocked}
-                  checked={selectedDivisionIds.includes(division.id)}
-                  onChange={() => toggleDivisionSelection(division.id)}
-                />
-                <span>{division.name}</span>
-              </label>
-            ))}
-          </div>
+          {!registrationLocked && (
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {registrationLoading && (
+                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                  Loading divisions...
+                </div>
+              )}
+              {!registrationLoading && divisions.length === 0 && (
+                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                  No divisions available yet.
+                </div>
+              )}
+              {divisions.map((division) => (
+                <label
+                  key={division.id}
+                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition text-white"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    disabled={registrationLoading}
+                    checked={selectedDivisionIds.includes(division.id)}
+                    onChange={() => toggleDivisionSelection(division.id)}
+                  />
+                  <span>{division.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
           {registrationError && (
             <p className="mt-3 text-sm text-red-200">{registrationError}</p>
           )}

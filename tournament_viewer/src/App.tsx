@@ -32,7 +32,7 @@ function App() {
             <Route index element={<LandingPage />} />
           </Route>
           { /* Admin routes */ }
-          <Route element={<RequireAuth requireAdmin={false} />}>
+          <Route element={<RequireAuth requireAdmin={true} />}>
             <Route path="manage" element={<ManagePage />} />
           </Route>
 

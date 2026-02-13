@@ -106,7 +106,7 @@ export default function SongsList() {
             return { value: g, label: g };
           })}
           placeholder="Select group..."
-          className="w-[300px]"
+          className="w-full md:w-[300px]"
           value={
             selectedGroupName
               ? { value: selectedGroupName, label: selectedGroupName }
@@ -118,8 +118,12 @@ export default function SongsList() {
               : setSelectedGroupName("")
           }
         ></Select>
-        <div className="flex flex-row gap-3">
-          <div className="relative bg-gray-100 w-[400px] h-[400px] overflow-auto">
+        <div className="flex flex-col gap-3 md:flex-row">
+          <div
+            className={`relative bg-gray-100 w-full md:w-[400px] h-[400px] overflow-auto ${
+              selectedSongId >= 0 ? "hidden md:block" : ""
+            }`}
+          >
             <input
               className="p-1 w-full sticky inset-0 border-blu border outline-none"
               type="search"
@@ -173,7 +177,15 @@ export default function SongsList() {
                 </div>
               )}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
+            {selectedSongId >= 0 && (
+              <button
+                className="mb-2 inline-flex items-center rounded-md border border-blue-200/60 bg-blue-50 px-3 py-1 text-sm text-blue-700 md:hidden"
+                onClick={() => setSelectedSongId(-1)}
+              >
+                Select other song
+              </button>
+            )}
             {selectedSongId < 0 && (
               <div>Select a song from the list to view informations.</div>
             )}
@@ -190,6 +202,14 @@ export default function SongsList() {
 }
 
 function SongItem({ song }: { song: Song }) {
+  const levelCount = 15;
+  const colorClass = (index: number) => {
+    const ratio = (index + 1) / levelCount;
+    if (ratio <= 0.4) return "bg-green-500";
+    if (ratio <= 0.75) return "bg-orange-400";
+    return "bg-red-500";
+  };
+
   return (
     <div className="text-white">
       <h3 className="text-2xl theme-text">Song Information</h3>
@@ -200,11 +220,11 @@ function SongItem({ song }: { song: Song }) {
       <div className="mt-2">
         <h3 className="theme-text">Difficulty: </h3>
         <div className="flex flex-row items-center ml-1 gap-1">
-          {[...Array(13)].map((_, i) => (
+          {[...Array(levelCount)].map((_, i) => (
             <span
               key={i}
               className={`${
-                i + 1 <= song.difficulty ? "bg-lighter" : "bg-gray-300"
+                i + 1 <= song.difficulty ? colorClass(i) : "bg-gray-300"
               } h-4 rounded-sm w-2 `}
             ></span>
           ))}

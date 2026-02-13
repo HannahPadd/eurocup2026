@@ -6,12 +6,14 @@ import { faMinus, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { Team } from "../../../models/Team.ts";
 import Select from "react-select";
 import { toast } from "react-toastify";
+import useAuth from "../../../hooks/useAuth";
 
 const getPlayerDisplayName = (player: Player) =>
   (player.playerName ?? player.name ?? "").trim() || "Unnamed player";
 
 
 export default function PlayersList() {
+  const { auth, setAuth } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -20,6 +22,31 @@ export default function PlayersList() {
   const [selectedPlayerId, setSelectedPlayerId] = useState<number>(-1);
 
   const [search, setSearch] = useState<string>("");
+
+  const isCurrentUser = (player: Player) => {
+    if (!auth?.username) {
+      return false;
+    }
+    const authName = auth.username.trim().toLowerCase();
+    const playerName = getPlayerDisplayName(player).trim().toLowerCase();
+    return authName.length > 0 && authName === playerName;
+  };
+
+  const syncAuthAdmin = (
+    player: Player,
+    updates: { isAdmin?: boolean; hasRegistered?: boolean },
+  ) => {
+    if (!isCurrentUser(player)) {
+      return;
+    }
+    const nextIsAdmin = player.isAdmin ?? updates.isAdmin;
+    if (typeof nextIsAdmin !== "boolean") {
+      return;
+    }
+    setAuth((prev) =>
+      prev ? { ...prev, isAdmin: nextIsAdmin } : prev,
+    );
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -150,8 +177,12 @@ export default function PlayersList() {
             <FontAwesomeIcon icon={faPlus} />
           </button>
         </div>
-        <div className="flex flex-row gap-5">
-          <div className="bg-gray-100 text-gray-900 w-[200px] h-[400px] overflow-auto">
+        <div className="flex flex-col gap-5 md:flex-row">
+          <div
+            className={`bg-gray-100 text-gray-900 w-full md:w-[260px] h-[400px] overflow-auto ${
+              selectedPlayerId >= 0 ? "hidden md:block" : ""
+            }`}
+          >
             <input
               className="p-1 w-full border-blu border outline-none"
               type="search"
@@ -219,7 +250,15 @@ export default function PlayersList() {
               </div>
             )}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
+            {selectedPlayerId >= 0 && (
+              <button
+                className="mb-2 inline-flex items-center rounded-md border border-blue-200/60 bg-blue-50 px-3 py-1 text-sm text-blue-700 md:hidden"
+                onClick={() => setSelectedPlayerId(-1)}
+              >
+                Select other player
+              </button>
+            )}
             {selectedPlayerId < 0 && (
               <div className={"theme-text"}>Select a player from the list to view informations.</div>
             )}
@@ -243,6 +282,7 @@ export default function PlayersList() {
                           p.id === playerId ? response.data : p,
                         ),
                     );
+                    syncAuthAdmin(response.data, updates);
                     toast.success("Player updated");
                   } catch (error) {
                     toast.error("Unable to update player");
@@ -316,7 +356,7 @@ function PlayerItem({
           <span>hasRegistered</span>
         </label>
       </div>
-      <div className={"flex flex-row gap-2 items-center"}>
+      <div className={"flex flex-wrap gap-2 items-center"}>
         <span>Team: </span>
 
         <Select
@@ -333,7 +373,7 @@ function PlayerItem({
                 }
               : null
           }
-          className={"w-56"}
+          className={"w-full md:w-56"}
           options={teams.map((t) => ({
             label: t.name,
             value: t.id,

@@ -34,6 +34,14 @@ export default function Navbar() {
                 Overview
               </Link>
             ) : null}
+            {auth?.isAdmin ? (
+              <Link
+                to="/manage"
+                className="text-white hover:text-gray-200 px-3 py-2"
+              >
+                Manage
+              </Link>
+            ) : null}
             {auth?.username ? (
               <a
                 href="http://itgeurocup.com"
@@ -102,6 +110,15 @@ export default function Navbar() {
                 onClick={() => setMenuOpen(false)}
               >
                 Overview
+              </Link>
+            ) : null}
+            {auth?.isAdmin ? (
+              <Link
+                to="/manage"
+                className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+                onClick={() => setMenuOpen(false)}
+              >
+                Manage
               </Link>
             ) : null}
             {auth?.username ? (
