@@ -120,6 +120,8 @@ function TeamRanking({ teams }: { teams: Team[] }) {
 
 function PlayerRanking({ players }: { players: Player[] }) {
   const [sortedPlayers, setSortedPlayers] = useState<Player[]>([]);
+  const getPlayerDisplayName = (player: Player) =>
+    (player.playerName ?? player.name ?? "").trim() || "Unnamed player";
 
   // gold, silver, bronze, wood in hex
   const colors = [
@@ -155,7 +157,7 @@ function PlayerRanking({ players }: { players: Player[] }) {
             </span>
           )}
           <span className="flex-1 text-lg font-semibold text-gray-200">
-             #{index+1} {player.name}
+             #{index+1} {getPlayerDisplayName(player)}
           </span>
           <span
             className="text-gray-300 text-2xl font-bold"
