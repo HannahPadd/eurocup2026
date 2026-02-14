@@ -23,6 +23,9 @@ export class QualifierSubmission {
   @Column()
   screenshotUrl: string;
 
+  @Column({ default: 'pending' })
+  status: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

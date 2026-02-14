@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Division, Player, QualifierSubmission, Song } from '@persistence/entities';
-import { CreateQualifierSubmissionDto } from '../dtos';
+import { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto } from '../dtos';
 
 type QualifierSong = {
   song: Song;
@@ -34,6 +34,27 @@ type QualifierDivisionRanking = {
   divisionName: string;
   totalSongs: number;
   rankings: QualifierRankingEntry[];
+};
+
+type QualifierAdminSubmission = {
+  id: number;
+  percentage: number;
+  screenshotUrl: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  player: {
+    id: number;
+    playerName: string;
+    country?: string;
+  };
+  song: {
+    id: number;
+    title: string;
+    group: string;
+    difficulty: number;
+  };
+  divisionIds: number[];
 };
 
 @Injectable()
@@ -192,6 +213,59 @@ export class QualifiersService {
     });
   }
 
+  async listAdminSubmissions(): Promise<QualifierAdminSubmission[]> {
+    const { songToDivisionIds } = await this.buildQualifierSongMaps();
+    const songIds = Array.from(songToDivisionIds.keys());
+    if (songIds.length === 0) {
+      return [];
+    }
+
+    const submissions = await this.qualifierRepo.find({
+      where: { song: { id: In(songIds) } },
+    });
+
+    return submissions.map((submission) => ({
+      id: submission.id,
+      percentage: Number(submission.percentage ?? 0),
+      screenshotUrl: submission.screenshotUrl,
+      status: submission.status ?? 'pending',
+      createdAt: submission.createdAt,
+      updatedAt: submission.updatedAt,
+      player: {
+        id: submission.player?.id,
+        playerName: submission.player?.playerName ?? 'Unnamed player',
+        country: submission.player?.country ?? undefined,
+      },
+      song: {
+        id: submission.song?.id,
+        title: submission.song?.title,
+        group: submission.song?.group,
+        difficulty: submission.song?.difficulty,
+      },
+      divisionIds: songToDivisionIds.get(submission.song?.id) ?? [],
+    }));
+  }
+
+  async updateSubmissionStatus(
+    submissionId: number,
+    dto: UpdateQualifierSubmissionStatusDto,
+  ) {
+    const submission = await this.qualifierRepo.findOne({
+      where: { id: submissionId },
+    });
+    if (!submission) {
+      throw new NotFoundException(
+        `Qualifier submission ${submissionId} not found`,
+      );
+    }
+    submission.status = dto.status;
+    return await this.qualifierRepo.save(submission);
+  }
+
+  async deleteSubmission(submissionId: number) {
+    await this.qualifierRepo.delete(submissionId);
+  }
+
   async upsert(playerId: number, songId: number, dto: CreateQualifierSubmissionDto) {
     const qualifierSongIds = await this.getQualifierSongIds();
     if (!qualifierSongIds.has(songId)) {
@@ -216,6 +290,7 @@ export class QualifiersService {
       submission = new QualifierSubmission();
       submission.player = player;
       submission.song = song;
+      submission.status = 'pending';
     }
 
     submission.percentage = dto.percentage;
@@ -244,25 +319,45 @@ export class QualifiersService {
     }));
   }
 
-  private async getQualifierSongIds(): Promise<Set<number>> {
+  private async buildQualifierSongMaps(): Promise<{
+    divisionSongIds: Map<number, Set<number>>;
+    songToDivisionIds: Map<number, number[]>;
+  }> {
     const divisions = await this.divisionRepo.find();
-    const songIds = new Set<number>();
+    const divisionSongIds = new Map<number, Set<number>>();
+    const songToDivisionIds = new Map<number, number[]>();
 
     for (const division of divisions) {
       const phases = (division.phases || []).filter((phase) =>
         phase.name?.toLowerCase().includes('seeding')
       );
+      const songIds = new Set<number>();
+
       for (const phase of phases) {
         for (const match of phase.matches || []) {
           for (const round of match.rounds || []) {
-            if (round.song?.id) {
-              songIds.add(round.song.id);
+            const songId = round.song?.id;
+            if (!songId) {
+              continue;
+            }
+            songIds.add(songId);
+            const existing = songToDivisionIds.get(songId) ?? [];
+            if (!existing.includes(division.id)) {
+              existing.push(division.id);
+              songToDivisionIds.set(songId, existing);
             }
           }
         }
       }
+
+      divisionSongIds.set(division.id, songIds);
     }
 
-    return songIds;
+    return { divisionSongIds, songToDivisionIds };
+  }
+
+  private async getQualifierSongIds(): Promise<Set<number>> {
+    const { songToDivisionIds } = await this.buildQualifierSongMaps();
+    return new Set(songToDivisionIds.keys());
   }
 }

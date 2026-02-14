@@ -1,6 +1,6 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Query, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, ValidationPipe } from '@nestjs/common';
 import { QualifiersService } from '../services/qualifiers.service';
-import { CreateQualifierSubmissionDto } from '../dtos';
+import { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto } from '../dtos';
 
 @Controller()
 export class QualifiersController {
@@ -18,6 +18,24 @@ export class QualifiersController {
   @Get('qualifiers/rankings')
   async rankings() {
     return await this.service.rankings();
+  }
+
+  @Get('qualifiers/admin/submissions')
+  async adminSubmissions() {
+    return await this.service.listAdminSubmissions();
+  }
+
+  @Patch('qualifiers/admin/submissions/:id')
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new ValidationPipe()) dto: UpdateQualifierSubmissionStatusDto
+  ) {
+    return await this.service.updateSubmissionStatus(id, dto);
+  }
+
+  @Delete('qualifiers/admin/submissions/:id')
+  async deleteSubmission(@Param('id', ParseIntPipe) id: number) {
+    return await this.service.deleteSubmission(id);
   }
 
   @Post('qualifier/:playerId/:songId')

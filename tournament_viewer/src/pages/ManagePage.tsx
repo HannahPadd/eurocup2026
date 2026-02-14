@@ -11,6 +11,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import SetupsManager from "../components/manage/setups/SetupsManager";
 import ImportModal from "../components/manage/import/ImportModal";
+import QualifiersAdmin from "../components/manage/qualifiers/QualifiersAdmin";
 import CabOrganizationView from "../components/manage/development/Development.tsx";
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -123,6 +124,18 @@ export default function ManagePage() {
               )
             }
           >
+            Qualifiers
+          </Tab>
+          <Tab
+            className={({ selected }) =>
+              classNames(
+                "py-2 px-4 text-lg",
+                selected
+                  ? "border-b-2 border-rossoTesto font-bold theme-text"
+                  : "text-gray-500",
+              )
+            }
+          >
             Setups
           </Tab>
             <Tab
@@ -147,6 +160,9 @@ export default function ManagePage() {
           </Tab.Panel>
           <Tab.Panel>
             <PlayersList onImport={() => setImportMode("players")} />
+          </Tab.Panel>
+          <Tab.Panel>
+            <QualifiersAdmin />
           </Tab.Panel>
           <Tab.Panel>
             <SetupsManager />

@@ -12,7 +12,7 @@ import { CreateMatchAssignmentDto, UpdateMatchAssignmentDto } from './dtos/match
 import { CreateSetupDto, UpdateSetupDto } from './dtos/setup.dto';
 import { CreateAccountDto, UpdateAcountDto  } from './dtos/acount.dto'
 import { CreateAccountPlayerDto, UpdateAccountPlayerDto } from './dtos/accountplayer.dto';
-import { CreateQualifierSubmissionDto } from './dtos/qualifier.dto';
+import { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto } from './dtos/qualifier.dto';
 
 export { CreateDivisionDto, UpdateDivisionDto };
 export { CreateMatchDto, UpdateMatchDto };
@@ -28,4 +28,4 @@ export { CreateMatchAssignmentDto, UpdateMatchAssignmentDto };
 export { CreateSetupDto, UpdateSetupDto };
 export { CreateAccountDto, UpdateAcountDto };
 export { CreateAccountPlayerDto, UpdateAccountPlayerDto };
-export { CreateQualifierSubmissionDto };
+export { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto };

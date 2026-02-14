@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsUrl } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsUrl } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateQualifierSubmissionDto {
@@ -13,4 +13,15 @@ export class CreateQualifierSubmissionDto {
   @IsNotEmpty()
   @IsUrl()
   screenshotUrl: string;
+}
+
+export class UpdateQualifierSubmissionStatusDto {
+  @ApiProperty({
+    description: 'Submission status',
+    example: 'approved',
+    enum: ['pending', 'approved', 'rejected'],
+  })
+  @IsNotEmpty()
+  @IsIn(['pending', 'approved', 'rejected'])
+  status: 'pending' | 'approved' | 'rejected';
 }
