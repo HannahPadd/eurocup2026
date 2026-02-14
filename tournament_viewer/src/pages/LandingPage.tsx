@@ -3,14 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import useAuth from "../hooks/useAuth";
 import { Division } from "../models/Division";
-
-const qualifierBarCount = 15;
-const qualifierBarColor = (index: number) => {
-  const ratio = (index + 1) / qualifierBarCount;
-  if (ratio <= 0.4) return "bg-green-500";
-  if (ratio <= 0.75) return "bg-orange-400";
-  return "bg-red-500";
-};
+import { countryToFlagUrl, countryToIsoCode } from "../utils/flags";
+import QualifierList, {
+  QualifierListItem,
+} from "../components/qualifiers/QualifierList";
+import { formatPercentageDisplay, parsePercentage } from "../utils/formatting";
 
 type QualifierSubmission = {
   percentage: number;
@@ -45,12 +42,18 @@ type PlayerProfile = {
   playerName?: string;
   divisions?: Division[];
   hasRegistered?: boolean;
+  country?: string;
 };
+
+const UNKNOWN_COUNTRY_LABEL = "Unknown";
 
 export default function LandingPage() {
   const { auth } = useAuth();
   const playerName = auth?.username || "Player";
   const [playerId, setPlayerId] = useState<number | null>(null);
+  const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(
+    null,
+  );
   const [qualifiers, setQualifiers] = useState<QualifierDivision[]>([]);
   const [qualifierInputs, setQualifierInputs] = useState<
     Record<number, { percentage: string; screenshotUrl: string }>
@@ -58,6 +61,8 @@ export default function LandingPage() {
   const [qualifierLoading, setQualifierLoading] = useState(false);
   const [qualifierSaving, setQualifierSaving] = useState(false);
   const [qualifierError, setQualifierError] = useState<string | null>(null);
+  const [qualifierSaved, setQualifierSaved] = useState(false);
+  const [qualifierFlashKey, setQualifierFlashKey] = useState(0);
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [selectedDivisionIds, setSelectedDivisionIds] = useState<number[]>([]);
   const [registrationLoading, setRegistrationLoading] = useState(false);
@@ -66,23 +71,35 @@ export default function LandingPage() {
     null
   );
   const [registrationLocked, setRegistrationLocked] = useState(false);
+  const [countrySaving, setCountrySaving] = useState(false);
 
   useEffect(() => {
     const loadPlayer = async () => {
       if (!auth?.username) {
         setPlayerId(null);
+        setPlayerProfile(null);
         return;
       }
       try {
         const response = await axios.get("players");
-        const players = response.data as { id: number; playerName: string }[];
+        const players = response.data as {
+          id: number;
+          playerName: string;
+          country?: string;
+        }[];
         const player = players.find((item) => item.playerName === auth.username);
         if (!player) {
           setQualifierError("Player profile not found for this account.");
           setPlayerId(null);
+          setPlayerProfile(null);
           return;
         }
         setPlayerId(player.id);
+        setPlayerProfile({
+          id: player.id,
+          playerName: player.playerName,
+          country: player.country,
+        });
       } catch (error) {
         console.error("Error loading player profile:", error);
         setQualifierError("Unable to load player profile.");
@@ -110,6 +127,7 @@ export default function LandingPage() {
     const loadRegistration = async () => {
       if (!playerId) {
         setSelectedDivisionIds([]);
+        setPlayerProfile((prev) => (prev ? { ...prev, divisions: [] } : prev));
         return;
       }
       setRegistrationLoading(true);
@@ -121,6 +139,7 @@ export default function LandingPage() {
           response.data?.hasRegistered ?? existing.length > 0;
         setSelectedDivisionIds(existing.map((division) => division.id));
         setRegistrationLocked(registered);
+        setPlayerProfile(response.data ?? null);
       } catch (error) {
         console.error("Error loading registration:", error);
         setRegistrationError("Unable to load registration status.");
@@ -142,7 +161,9 @@ export default function LandingPage() {
       for (const phase of division.phases) {
         for (const { song, submission } of phase.songs) {
           nextInputs[song.id] = {
-            percentage: submission ? String(submission.percentage) : "",
+            percentage: submission
+              ? formatPercentageDisplay(submission.percentage)
+              : "",
             screenshotUrl: submission?.screenshotUrl ?? "",
           };
         }
@@ -190,6 +211,18 @@ export default function LandingPage() {
     [qualifiers]
   );
 
+  const qualifierItems = useMemo<QualifierListItem[]>(
+    () =>
+      qualifierSongs.map(({ division, phase, song }) => ({
+        key: `${division.divisionId}-${phase.phaseId}-${song.song.id}`,
+        divisionName: division.divisionName,
+        songId: song.song.id,
+        songTitle: song.song.title,
+        difficulty: song.song.difficulty,
+      })),
+    [qualifierSongs],
+  );
+
   const updateQualifierInput = (
     songId: number,
     field: "percentage" | "screenshotUrl",
@@ -212,6 +245,7 @@ export default function LandingPage() {
     }
     setQualifierSaving(true);
     setQualifierError(null);
+    setQualifierSaved(false);
     try {
       const submissions: {
         songId: number;
@@ -225,13 +259,26 @@ export default function LandingPage() {
         }
         const percentage = Number(entry.percentage);
         if (Number.isNaN(percentage)) {
-          setQualifierError("Qualifier scores must be numbers.");
+          setQualifierError(
+            "Qualifier scores must be numbers between 0.00 and 100.",
+          );
           setQualifierSaving(false);
           return;
         }
+        if (percentage < 0 || percentage > 100) {
+          setQualifierError(
+            "Qualifier scores must be between 0.00 and 100.",
+          );
+          setQualifierSaving(false);
+          return;
+        }
+        const normalized =
+          percentage >= 100
+            ? 100
+            : Number((Math.round(percentage * 100) / 100).toFixed(2));
         submissions.push({
           songId: song.song.id,
-          percentage,
+          percentage: normalized,
           screenshotUrl: entry.screenshotUrl,
         });
       }
@@ -252,6 +299,9 @@ export default function LandingPage() {
         params: { playerId },
       });
       applyQualifierData(refreshed.data ?? []);
+      setQualifierSaved(true);
+      setQualifierFlashKey((prev) => prev + 1);
+      window.setTimeout(() => setQualifierSaved(false), 3500);
     } catch (error) {
       console.error("Error saving qualifiers:", error);
       setQualifierError("Unable to save qualifiers.");
@@ -312,9 +362,46 @@ export default function LandingPage() {
     }
   };
 
+  const updateCountry = async () => {
+    if (!playerId) {
+      setRegistrationError("Player profile is required to update country.");
+      return;
+    }
+    const current = playerProfile?.country?.trim() || "";
+    const next = prompt("Enter your country", current);
+    if (next === null) {
+      return;
+    }
+    const trimmed = next.trim();
+    if (!trimmed) {
+      setRegistrationError("Country cannot be empty.");
+      return;
+    }
+    setCountrySaving(true);
+    setRegistrationError(null);
+    try {
+      const response = await axios.patch<PlayerProfile>(`players/${playerId}`, {
+        country: trimmed,
+      });
+      setPlayerProfile((prev) => ({
+        ...(prev ?? { id: playerId }),
+        ...response.data,
+      }));
+    } catch (error) {
+      console.error("Error updating country:", error);
+      setRegistrationError("Unable to update country.");
+    } finally {
+      setCountrySaving(false);
+    }
+  };
+
   const selectedDivisions = divisions.filter((division) =>
     selectedDivisionIds.includes(division.id)
   );
+
+  const countryLabel = playerProfile?.country?.trim() || UNKNOWN_COUNTRY_LABEL;
+  const countryIso = countryToIsoCode(playerProfile?.country);
+  const countryFlag = countryToFlagUrl(playerProfile?.country, 40);
 
   return (
     <div className="text-white mx-auto">
@@ -322,6 +409,37 @@ export default function LandingPage() {
         <h1 className="text-4xl sm:text-5xl font-bold theme-text">
           Welcome {playerName}
         </h1>
+        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-gray-200">
+          <img
+            src={countryFlag}
+            alt={`${countryLabel} flag`}
+            className="h-4 w-6 rounded-sm border border-white/20 object-cover"
+            loading="lazy"
+          />
+          <span className="font-semibold text-white">{countryLabel}</span>
+          <button
+            type="button"
+            onClick={updateCountry}
+            disabled={countrySaving}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-200 hover:text-blue-100 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+            {countrySaving ? "Saving..." : "edit"}
+          </button>
+        </div>
         <p className="text-gray-200">
           Lock in your qualifiers and tournament registration in one place.
         </p>
@@ -346,73 +464,44 @@ export default function LandingPage() {
                 No qualifier songs configured yet.
               </div>
             )}
-            {qualifierSongs.map(({ division, phase, song }) => {
-              const input = qualifierInputs[song.song.id] || {
-                percentage: "",
-                screenshotUrl: "",
-              };
-              return (
-                <div
-                  key={`${division.divisionId}-${phase.phaseId}-${song.song.id}`}
-                  className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center bg-white/5 border border-white/10 rounded-lg p-4"
-                >
-                  <div>
-                    <div className="font-semibold">{song.song.title}</div>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-300">
-                      <span>{division.divisionName}</span>
-                      <span className="text-gray-400">
-                        {song.song.difficulty}
-                      </span>
-                      <div className="flex items-center gap-0.5">
-                        {Array.from({ length: qualifierBarCount }).map(
-                          (_, i) => (
-                            <span
-                              key={i}
-                              className={`${
-                                i + 1 <= song.song.difficulty
-                                  ? qualifierBarColor(i)
-                                  : "bg-gray-600"
-                              } h-[0.6rem] w-1.5 mt-[0.1rem] rounded-sm`}
-                            ></span>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Score (77.77)"
-                    className="w-full rounded-md bg-white text-black px-3 py-2"
-                    value={input.percentage}
-                    onChange={(event) =>
-                      updateQualifierInput(
-                        song.song.id,
-                        "percentage",
-                        event.target.value
-                      )
-                    }
-                  />
-                  <input
-                    type="url"
-                    placeholder="Screenshot URL"
-                    className="w-full rounded-md bg-white text-black px-3 py-2"
-                    value={input.screenshotUrl}
-                    onChange={(event) =>
-                      updateQualifierInput(
-                        song.song.id,
-                        "screenshotUrl",
-                        event.target.value
-                      )
-                    }
-                  />
-                </div>
-              );
-            })}
+            <QualifierList
+              items={qualifierItems}
+              inputs={qualifierInputs}
+              onChange={updateQualifierInput}
+              onBlurPercentage={(songId, value) => {
+                const parsed = parsePercentage(value);
+                updateQualifierInput(
+                  songId,
+                  "percentage",
+                  parsed === null ? "" : formatPercentageDisplay(parsed),
+                );
+              }}
+              flash={qualifierSaved}
+              flashKey={qualifierFlashKey}
+            />
           </div>
           {qualifierError && (
             <p className="mt-3 text-sm text-red-200">{qualifierError}</p>
           )}
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+            {qualifierSaved ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Qualifiers saved
+              </span>
+            ) : null}
             <button
               type="button"
               className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"

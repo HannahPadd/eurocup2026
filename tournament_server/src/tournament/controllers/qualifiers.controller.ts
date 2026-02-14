@@ -15,6 +15,11 @@ export class QualifiersController {
     return await this.service.list(parsedPlayerId);
   }
 
+  @Get('qualifiers/rankings')
+  async rankings() {
+    return await this.service.rankings();
+  }
+
   @Post('qualifier/:playerId/:songId')
   async upsert(
     @Param('playerId', ParseIntPipe) playerId: number,

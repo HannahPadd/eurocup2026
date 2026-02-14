@@ -10,6 +10,7 @@ import { faHeart } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { Player } from "../../models/Player.ts";
 import { Team, TEAM_COLORS } from "../../models/Team.ts";
+import { countryToFlagUrl } from "../../utils/flags";
 
 export default function LiveScores() {
   const [, setScoreUpdateConnection] = useState<HubConnection | null>(null);
@@ -66,8 +67,13 @@ export default function LiveScores() {
     });
   }, [scores]);
 
+  const getPlayer = (playerName: string) =>
+    players.find(
+      (p) => p.name === playerName || p.playerName === playerName,
+    );
+
   const getTeamColor = (playerName: string) => {
-    const player = players.find((p) => p.name === playerName);
+    const player = getPlayer(playerName);
 
     console.log(player);
 
@@ -113,8 +119,17 @@ export default function LiveScores() {
             } text-sfondoPagina ${idx === 0 ? "animate-first-place" : ""} `}
           >
             <div className="flex flex-row gap-5 justify-between items-end w-full">
-              <span className="text-xl">
+              <span className="flex items-center gap-2 text-xl">
                 <span className="italic">#{idx + 1}</span>{" "}
+                <img
+                  src={countryToFlagUrl(
+                    getPlayer(score.score.playerName)?.country,
+                    24,
+                  )}
+                  alt={`${score.score.playerName} flag`}
+                  className="h-4 w-6 rounded-sm border border-white/20 object-cover"
+                  loading="lazy"
+                />
                 <span className="font-bold">{score.score.playerName}</span>
               </span>
 

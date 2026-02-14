@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Division, Player, QualifierSubmission, Song } from '@persistence/entities';
 import { CreateQualifierSubmissionDto } from '../dtos';
 
@@ -19,6 +19,21 @@ type QualifierDivision = {
   divisionId: number;
   divisionName: string;
   phases: QualifierPhase[];
+};
+
+type QualifierRankingEntry = {
+  playerId: number;
+  playerName: string;
+  playerCountry?: string;
+  averagePercentage: number;
+  submittedCount: number;
+};
+
+type QualifierDivisionRanking = {
+  divisionId: number;
+  divisionName: string;
+  totalSongs: number;
+  rankings: QualifierRankingEntry[];
 };
 
 @Injectable()
@@ -56,6 +71,125 @@ export class QualifiersService {
         songs: this.extractQualifierSongs(phase, submissions),
       })),
     }));
+  }
+
+  async rankings(): Promise<QualifierDivisionRanking[]> {
+    const divisions = await this.divisionRepo.find();
+    const divisionSongIds = new Map<number, Set<number>>();
+    const songToDivisionIds = new Map<number, number[]>();
+
+    for (const division of divisions) {
+      const phases = (division.phases || []).filter((phase) =>
+        phase.name?.toLowerCase().includes('seeding')
+      );
+      const songIds = new Set<number>();
+
+      for (const phase of phases) {
+        for (const match of phase.matches || []) {
+          for (const round of match.rounds || []) {
+            const songId = round.song?.id;
+            if (!songId) {
+              continue;
+            }
+            songIds.add(songId);
+            const existing = songToDivisionIds.get(songId) ?? [];
+            if (!existing.includes(division.id)) {
+              existing.push(division.id);
+              songToDivisionIds.set(songId, existing);
+            }
+          }
+        }
+      }
+
+      divisionSongIds.set(division.id, songIds);
+    }
+
+    const allSongIds = Array.from(songToDivisionIds.keys());
+    if (allSongIds.length === 0) {
+      return divisions.map((division) => ({
+        divisionId: division.id,
+        divisionName: division.name,
+        totalSongs: 0,
+        rankings: [],
+      }));
+    }
+
+    const submissions = await this.qualifierRepo.find({
+      where: { song: { id: In(allSongIds) } },
+    });
+
+    const rankingsByDivision = new Map<
+      number,
+      Map<
+        number,
+        {
+          playerId: number;
+          playerName: string;
+          playerCountry?: string;
+          totalPercentage: number;
+          submittedCount: number;
+        }
+      >
+    >();
+
+    for (const submission of submissions) {
+      const divisionIds = songToDivisionIds.get(submission.song.id) ?? [];
+      const playerId = submission.player?.id;
+      if (!playerId) {
+        continue;
+      }
+      const percentage = Number(submission.percentage ?? 0);
+
+      for (const divisionId of divisionIds) {
+        const divisionMap =
+          rankingsByDivision.get(divisionId) ?? new Map();
+        const entry = divisionMap.get(playerId) ?? {
+          playerId,
+          playerName: submission.player.playerName ?? "Unnamed player",
+          playerCountry: submission.player.country ?? undefined,
+          totalPercentage: 0,
+          submittedCount: 0,
+        };
+        entry.totalPercentage += Number.isNaN(percentage) ? 0 : percentage;
+        entry.submittedCount += 1;
+        divisionMap.set(playerId, entry);
+        rankingsByDivision.set(divisionId, divisionMap);
+      }
+    }
+
+    return divisions.map((division) => {
+      const totalSongs = divisionSongIds.get(division.id)?.size ?? 0;
+      const entries = Array.from(
+        rankingsByDivision.get(division.id)?.values() ?? []
+      )
+        .map((entry) => ({
+          playerId: entry.playerId,
+          playerName: entry.playerName,
+          playerCountry: entry.playerCountry,
+          averagePercentage: entry.submittedCount
+            ? Number(
+                (entry.totalPercentage / entry.submittedCount).toFixed(2)
+              )
+            : 0,
+          submittedCount: entry.submittedCount,
+        }))
+        .sort((a, b) => {
+          if (b.averagePercentage !== a.averagePercentage) {
+            return b.averagePercentage - a.averagePercentage;
+          }
+          if (b.submittedCount !== a.submittedCount) {
+            return b.submittedCount - a.submittedCount;
+          }
+          return a.playerName.localeCompare(b.playerName);
+        });
+
+      return {
+        divisionId: division.id,
+        divisionName: division.name,
+        totalSongs,
+        rankings: entries,
+      };
+    });
   }
 
   async upsert(playerId: number, songId: number, dto: CreateQualifierSubmissionDto) {

@@ -17,7 +17,7 @@ export class QualifierSubmission {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column('decimal')
+  @Column('decimal', { precision: 5, scale: 2 })
   percentage: number;
 
   @Column()
