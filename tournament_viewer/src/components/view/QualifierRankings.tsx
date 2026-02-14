@@ -21,6 +21,7 @@ export default function QualifierRankings() {
   const [divisions, setDivisions] = useState<QualifierDivisionRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const visibleDivisions = divisions.filter((division) => division.totalSongs > 0);
 
   useEffect(() => {
     let isMounted = true;
@@ -69,7 +70,7 @@ export default function QualifierRankings() {
     );
   }
 
-  if (divisions.length === 0) {
+  if (visibleDivisions.length === 0) {
     return (
       <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
         No qualifier divisions available yet.
@@ -79,7 +80,7 @@ export default function QualifierRankings() {
 
   return (
     <div className="space-y-6">
-      {divisions.map((division) => (
+      {visibleDivisions.map((division) => (
         <section
           key={division.divisionId}
           className="rounded-lg border border-white/10 bg-white/5 p-4"

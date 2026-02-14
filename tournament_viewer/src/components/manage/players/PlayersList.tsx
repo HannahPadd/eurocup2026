@@ -2,11 +2,19 @@ import { useEffect, useState } from "react";
 import { Player } from "../../../models/Player";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMinus, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faMinus,
+  faPenToSquare,
+  faPlus,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
 import { Team } from "../../../models/Team.ts";
+import { Division } from "../../../models/Division.ts";
 import Select from "react-select";
 import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
+import { getPlayerDivisionIds } from "../../../utils/playerDivisions";
+import PlayerDivisionsModal from "../divisions/PlayerDivisionsModal";
 
 const getPlayerDisplayName = (player: Player) =>
   (player.playerName ?? player.name ?? "").trim() || "Unnamed player";
@@ -16,6 +24,7 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
   const { auth, setAuth } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -55,9 +64,10 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
       setLoading(true);
       setLoadError(null);
       try {
-        const [playersResponse, teamsResponse] = await Promise.all([
+        const [playersResponse, teamsResponse, divisionsResponse] = await Promise.all([
           axios.get<Player[]>("players"),
           axios.get<Team[]>("teams"),
+          axios.get<Division[]>("divisions"),
         ]);
         if (!isMounted) {
           return;
@@ -69,6 +79,11 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
         );
         setTeams(
           teamsResponse.data.sort((a, b) => a.name.localeCompare(b.name)),
+        );
+        setDivisions(
+          (divisionsResponse.data ?? []).sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
         );
       } catch (error) {
         if (!isMounted) {
@@ -113,6 +128,30 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
         setPlayers(players.filter((p) => p.id !== id));
         setSelectedPlayerId(-1);
       });
+    }
+  };
+
+  const editPlayerName = async (player: Player) => {
+    const currentName = getPlayerDisplayName(player);
+    const nextName = prompt("Edit player name", currentName)?.trim();
+    if (!nextName || nextName === currentName) {
+      return;
+    }
+    try {
+      const response = await axios.patch<Player>(`players/${player.id}`, {
+        playerName: nextName,
+      });
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === player.id ? response.data : item)),
+      );
+      setAuth((prev) =>
+        prev && prev.username.trim().toLowerCase() === currentName.toLowerCase()
+          ? { ...prev, username: nextName }
+          : prev,
+      );
+      toast.success("Player name updated");
+    } catch (error) {
+      toast.error("Unable to update player name");
     }
   };
 
@@ -232,15 +271,28 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                       } cursor-pointer py-2 px-3 flex justify-between items-center gap-3 `}
                     >
                       <span>{displayName}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deletePlayer(player.id);
-                        }}
-                        className="text-sm"
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            editPlayerName(player);
+                          }}
+                          className="text-sm"
+                          title="Edit player name"
+                        >
+                          <FontAwesomeIcon icon={faPenToSquare} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePlayer(player.id);
+                          }}
+                          className="text-sm"
+                          title="Delete player"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -280,6 +332,7 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                 removeFromTeam={removeFromTeam}
                 createTeam={createTeam}
                 deleteTeam={deleteTeam}
+                divisions={divisions}
                 onUpdateFlags={async (playerId, updates) => {
                   try {
                     const response = await axios.patch<Player>(
@@ -298,6 +351,25 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                     toast.error("Unable to update player");
                   }
                 }}
+                onUpdateDivisions={async (playerId, divisionIds) => {
+                  try {
+                    const response = await axios.patch<Player>(
+                      `players/${playerId}`,
+                      {
+                        divisionId: divisionIds,
+                        hasRegistered: divisionIds.length > 0,
+                      },
+                    );
+                    setPlayers((prev) =>
+                      prev.map((p) =>
+                        p.id === playerId ? response.data : p,
+                      ),
+                    );
+                    toast.success("Player divisions updated");
+                  } catch (error) {
+                    toast.error("Unable to update player divisions");
+                  }
+                }}
               />
             )}
           </div>
@@ -314,7 +386,9 @@ function PlayerItem({
   removeFromTeam,
   createTeam,
   deleteTeam,
+  divisions,
   onUpdateFlags,
+  onUpdateDivisions,
 }: {
   player: Player;
   teams: Team[];
@@ -322,26 +396,48 @@ function PlayerItem({
   removeFromTeam: (playerId: number) => void;
   createTeam: () => void;
   deleteTeam: (teamId: number) => void;
+  divisions: Division[];
   onUpdateFlags: (
     playerId: number,
     updates: { isAdmin?: boolean; hasRegistered?: boolean },
   ) => void;
+  onUpdateDivisions: (playerId: number, divisionIds: number[]) => void;
 }) {
+  const selectedDivisionIds = getPlayerDivisionIds(player);
+  const [divisionModalOpen, setDivisionModalOpen] = useState(false);
+
+  const toggleDivision = (divisionId: number) => {
+    const nextDivisionIds = selectedDivisionIds.includes(divisionId)
+      ? selectedDivisionIds.filter((id) => id !== divisionId)
+      : [...selectedDivisionIds, divisionId];
+    onUpdateDivisions(player.id, nextDivisionIds);
+  };
+
   return (
-    <div className={"flex flex-col gap-2 theme-text"}>
+    <div className={"rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3 theme-text"}>
       <h3 className="text-2xl theme-text">Player Information</h3>
       <div>
-        <span>Name: </span>
-        <span>{getPlayerDisplayName(player)}</span>
+        <h3 className="theme-text text-sm uppercase tracking-wide">Name</h3>
+        <span className="text-lg font-semibold text-white">
+          {getPlayerDisplayName(player)}
+        </span>
       </div>
 
-      {/*TODO:
-        Display player divisions here
-      */}
       <div>
-        <span>Divisions: </span>
-        <span></span>
+        <h3 className="theme-text text-sm uppercase tracking-wide">Divisions</h3>
+        <span className="text-white">
+          {player.divisions && player.divisions.length > 0
+            ? player.divisions.map((division) => division.name).join(", ")
+            : "None"}
+        </span>
       </div>
+      <button
+        type="button"
+        onClick={() => setDivisionModalOpen(true)}
+        className="w-fit rounded-md border border-white/20 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-100"
+      >
+        Manage division registration
+      </button>
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2">
           <input
@@ -401,6 +497,14 @@ function PlayerItem({
       </div>
       <h3 className="mt-3 theme-text">Player Scores</h3>
       <p>No scores on record for this player.</p>
+      <PlayerDivisionsModal
+        open={divisionModalOpen}
+        onClose={() => setDivisionModalOpen(false)}
+        playerName={getPlayerDisplayName(player)}
+        divisions={divisions}
+        selectedDivisionIds={selectedDivisionIds}
+        onToggleDivision={toggleDivision}
+      />
     </div>
   );
 }

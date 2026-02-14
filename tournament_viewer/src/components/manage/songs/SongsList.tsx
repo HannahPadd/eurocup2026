@@ -1,4 +1,6 @@
 import {
+  faPenToSquare,
+  faGaugeHigh,
   faLayerGroup,
   faPlus,
   faTrash,
@@ -74,6 +76,38 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
         setSelectedSongId(-1);
       });
     }
+  };
+
+  const editSongName = (song: Song) => {
+    const title = prompt("Edit song title", song.title)?.trim();
+    if (!title || title === song.title) {
+      return;
+    }
+    axios.patch<Song>(`songs/${song.id}`, { title }).then((response) => {
+      setSongs((prev) =>
+        prev.map((item) => (item.id === song.id ? response.data : item)),
+      );
+    });
+  };
+
+  const editSongDifficulty = (song: Song) => {
+    const raw = prompt("Edit song difficulty", String(song.difficulty))?.trim();
+    if (!raw) {
+      return;
+    }
+    const difficulty = Number(raw);
+    if (Number.isNaN(difficulty) || difficulty <= 0) {
+      alert("Difficulty must be a positive number.");
+      return;
+    }
+    if (difficulty === song.difficulty) {
+      return;
+    }
+    axios.patch<Song>(`songs/${song.id}`, { difficulty }).then((response) => {
+      setSongs((prev) =>
+        prev.map((item) => (item.id === song.id ? response.data : item)),
+      );
+    });
   };
 
   return (
@@ -167,15 +201,38 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
                     } cursor-pointer py-2 px-3 flex justify-between items-center gap-3 `}
                   >
                     <span>{song.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSong(song.id);
-                      }}
-                      className="text-sm"
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          editSongName(song);
+                        }}
+                        className="text-sm"
+                        title="Edit song name"
+                      >
+                        <FontAwesomeIcon icon={faPenToSquare} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          editSongDifficulty(song);
+                        }}
+                        className="text-sm"
+                        title="Edit difficulty"
+                      >
+                        <FontAwesomeIcon icon={faGaugeHigh} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSong(song.id);
+                        }}
+                        className="text-sm"
+                        title="Delete song"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -222,14 +279,14 @@ function SongItem({ song }: { song: Song }) {
   };
 
   return (
-    <div className="text-white">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-white">
       <h3 className="text-2xl theme-text">Song Information</h3>
-      <div className="mt-2">
-        <h3 className=" theme-text">Title: </h3>
-        <span>{song.title}</span>
+      <div className="mt-3">
+        <h3 className="theme-text text-sm uppercase tracking-wide">Title</h3>
+        <span className="text-lg font-semibold">{song.title}</span>
       </div>
-      <div className="mt-2">
-        <h3 className="theme-text">Difficulty: </h3>
+      <div className="mt-4">
+        <h3 className="theme-text text-sm uppercase tracking-wide">Difficulty</h3>
         <div className="flex flex-row items-center ml-1 gap-1">
           {[...Array(levelCount)].map((_, i) => (
             <span
@@ -243,8 +300,10 @@ function SongItem({ song }: { song: Song }) {
           <span className="ml-2 font-bold">{song.difficulty}</span>
         </div>
       </div>
-      <h3 className="mt-3 theme-text">Player Scores</h3>
-      <p>No scores on record for this song.</p>
+      <div className="mt-4">
+        <h3 className="theme-text">Player Scores</h3>
+        <p className="text-sm text-gray-300">No scores on record for this song.</p>
+      </div>
     </div>
   );
 }
