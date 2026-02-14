@@ -129,9 +129,14 @@ export class BackwardCompatibilityController {
 
     @Post('AddBatchSongs')
     async addBatchSongs(@Body() dto: PostBatchSongRequest) {
-        dto.songs.forEach(async song => {
-            await this.songService.create(song);
-        });
+        await Promise.all(dto.songs.map((song) => this.songService.create(song)));
+    }
+
+    @Post('AddBatchPlayers')
+    async addBatchPlayers(@Body() dto: PostBatchPlayerRequest) {
+        await Promise.all(
+            dto.players.map((player) => this.playerService.create(player)),
+        );
     }
 
     @Post(':playerId/removeFromTeam')

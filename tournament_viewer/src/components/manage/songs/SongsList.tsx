@@ -9,7 +9,7 @@ import { Song } from "../../../models/Song";
 import axios from "axios";
 import Select from "react-select";
 
-export default function SongsList() {
+export default function SongsList({ onImport }: { onImport?: () => void }) {
   const [songs, setSongs] = useState<Song[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
 
@@ -79,8 +79,17 @@ export default function SongsList() {
   return (
     <div>
       <div className="flex flex-col justify-start gap-3">
-        <div className="flex flex-row gap-3">
+        <div className="flex flex-row gap-3 items-center">
           <h2 className="theme-text">Songs List</h2>
+          {onImport && (
+            <button
+              type="button"
+              onClick={onImport}
+              className="rounded-md border border-slate-500/40 bg-slate-600/20 px-2 py-1 text-xs font-semibold text-slate-100"
+            >
+              Import songs
+            </button>
+          )}
           <button
             title={
               !selectedGroupName
@@ -89,16 +98,18 @@ export default function SongsList() {
             }
             disabled={!selectedGroupName}
             onClick={addNewSongInGroup}
-            className="disabled:opacity-50 w-4 text-green-700"
+            className="disabled:opacity-50 inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
           >
             <FontAwesomeIcon icon={faPlus} />
+            <span>Add song</span>
           </button>
           <button
             title={"Add song in new group"}
             onClick={addNewSongInNewGroup}
-            className="disabled:opacity-50 w-4 text-green-700"
+            className="disabled:opacity-50 inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
           >
             <FontAwesomeIcon icon={faLayerGroup} />
+            <span>New group</span>
           </button>
         </div>
         <Select

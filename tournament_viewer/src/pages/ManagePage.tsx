@@ -10,6 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import SetupsManager from "../components/manage/setups/SetupsManager";
+import ImportModal from "../components/manage/import/ImportModal";
 import CabOrganizationView from "../components/manage/development/Development.tsx";
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -19,6 +20,9 @@ export function classNames(...classes: string[]) {
 
 export default function ManagePage() {
   const [apiKey, setApiKey] = useState<string>("");
+  const [importMode, setImportMode] = useState<"songs" | "players" | null>(
+    null,
+  );
 
   useEffect(() => {
     setApiKey(localStorage.getItem("apiKey") || "");
@@ -33,7 +37,7 @@ export default function ManagePage() {
       <h1 className="text-3xl text-center theme-text">
         Tournament settings
       </h1>
-      <div className="flex flex-row justify-center items-center gap-3">
+      <div className="flex flex-row flex-wrap justify-center items-center gap-3">
         {apiKey.length === 0 ? (
           <div
             className="flex flex-row gap-2 items-center rounded-md border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
@@ -66,6 +70,11 @@ export default function ManagePage() {
           Set API Key
         </button>
       </div>
+      <ImportModal
+        mode={importMode}
+        open={importMode !== null}
+        onClose={() => setImportMode(null)}
+      />
       <Tab.Group>
         <Tab.List className="flex flex-row gap-10 border-b mt-5">
           <Tab
@@ -134,10 +143,10 @@ export default function ManagePage() {
             <TournamentSettings controls />
           </Tab.Panel>
           <Tab.Panel>
-            <SongsList />
+            <SongsList onImport={() => setImportMode("songs")} />
           </Tab.Panel>
           <Tab.Panel>
-            <PlayersList />
+            <PlayersList onImport={() => setImportMode("players")} />
           </Tab.Panel>
           <Tab.Panel>
             <SetupsManager />
