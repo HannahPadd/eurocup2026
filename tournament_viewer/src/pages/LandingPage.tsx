@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import useAuth from "../hooks/useAuth";
 import { Division } from "../models/Division";
-import { countryToFlagUrl, countryToIsoCode } from "../utils/flags";
+import { countryToFlagUrl } from "../utils/flags";
 import QualifierList, {
   QualifierListItem,
 } from "../components/qualifiers/QualifierList";
@@ -400,7 +400,6 @@ export default function LandingPage() {
   );
 
   const countryLabel = playerProfile?.country?.trim() || UNKNOWN_COUNTRY_LABEL;
-  const countryIso = countryToIsoCode(playerProfile?.country);
   const countryFlag = countryToFlagUrl(playerProfile?.country, 40);
 
   return (

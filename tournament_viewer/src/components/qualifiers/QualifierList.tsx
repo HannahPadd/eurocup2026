@@ -72,7 +72,7 @@ export default function QualifierList({
             <input
               type="text"
               placeholder="Score (77.77)"
-              className="w-full rounded-md bg-white text-black px-3 py-1.5 text-sm"
+              className="w-full rounded-md bg-white text-black px-3 py-1.5"
               value={input.percentage}
               onChange={(event) =>
                 onChange(item.songId, "percentage", event.target.value)
