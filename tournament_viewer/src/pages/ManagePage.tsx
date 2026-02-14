@@ -9,7 +9,8 @@ import {
   faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import CabOrganizationView from "../components/manage/development/Development";
+import SetupsManager from "../components/manage/setups/SetupsManager";
+import CabOrganizationView from "../components/manage/development/Development.tsx";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function classNames(...classes: string[]) {
@@ -113,7 +114,19 @@ export default function ManagePage() {
               )
             }
           >
-            Development
+            Setups
+          </Tab>
+            <Tab
+            className={({ selected }) =>
+                classNames(
+                "py-2 px-4 text-lg",
+                selected
+                    ? "border-b-2 border-rossoTesto font-bold theme-text"
+                    : "text-gray-500",
+                )
+            }
+            >
+            Organization
           </Tab>
         </Tab.List>
         <Tab.Panels className="mt-3">
@@ -125,6 +138,9 @@ export default function ManagePage() {
           </Tab.Panel>
           <Tab.Panel>
             <PlayersList />
+          </Tab.Panel>
+          <Tab.Panel>
+            <SetupsManager />
           </Tab.Panel>
           <Tab.Panel>
             <CabOrganizationView />

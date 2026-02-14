@@ -37,7 +37,7 @@ export default function MatchesView({
   }, [phaseId]);
 
   return (
-    <div className="mt-10">
+    <div className="mt-3">
       {phase && controls && (
         <CreateMatchModal
           phase={phase}
@@ -47,22 +47,21 @@ export default function MatchesView({
           onCreate={actions.create}
         />
       )}
-      <h1 className="text-center text-3xl theme-text">{phase?.name}</h1>
       {controls && (
-        <div className="mt-2 w-full bg-gray-200 p-2 rounded-lg">
+        <div className="mt-2 inline-flex w-fit bg-gray-200 p-2 px-4 rounded-lg">
           <button
             onClick={() => setCreateMatchModalOpened(true)}
-            className="text-green-800 font-bold flex flex-row gap-2 items-center"
+            className="text-green-800 font-bold inline-flex w-fit flex-row gap-2 items-center"
           >
             <FontAwesomeIcon icon={faHandFist} />
             <span>New match</span>
           </button>
         </div>
       )}
-      <div className="w-full mt-10">
+      <div className="w-full mt-7">
         {state.activeMatch &&
           phase && (
-            <div className="pb-20">
+            <div className="pb-10">
               <div>
                 <h3 className="text-3xl theme-text text-center">Active match:</h3>
                 <MatchTable
