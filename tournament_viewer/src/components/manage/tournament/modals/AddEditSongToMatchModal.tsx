@@ -155,7 +155,7 @@ export default function AddEditSongToMatchModal({
       onOk={onSubmit}
     >
       <div className="w-full">
-        <h3>Songs</h3>
+        <h3 className="text-gray-900">Songs</h3>
         <div className="flex flex-row gap-3 mb-2">
           <div className="flex flex-row gap-1">
             <input
@@ -166,7 +166,9 @@ export default function AddEditSongToMatchModal({
               checked={songAddType === "title"}
               onChange={() => setSongAddType("title")}
             />
-            <label htmlFor="title">By title</label>
+            <label htmlFor="title" className="text-gray-900">
+              By title
+            </label>
           </div>
           <div className="flex flex-row gap-1">
             <input
@@ -177,13 +179,15 @@ export default function AddEditSongToMatchModal({
               checked={songAddType === "roll"}
               onChange={() => setSongAddType("roll")}
             />
-            <label htmlFor="roll">By roll</label>
+            <label htmlFor="roll" className="text-gray-900">
+              By roll
+            </label>
           </div>
         </div>
         {songAddType === "roll" && (
           <div>
             <div className="w-full py-2">
-              <h3>Select song pack to roll</h3>
+              <h3 className="text-gray-900">Select song pack to roll</h3>
               <Select
                 options={songGroups.map((g) => ({ value: g, label: g }))}
                 placeholder="Select group..."
@@ -203,7 +207,9 @@ export default function AddEditSongToMatchModal({
               ></Select>
             </div>
 
-            <h3 className="mt-2">Type song difficulty to roll</h3>
+            <h3 className="mt-2 text-gray-900">
+              Type song difficulty to roll
+            </h3>
 
             <div>
               <input

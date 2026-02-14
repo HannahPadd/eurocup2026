@@ -67,6 +67,9 @@ export default function CreateMatchModal({
     // if by title
     const [selectedSongs, setSelectedSongs] = useState<Song[]>([]);
 
+    const getPlayerLabel = (player: Player) =>
+        (player.playerName ?? player.name ?? "").trim() || "Unnamed player";
+
     useEffect(() => {
         open &&
         axios.get<Player[]>(`players`).then((response) => {
@@ -145,7 +148,7 @@ export default function CreateMatchModal({
         >
             <div className="flex flex-col w-full gap-3">
                 <div className="w-full">
-                    <h3>Name</h3>
+                    <h3 className="text-gray-900">Name</h3>
                     <input
                         className="w-full border border-gray-300 px-2 py-2 rounded-lg text-gray-900"
                         type="text"
@@ -155,7 +158,7 @@ export default function CreateMatchModal({
                     />
                 </div>
                 <div className="w-full">
-                    <h3>Subtitle</h3>
+                    <h3 className="text-gray-900">Subtitle</h3>
                     <input
                         className="w-full border border-gray-300 px-2 py-2 rounded-lg text-gray-900"
                         type="text"
@@ -165,7 +168,7 @@ export default function CreateMatchModal({
                     />
                 </div>
                 <div className="w-full">
-                    <h3>Multiplier</h3>
+                    <h3 className="text-gray-900">Multiplier</h3>
                     <input
                         className="w-full border border-gray-300 px-2 py-2 rounded-lg text-gray-900"
                         type="number"
@@ -175,7 +178,7 @@ export default function CreateMatchModal({
                     />
                 </div>
                 <div>
-                    <h3>Scoring system</h3>
+                    <h3 className="text-gray-900">Scoring system</h3>
                     <Select
                         options={scoringSystems.map((s) => ({value: s, label: s}))}
                         placeholder="Select scoring system..."
@@ -186,7 +189,7 @@ export default function CreateMatchModal({
                     ></Select>
                 </div>
                 <div>
-                    <h3>Manual match</h3>
+                    <h3 className="text-gray-900">Manual match</h3>
                     <input
                         type="checkbox"
                         checked={isManualMatch}
@@ -194,22 +197,28 @@ export default function CreateMatchModal({
                     />
                 </div>
                 <div className="w-full">
-                    <h3>Players</h3>
+                    <h3 className="text-gray-900">Players</h3>
                     <Select
                         isMulti
-                        options={players.map((p) => ({value: p.id, label: p.name}))}
+                        options={players.map((p) => ({
+                            value: p.id,
+                            label: getPlayerLabel(p),
+                        }))}
                         onChange={(e) => {
                             setSelectedPlayers(
                                 e.map((p) => players.find((pl) => pl.id === p.value)!),
                             );
                         }}
-                        value={selectedPlayers.map((p) => ({value: p.id, label: p.name}))}
+                        value={selectedPlayers.map((p) => ({
+                            value: p.id,
+                            label: getPlayerLabel(p),
+                        }))}
                         menuPortalTarget={document.body}
                         styles={selectStyles}
                     />
                 </div>
                 <div className="w-full">
-                    <h3>Songs</h3>
+                    <h3 className="text-gray-900">Songs</h3>
                     <div className="flex flex-row gap-3 mb-2">
                         <div className="flex flex-row gap-1">
                             <input
@@ -220,7 +229,9 @@ export default function CreateMatchModal({
                                 checked={songAddType === "title"}
                                 onChange={() => setSongAddType("title")}
                             />
-                            <label htmlFor="title">By titles</label>
+                            <label htmlFor="title" className="text-gray-900">
+                                By titles
+                            </label>
                         </div>
                         <div className="flex flex-row gap-1">
                             <input
@@ -231,13 +242,15 @@ export default function CreateMatchModal({
                                 checked={songAddType === "roll"}
                                 onChange={() => setSongAddType("roll")}
                             />
-                            <label htmlFor="roll">By roll</label>
+                            <label htmlFor="roll" className="text-gray-900">
+                                By roll
+                            </label>
                         </div>
                     </div>
                     {songAddType === "roll" && (
                         <div>
                             <div className="w-full py-2">
-                                <h3>Select song pack to roll</h3>
+                                <h3 className="text-gray-900">Select song pack to roll</h3>
                                 <Select
                                     options={songGroups.map((g) => ({value: g, label: g}))}
                                     placeholder="Select group..."
@@ -257,7 +270,7 @@ export default function CreateMatchModal({
                                 ></Select>
                             </div>
 
-                            <h3 className="mt-2">Type song difficulties to roll</h3>
+                            <h3 className="mt-2 text-gray-900">Type song difficulties to roll</h3>
                             {selectedSongDifficulties.length > 0 && (
                                 <div className="flex my-2 flex-col gap-2 w-96">
                                     {selectedSongDifficulties.map((d, i) => (

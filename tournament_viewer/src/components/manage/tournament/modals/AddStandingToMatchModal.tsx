@@ -55,7 +55,7 @@ export default function AddStandingToMatchModal({
       </h2>
       <div className="flex flex-col gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-900">
             Percentage
           </label>
           <input
@@ -67,7 +67,7 @@ export default function AddStandingToMatchModal({
         </div>
         {isManualMatch && (
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-900">
               Score
             </label>
             <input
@@ -79,7 +79,7 @@ export default function AddStandingToMatchModal({
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-900">
             Failed
           </label>
           <input
