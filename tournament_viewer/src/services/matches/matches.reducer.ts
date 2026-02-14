@@ -80,6 +80,15 @@ export function matchesReducer(state: MatchesState, action: MatchesActions) {
         ),
         activeMatch: payload,
       };
+    case "onUpdateMatch":
+      return {
+        ...state,
+        matches: state.matches.map((match) =>
+          match.id === payload.id ? payload : match,
+        ),
+        activeMatch:
+          state.activeMatch?.id === payload.id ? payload : state.activeMatch,
+      };
     default:
       return state;
   }

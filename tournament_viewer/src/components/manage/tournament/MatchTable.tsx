@@ -5,10 +5,8 @@ import {
   faCircle,
   faInfoCircle,
   faPencil,
-  faPlay,
   faPlus,
   faRefresh,
-  faStickyNote,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { Division } from "../../../models/Division";
@@ -22,7 +20,6 @@ import {
   HubConnectionBuilder,
 } from "@microsoft/signalr";
 import { toast } from "react-toastify";
-import EditMatchNotesModal from "./modals/EditMatchNotesModal";
 import { Log } from "../../../models/Log";
 import LogViewer from "../../layout/LogViewer";
 import { Tab } from "@headlessui/react";
@@ -33,14 +30,9 @@ type MatchTableProps = {
   phase: Phase;
   match: Match;
   isActive: boolean;
+  statusLabel?: string;
   controls?: boolean;
   onGetActiveMatch: () => void;
-  onSetActiveMatch: (
-    divisionId: number,
-    phaseId: number,
-    matchId: number,
-  ) => void;
-  onDeleteMatch: (matchId: number) => void;
   onAddSongToMatchByRoll: (
     divisionId: number,
     phaseId: number,
@@ -76,7 +68,7 @@ type MatchTableProps = {
     score: number,
     isFailed: boolean,
   ) => void;
-  onEditMatchNotes: (matchId: number, notes: string) => void;
+  onRemoveSongFromMatch: (matchId: number, songId: number) => void;
   onEditStanding: (
     playerId: number,
     songId: number,
@@ -92,16 +84,15 @@ export default function MatchTable({
   phase,
   match,
   isActive,
+  statusLabel,
   controls = false,
   onGetActiveMatch,
-  onDeleteMatch,
-  onSetActiveMatch,
   onAddSongToMatchByRoll,
   onAddSongToMatchBySongId,
   onEditSongToMatchByRoll,
   onEditSongToMatchBySongId,
   onAddStandingToMatch,
-  onEditMatchNotes,
+  onRemoveSongFromMatch,
   onDeleteStanding,
 }: MatchTableProps) {
   // Create a lookup table for scores and percentages
@@ -115,8 +106,6 @@ export default function MatchTable({
 
   const [addStandingToMatchModalOpen, setAddStandingToMatchModalOpen] =
     useState(false);
-
-  const [EditMatchNotesModalOpen, setEditMatchNotesModalOpen] = useState(false);
 
   const [songIdPlayerId, setSongIdPlayerId] = useState<{
     playerId: number;
@@ -214,28 +203,32 @@ export default function MatchTable({
   );
 
   return (
-    <div className="flex flex-col w-full p-4 my-3 rounded-lg">
-      <div className="flex flex-row mb-6 justify-center items-center">
+    <div className="flex flex-col w-full p-4 rounded-lg">
+      <div className="flex flex-row mb-4 justify-center items-center">
         <div>
           <h2 className="text-center text-4xl font-bold theme-text">
-            <div className="flex flex-row justify-center items-center gap-3">
-              {isActive && (
-                <FontAwesomeIcon
-                  icon={faCircle}
-                  className="text-green-200 text-xs animate-pulse"
-                />
-              )}
+            <div className="flex flex-row justify-center items-center gap-2">
               <span className="text-xl">{match.name}</span>
-              {controls && (
-                <button
-                  className="text-lg"
-                  title={match.notes ? match.notes : "Add notes"}
-                  onClick={() => setEditMatchNotesModalOpen(true)}
-                >
-                  <FontAwesomeIcon icon={faStickyNote} />
-                </button>
-              )}
             </div>
+            {(isActive || (!isActive && statusLabel)) && (
+              <div className="mt-1 flex justify-center">
+                <span
+                  className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${
+                    isActive
+                      ? "border border-emerald-300/50 text-emerald-200"
+                      : "border border-slate-300/40 text-slate-200"
+                  }`}
+                >
+                  <FontAwesomeIcon
+                    icon={faCircle}
+                    className={
+                      isActive ? "text-green-200 text-[8px] animate-pulse" : "text-slate-300 text-[8px]"
+                    }
+                  />
+                  {isActive ? "Active" : statusLabel}
+                </span>
+              </div>
+            )}
           </h2>
           {match.subtitle && (
             <p className="text-sm font-normal theme-text flex flex-row items-center gap-1">
@@ -277,48 +270,10 @@ export default function MatchTable({
           }}
           onAddStandingToMatch={onAddStandingToMatch}
         />
-        <EditMatchNotesModal
-          match={match}
-          open={EditMatchNotesModalOpen}
-          onClose={() => setEditMatchNotesModalOpen(false)}
-          onSave={onEditMatchNotes}
-        />
-        {controls && (
-          <div className="ml-3 bg-gray-300 rounded-xl p-3 flex flex-row gap-3">
-            {!isActive && (
-              <button
-                onClick={() =>
-                  onSetActiveMatch(division.id, phase.id, match.id)
-                }
-                title="Set as active match"
-                className="text-green-800 font-bold flex flex-row gap-2"
-              >
-                <FontAwesomeIcon icon={faPlay} />
-              </button>
-            )}
-            {isActive && (
-              <button
-                title="Add a new round/song to the match"
-                onClick={() => {
-                  setAddSongToMatchModalOpen(true);
-                }}
-                className=" text-green-800 font-bold flex flex-row gap-2"
-              >
-                <FontAwesomeIcon icon={faPlus} />
-              </button>
-            )}
-            <button
-              onClick={() => onDeleteMatch(match.id)}
-              className="ml-3 text-red-800 font-bold flex flex-row gap-2"
-            >
-              <FontAwesomeIcon icon={faTrash} />
-            </button>
-          </div>
-        )}
       </div>
       <div className="flex flex-col gap-3">
         <Tab.Group>
-          <Tab.List className="flex flex-row gap-10 border-b mt-5">
+          <Tab.List className="flex flex-row gap-10 border-b">
             <Tab
               className={({ selected }) =>
                 classNames(
@@ -363,7 +318,9 @@ export default function MatchTable({
                   }}
                 >
                   <div className=" border-bg-lighter p-2">
-                    <div className="text-center font-bold text-rossoTag"></div>
+                    <div className="text-center font-bold text-blue-100">
+                      Player
+                    </div>
                   </div>
                   {match.rounds.map((round, i) => (
                     <div key={i} className="border-x border-bg-lighter p-2">
@@ -381,6 +338,21 @@ export default function MatchTable({
                             >
                               <FontAwesomeIcon icon={faRefresh} />
                             </button>
+                            <button
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    "Remove this song from the match? This only works if the round has no standings.",
+                                  )
+                                ) {
+                                  onRemoveSongFromMatch(match.id, round.song.id);
+                                }
+                              }}
+                              className="ml-2 text-red-200"
+                              title="Remove round song"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
                           </>
                         )}
                       </div>
@@ -389,6 +361,15 @@ export default function MatchTable({
                   <div className=" p-2">
                     <div className="text-center font-bold text-blue-100">
                       Total Points
+                      {controls && isActive && (
+                        <button
+                          onClick={() => setAddSongToMatchModalOpen(true)}
+                          className="ml-2"
+                          title="Add song to match"
+                        >
+                          <FontAwesomeIcon icon={faPlus} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -407,7 +388,7 @@ export default function MatchTable({
                   >
                     <div className="border border-gray-300 p-2">
                       <div className="text-center font-semibold text-gray-700">
-                        {player.name}
+                        {player.playerName ?? player.name ?? "Unknown player"}
                       </div>
                     </div>
                     {match.rounds.map((round, j) => {

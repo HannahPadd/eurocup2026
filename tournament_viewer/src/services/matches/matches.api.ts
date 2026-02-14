@@ -56,6 +56,21 @@ export async function editMatchNotes(
   }
 }
 
+export async function editMatchPlayers(
+  matchId: number,
+  playerIds: number[],
+): Promise<Match> {
+  try {
+    const response = await axios.patch<Match>(`matches/${matchId}`, {
+      playerIds,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error editing match players:", error);
+    throw new Error("Unable to edit match players.");
+  }
+}
+
 export async function setActiveMatch(
   request: SetActiveMatchRequest,
 ): Promise<void> {
@@ -96,6 +111,21 @@ export async function editSongToActiveMatch(request: EditSongToMatchRequest) {
   } catch (error) {
     console.error("Error editing song to active match:", error);
     throw new Error("Unable to edit song to active match.");
+  }
+}
+
+export async function removeSongFromMatch(
+  matchId: number,
+  songId: number,
+): Promise<Match> {
+  try {
+    const response = await axios.delete<Match>(
+      `tournament/removeSongFromMatch/${matchId}/${songId}`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error removing song from match:", error);
+    throw new Error("Unable to remove song from match.");
   }
 }
 

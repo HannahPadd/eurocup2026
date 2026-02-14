@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Division } from "../../../models/Division";
-import { faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faTrash, faUsers } from "@fortawesome/free-solid-svg-icons";
 import Select from "react-select";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -8,11 +8,13 @@ import axios from "axios";
 type DivisionListProps = {
   onDivisionSelect: (division: Division |null) => void;
   controls?: boolean;
+  onManageDivisionMembers?: () => void;
 };
 
 export default function DivisionList({
   onDivisionSelect,
   controls = false,
+  onManageDivisionMembers,
 }: DivisionListProps) {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [selectedDivisionId, setSelectedDivisionId] = useState<number>(-1);
@@ -53,7 +55,7 @@ export default function DivisionList({
     }
   };
   return (
-    <div className="flex flex-wrap items-center gap-3 text-black">
+    <div className="flex flex-col gap-2 text-black">
       <Select
         className="min-w-[300px]"
         placeholder="Select division"
@@ -72,7 +74,7 @@ export default function DivisionList({
         }
       />
       {controls && (
-        <>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={createDivision}
             className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
@@ -80,6 +82,19 @@ export default function DivisionList({
           >
             <FontAwesomeIcon icon={faPlus} />
             Add division
+          </button>
+          <button
+            onClick={onManageDivisionMembers}
+            className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={selectedDivisionId === -1 || !onManageDivisionMembers}
+            title={
+              selectedDivisionId === -1
+                ? "Select division to manage players"
+                : "Manage division players"
+            }
+          >
+            <FontAwesomeIcon icon={faUsers} />
+            Players
           </button>
           <button
             onClick={deleteDivision}
@@ -94,7 +109,7 @@ export default function DivisionList({
             <FontAwesomeIcon icon={faTrash} />
             Delete
           </button>
-        </>
+        </div>
       )}
     </div>
   );

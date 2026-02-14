@@ -45,6 +45,11 @@ type onDeleteStandingFromMatch = {
   payload: Match;
 };
 
+type onUpdateMatch = {
+  type: "onUpdateMatch";
+  payload: Match;
+};
+
 export type MatchesActions =
   | onListMatchesByPhase
   | onCreateMatch
@@ -54,4 +59,5 @@ export type MatchesActions =
   | onAddSongToMatch
   | onAddStandingToMatch
   | onEditStandingFromMatch
-  | onDeleteStandingFromMatch;
+  | onDeleteStandingFromMatch
+  | onUpdateMatch;

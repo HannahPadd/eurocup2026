@@ -50,6 +50,18 @@ export function useMatches(phaseId: number) {
     }
   }
 
+  async function editMatchPlayers(matchId: number, playerIds: number[]) {
+    try {
+      const item = await MatchesApi.editMatchPlayers(matchId, playerIds);
+      dispatch({ type: "onUpdateMatch", payload: item });
+      toast.success("Match players updated.");
+    } catch (error) {
+      toast.error("Error editing match players.");
+      console.error("Error editing match players:", error);
+      throw new Error("Unable to edit match players.");
+    }
+  }
+
   async function setActiveMatch(
     divisionId: number,
     phaseId: number,
@@ -174,6 +186,18 @@ export function useMatches(phaseId: number) {
     }
   }
 
+  async function removeSongFromMatch(matchId: number, songId: number) {
+    try {
+      const item = await MatchesApi.removeSongFromMatch(matchId, songId);
+      dispatch({ type: "onAddSongToMatch", payload: item });
+      toast.success("Song removed from match.");
+    } catch (error) {
+      toast.error("Error removing song from match.");
+      console.error("Error removing song from match:", error);
+      throw new Error("Unable to remove song from match.");
+    }
+  }
+
   async function addStandingToMatch(
     playerId: number,
     songId: number,
@@ -244,12 +268,14 @@ export function useMatches(phaseId: number) {
       getActiveMatch,
       create,
       editMatchNotes,
+      editMatchPlayers,
       setActiveMatch,
       deleteMatch,
       addSongToMatchByRoll,
       addSongToMatchBySongId,
       editSongToMatchByRoll,
       editSongToMatchBySongId,
+      removeSongFromMatch,
       addStandingToMatch,
       editStandingFromMatch,
       deleteStandingsForPlayerFromMatch,

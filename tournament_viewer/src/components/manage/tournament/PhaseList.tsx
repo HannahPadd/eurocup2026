@@ -194,7 +194,7 @@ export default function PhaseList({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-2">
       <Select
         className="min-w-[300px]"
         placeholder="Select phase"
@@ -213,7 +213,7 @@ export default function PhaseList({
         }
       />
       {controls && (
-        <>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={createPhase}
             className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
@@ -261,7 +261,7 @@ export default function PhaseList({
             <FontAwesomeIcon icon={faTrash} />
             Delete
           </button>
-        </>
+        </div>
       )}
       <OkModal
         title="Qualifier songs"

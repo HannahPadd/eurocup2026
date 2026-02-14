@@ -65,7 +65,7 @@ export class MatchManager {
         }
 
         await this.roundService.remove(round.id);
-        match.rounds = match.rounds.filter(round => round.id == round.id);
+        match.rounds = match.rounds.filter(r => r.id !== round.id);
         await this.matchHub.OnMatchUpdate(match);
     }
 

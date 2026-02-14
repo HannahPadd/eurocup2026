@@ -168,6 +168,19 @@ export class BackwardCompatibilityController {
         return await this.convert(match);
     }
 
+    @Delete('removeSongFromMatch/:matchId/:songId')
+    async removeSongFromMatch(
+        @Param('matchId') matchId: number,
+        @Param('songId') songId: number,
+    ): Promise<MatchDto | null> {
+        await this.matchManager.RemoveSongFromMatchById(matchId, songId);
+        const match = await this.matchService.findOne(matchId);
+        if (!match) {
+            return null;
+        }
+        return await this.convert(match);
+    }
+
     @Post('SetPlayerOnGame')
     async SetPlayerOnGame(@Body() dto: PostPlayerOnGame) {
         //"StepMania 5/Goin' Under"
