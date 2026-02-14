@@ -26,6 +26,12 @@ export default function Navbar() {
             >
               Tournament
             </Link>
+            <Link
+              to="/faq"
+              className="text-white hover:text-gray-200 px-3 py-2"
+            >
+              FAQ
+            </Link>
             {auth?.username ? (
               <Link
                 to="/"
@@ -102,6 +108,13 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
             >
               Tournament
+            </Link>
+            <Link
+              to="/faq"
+              className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+              onClick={() => setMenuOpen(false)}
+            >
+              FAQ
             </Link>
             {auth?.username ? (
               <Link

@@ -13,6 +13,7 @@ import LoginPage from "./pages/LoginPage";
 import Layout from "./components/Layout";
 import Missing from "./pages/Missing";
 import LandingPage from "./pages/LandingPage";
+import FaqPage from "./pages/FaqPage";
 
 function App() {
 
@@ -22,6 +23,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           {/* Public Routes */}
           <Route path="tournament" element={<ViewPage />} />
+          <Route path="faq" element={<FaqPage />} />
           <Route path="signup" element={<SignUpPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="unauthorized" element={<Unauthorized />} />
