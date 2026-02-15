@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Phase, Division } from '@persistence/entities';
+import { Phase, Division, Ruleset } from '@persistence/entities';
 import { CreatePhaseDto, UpdatePhaseDto } from '../dtos';
 
 @Injectable()
@@ -11,6 +11,8 @@ export class PhasesService {
     private phasesRepository: Repository<Phase>,
     @InjectRepository(Division)
     private divisionRepo: Repository<Division>,
+    @InjectRepository(Ruleset)
+    private rulesetRepo: Repository<Ruleset>,
   ) { }
 
   async create(phaseDto: CreatePhaseDto) {
@@ -24,6 +26,14 @@ export class PhasesService {
     }
 
     phase.division = Promise.resolve(division);
+
+    if (phaseDto.rulesetId) {
+      const ruleset = await this.rulesetRepo.findOneBy({ id: phaseDto.rulesetId });
+      if (!ruleset) {
+        throw new NotFoundException(`Ruleset with id ${phaseDto.rulesetId} not found`);
+      }
+      phase.ruleset = ruleset;
+    }
 
     await this.phasesRepository.save(phase)
 
@@ -52,6 +62,20 @@ export class PhasesService {
       }
       dto.division = Promise.resolve(division);
       delete dto.divisionId;
+    }
+
+    if ('rulesetId' in dto) {
+      if (dto.rulesetId == null) {
+        phase.ruleset = null;
+        delete dto.rulesetId;
+      } else {
+        const ruleset = await this.rulesetRepo.findOneBy({ id: dto.rulesetId });
+        if (!ruleset) {
+          throw new NotFoundException(`Ruleset with id ${dto.rulesetId} not found`);
+        }
+        phase.ruleset = ruleset;
+        delete dto.rulesetId;
+      }
     }
 
     this.phasesRepository.merge(phase, dto);

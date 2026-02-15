@@ -4,26 +4,9 @@ import { Division } from "../../../models/Division";
 import { Phase } from "../../../models/Phase";
 import { Player } from "../../../models/Player";
 
-const isSeedingPhase = (name?: string) =>
-  (name ?? "").toLowerCase().includes("seeding");
-
-const applySeedingName = (name: string) => {
-  if (isSeedingPhase(name)) {
-    return name;
-  }
-  return `Seeding - ${name}`.trim();
-};
-
-const removeSeedingName = (name: string) => {
-  const trimmed = name.trim();
-  if (!isSeedingPhase(trimmed)) {
-    return trimmed;
-  }
-  return trimmed
-    .replace(/^seeding\s*-\s*/i, "")
-    .replace(/^seeding\s*/i, "")
-    .trim();
-};
+const isSeedingPhase = (phase?: Phase) =>
+  (phase?.ruleset?.name ?? "").trim().toLowerCase() === "seeding" ||
+  (phase?.name ?? "").toLowerCase().includes("seeding");
 
 type AdminSubmission = {
   id: number;
@@ -46,7 +29,10 @@ type AdminSubmission = {
   divisionIds: number[];
 };
 
-const downloadCsv = (filename: string, rows: string[][]) => {
+const downloadCsv = (
+  filename: string,
+  rows: Array<Array<string | number>>,
+) => {
   const csv = rows
     .map((row) =>
       row
@@ -74,7 +60,7 @@ const getQualifierSongsForDivision = (division: Division) => {
   const songs: { id: number; title: string }[] = [];
   const seen = new Set<number>();
   const phases = (division.phases || []).filter((phase) =>
-    isSeedingPhase(phase.name),
+    isSeedingPhase(phase),
   );
 
   for (const phase of phases) {
@@ -204,30 +190,8 @@ export default function QualifiersAdmin() {
     }
   };
 
-  const toggleSeeding = async (phase: Phase) => {
-    const isSeeding = isSeedingPhase(phase.name);
-    const updatedName = isSeeding
-      ? removeSeedingName(phase.name ?? "")
-      : applySeedingName(phase.name ?? "");
-    try {
-      const response = await axios.patch<Phase>(`phases/${phase.id}`, {
-        name: updatedName,
-      });
-      setDivisions((prev) =>
-        prev.map((division) => ({
-          ...division,
-          phases: division.phases?.map((p) =>
-            p.id === phase.id ? response.data : p,
-          ),
-        })),
-      );
-    } catch (e) {
-      setError("Unable to update phase seeding status.");
-    }
-  };
-
   const exportSubmissions = () => {
-    const rows = [
+    const rows: Array<Array<string | number>> = [
       [
         "Submission ID",
         "Player",
@@ -240,7 +204,8 @@ export default function QualifiersAdmin() {
         "Screenshot",
         "Updated",
       ],
-      ...filteredSubmissions.map((submission) => [
+      ...filteredSubmissions.map(
+        (submission): Array<string | number> => [
         submission.id,
         submission.player?.playerName ?? "",
         submission.song?.title ?? "",
@@ -348,50 +313,6 @@ export default function QualifiersAdmin() {
           {error}
         </div>
       )}
-
-      <section className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold theme-text">
-            Seeding phases
-          </h3>
-          <p className="text-xs text-gray-300">
-            Phases with "seeding" in their name are qualifier phases.
-          </p>
-        </div>
-        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          {divisions.map((division) => (
-            <div
-              key={division.id}
-              className="rounded-lg border border-white/10 bg-white/5 p-3"
-            >
-              <div className="text-sm font-semibold text-gray-100">
-                {division.name}
-              </div>
-              <div className="mt-2 space-y-2">
-                {(division.phases || []).map((phase) => (
-                  <div
-                    key={phase.id}
-                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
-                  >
-                    <span className="text-gray-200">{phase.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleSeeding(phase)}
-                      className={`rounded-md border px-2 py-1 text-xs font-semibold ${
-                        isSeedingPhase(phase.name)
-                          ? "border-blue-400 text-blue-200"
-                          : "border-gray-500 text-gray-200"
-                      }`}
-                    >
-                      {isSeedingPhase(phase.name) ? "Unmark seeding" : "Mark seeding"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

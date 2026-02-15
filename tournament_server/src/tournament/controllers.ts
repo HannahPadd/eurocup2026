@@ -13,6 +13,7 @@ import { SetupController } from './controllers/setup.controller';
 import { MatchAssignmentController } from './controllers/match_assignment.controller';
 import { StreamViewController } from './controllers/streamview.controller';
 import { QualifiersController } from './controllers/qualifiers.controller';
+import { RulesetsController } from './controllers/rulesets.controller';
 
 
 export const Controllers = [
@@ -31,4 +32,5 @@ export const Controllers = [
     MatchAssignmentController,
     StreamViewController,
     QualifiersController,
+    RulesetsController,
 ];

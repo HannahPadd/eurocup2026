@@ -13,6 +13,7 @@ import SetupsManager from "../components/manage/setups/SetupsManager";
 import ImportModal from "../components/manage/import/ImportModal";
 import QualifiersAdmin from "../components/manage/qualifiers/QualifiersAdmin";
 import CabOrganizationView from "../components/manage/development/Development.tsx";
+import RulesetsManager from "../components/manage/rulesets/RulesetsManager";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function classNames(...classes: string[]) {
@@ -136,6 +137,18 @@ export default function ManagePage() {
               )
             }
           >
+            Rulesets
+          </Tab>
+          <Tab
+            className={({ selected }) =>
+              classNames(
+                "py-2 px-4 text-lg",
+                selected
+                  ? "border-b-2 border-rossoTesto font-bold theme-text"
+                  : "text-gray-500",
+              )
+            }
+          >
             Setups
           </Tab>
             <Tab
@@ -163,6 +176,9 @@ export default function ManagePage() {
           </Tab.Panel>
           <Tab.Panel>
             <QualifiersAdmin />
+          </Tab.Panel>
+          <Tab.Panel>
+            <RulesetsManager />
           </Tab.Panel>
           <Tab.Panel>
             <SetupsManager />

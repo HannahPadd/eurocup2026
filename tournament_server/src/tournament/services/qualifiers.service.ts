@@ -34,6 +34,13 @@ type QualifierDivisionRanking = {
   divisionName: string;
   totalSongs: number;
   rankings: QualifierRankingEntry[];
+  recommendedAdvances?: {
+    playerId: number;
+    playerName: string;
+    playerCountry?: string;
+    averagePercentage: number;
+    submittedCount: number;
+  }[];
 };
 
 type QualifierAdminSubmission = {
@@ -57,6 +64,14 @@ type QualifierAdminSubmission = {
   divisionIds: number[];
 };
 
+type QualifierRulesetConfig = {
+  sortBy?: 'AVERAGE_PERCENTAGE' | 'SUBMITTED_COUNT' | 'PLAYER_NAME';
+  approvedOnly?: boolean;
+  minimumSubmissions?: number;
+  advanceTopN?: number;
+  advanceMinPercentage?: number;
+};
+
 @Injectable()
 export class QualifiersService {
   constructor(
@@ -74,7 +89,7 @@ export class QualifiersService {
     const divisions = await this.divisionRepo.find();
     const seedingPhases = divisions.map((division) => {
       const phases = (division.phases || []).filter((phase) =>
-        phase.name?.toLowerCase().includes('seeding')
+        this.isQualifierPhase(phase)
       );
       return { division, phases };
     });
@@ -101,7 +116,7 @@ export class QualifiersService {
 
     for (const division of divisions) {
       const phases = (division.phases || []).filter((phase) =>
-        phase.name?.toLowerCase().includes('seeding')
+        this.isQualifierPhase(phase)
       );
       const songIds = new Set<number>();
 
@@ -135,7 +150,7 @@ export class QualifiersService {
       }));
     }
 
-    const submissions = await this.qualifierRepo.find({
+    const allSubmissions = await this.qualifierRepo.find({
       where: { song: { id: In(allSongIds) } },
     });
 
@@ -153,7 +168,7 @@ export class QualifiersService {
       >
     >();
 
-    for (const submission of submissions) {
+    for (const submission of allSubmissions) {
       const divisionIds = songToDivisionIds.get(submission.song.id) ?? [];
       const playerId = submission.player?.id;
       if (!playerId) {
@@ -179,8 +194,18 @@ export class QualifiersService {
     }
 
     return divisions.map((division) => {
+      const qualifierPhaseRuleset = (division.phases || [])
+        .filter((phase) => this.isQualifierPhase(phase))
+        .map((phase) => phase.ruleset)
+        .find((ruleset) => !!ruleset);
+      const rulesetConfig = this.getQualifierRulesetConfig(
+        qualifierPhaseRuleset?.config,
+      );
+      const approvedOnly = rulesetConfig.approvedOnly ?? false;
+      const minimumSubmissions = rulesetConfig.minimumSubmissions ?? 0;
+
       const totalSongs = divisionSongIds.get(division.id)?.size ?? 0;
-      const entries = Array.from(
+      let entries = Array.from(
         rankingsByDivision.get(division.id)?.values() ?? []
       )
         .map((entry) => ({
@@ -193,22 +218,62 @@ export class QualifiersService {
               )
             : 0,
           submittedCount: entry.submittedCount,
-        }))
-        .sort((a, b) => {
-          if (b.averagePercentage !== a.averagePercentage) {
-            return b.averagePercentage - a.averagePercentage;
-          }
-          if (b.submittedCount !== a.submittedCount) {
-            return b.submittedCount - a.submittedCount;
-          }
-          return a.playerName.localeCompare(b.playerName);
-        });
+        }));
+
+      if (approvedOnly) {
+        const approvedPlayerIds = new Set(
+          allSubmissions
+            .filter((submission) => {
+              const divisionIds = songToDivisionIds.get(submission.song.id) ?? [];
+              return (
+                divisionIds.includes(division.id) &&
+                submission.status?.toLowerCase() === 'approved'
+              );
+            })
+            .map((submission) => submission.player?.id)
+            .filter((playerId): playerId is number => !!playerId),
+        );
+
+        entries = entries.filter((entry) => approvedPlayerIds.has(entry.playerId));
+      }
+
+      if (minimumSubmissions > 0) {
+        entries = entries.filter(
+          (entry) => entry.submittedCount >= minimumSubmissions,
+        );
+      }
+
+      entries = entries.sort((a, b) =>
+        this.compareQualifierEntries(a, b, rulesetConfig.sortBy),
+      );
+
+      const minPercentageThreshold = this.normalizePercentageThreshold(
+        rulesetConfig.advanceMinPercentage,
+      );
+      const advanceTopN = rulesetConfig.advanceTopN ?? 0;
+      let recommendedEntries = entries;
+
+      if (minPercentageThreshold !== undefined) {
+        recommendedEntries = recommendedEntries.filter(
+          (entry) => entry.averagePercentage >= minPercentageThreshold,
+        );
+      }
+
+      if (advanceTopN > 0) {
+        recommendedEntries = recommendedEntries.slice(0, advanceTopN);
+      }
+
+      const recommendedAdvances =
+        minPercentageThreshold !== undefined || advanceTopN > 0
+          ? recommendedEntries
+          : undefined;
 
       return {
         divisionId: division.id,
         divisionName: division.name,
         totalSongs,
         rankings: entries,
+        recommendedAdvances,
       };
     });
   }
@@ -329,7 +394,7 @@ export class QualifiersService {
 
     for (const division of divisions) {
       const phases = (division.phases || []).filter((phase) =>
-        phase.name?.toLowerCase().includes('seeding')
+        this.isQualifierPhase(phase)
       );
       const songIds = new Set<number>();
 
@@ -356,8 +421,64 @@ export class QualifiersService {
     return { divisionSongIds, songToDivisionIds };
   }
 
+  private isQualifierPhase(phase: { name?: string; ruleset?: { name?: string } }): boolean {
+    const rulesetName = phase.ruleset?.name?.trim().toLowerCase();
+    if (rulesetName === 'seeding') {
+      return true;
+    }
+
+    // Backward compatibility for older data that encoded this in the phase name.
+    return phase.name?.toLowerCase().includes('seeding') ?? false;
+  }
+
   private async getQualifierSongIds(): Promise<Set<number>> {
     const { songToDivisionIds } = await this.buildQualifierSongMaps();
     return new Set(songToDivisionIds.keys());
+  }
+
+  private getQualifierRulesetConfig(
+    config: Record<string, unknown> | undefined,
+  ): QualifierRulesetConfig {
+    if (!config || typeof config !== 'object') {
+      return {};
+    }
+    return config as QualifierRulesetConfig;
+  }
+
+  private compareQualifierEntries(
+    a: QualifierRankingEntry,
+    b: QualifierRankingEntry,
+    sortBy: QualifierRulesetConfig['sortBy'] = 'AVERAGE_PERCENTAGE',
+  ): number {
+    if (sortBy === 'SUBMITTED_COUNT') {
+      if (b.submittedCount !== a.submittedCount) {
+        return b.submittedCount - a.submittedCount;
+      }
+      if (b.averagePercentage !== a.averagePercentage) {
+        return b.averagePercentage - a.averagePercentage;
+      }
+      return a.playerName.localeCompare(b.playerName);
+    }
+
+    if (sortBy === 'PLAYER_NAME') {
+      return a.playerName.localeCompare(b.playerName);
+    }
+
+    if (b.averagePercentage !== a.averagePercentage) {
+      return b.averagePercentage - a.averagePercentage;
+    }
+    if (b.submittedCount !== a.submittedCount) {
+      return b.submittedCount - a.submittedCount;
+    }
+    return a.playerName.localeCompare(b.playerName);
+  }
+
+  private normalizePercentageThreshold(
+    value: number | undefined,
+  ): number | undefined {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return undefined;
+    }
+    return Math.max(0, Math.min(100, value));
   }
 }

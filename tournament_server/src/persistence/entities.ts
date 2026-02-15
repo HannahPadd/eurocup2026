@@ -13,6 +13,8 @@ import { Setup } from './entities/setup.entity';
 import { Bracket } from './entities/bracket.entity';
 import { Account } from './entities/account.entity';
 import { QualifierSubmission } from './entities/qualifier_submission.entity';
+import { Ruleset } from './entities/ruleset.entity';
+import { PhaseProgressionAction, PhaseProgressionResult } from './entities/phase_progression_result.entity';
 
 export { Division }
 export { Match }
@@ -29,6 +31,9 @@ export { Setup }
 export { Bracket }
 export { Account }
 export { QualifierSubmission }
+export { Ruleset }
+export { PhaseProgressionResult }
+export { PhaseProgressionAction }
 
 export const Entities = [
     Division,
@@ -45,5 +50,7 @@ export const Entities = [
     Setup,
     Bracket,
     Account,
-    QualifierSubmission
+    QualifierSubmission,
+    Ruleset,
+    PhaseProgressionResult,
 ];

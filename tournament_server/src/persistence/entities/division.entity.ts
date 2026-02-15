@@ -25,4 +25,3 @@ export class Division {
   @JoinColumn()
   tournament: Tournament;
 }
-

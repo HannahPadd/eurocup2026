@@ -7,7 +7,6 @@ import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlus,
-  faTag,
   faTrash,
   faMusic,
 } from "@fortawesome/free-solid-svg-icons";
@@ -65,32 +64,6 @@ export default function PhaseList({
         setSelectedPhaseId(response.data.id);
       });
     }
-  };
-
-  const markAsSeeding = () => {
-    if (!selectedPhase) {
-      return;
-    }
-    const name = selectedPhase.name ?? "";
-    if (name.toLowerCase().includes("seeding")) {
-      setQualifierError("Phase already marked as seeding.");
-      return;
-    }
-    const updatedName = `Seeding - ${name}`.trim();
-    axios
-      .patch<Phase>(`phases/${selectedPhase.id}`, { name: updatedName })
-      .then((response) => {
-        setPhases(
-          phases.map((phase) =>
-            phase.id === response.data.id ? response.data : phase,
-          ),
-        );
-        setQualifierError(null);
-      })
-      .catch((error) => {
-        console.error("Error updating phase:", error);
-        setQualifierError("Unable to mark phase as seeding.");
-      });
   };
 
   const openQualifierMatchModal = async () => {
@@ -221,19 +194,6 @@ export default function PhaseList({
           >
             <FontAwesomeIcon icon={faPlus} />
             Add phase
-          </button>
-          <button
-            onClick={markAsSeeding}
-            className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!selectedPhase}
-            title={
-              selectedPhase
-                ? "Mark phase as seeding"
-                : "Select phase to mark seeding"
-            }
-          >
-            <FontAwesomeIcon icon={faTag} />
-            Mark seeding
           </button>
           <button
             onClick={openQualifierMatchModal}

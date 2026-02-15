@@ -13,6 +13,8 @@ import { CreateSetupDto, UpdateSetupDto } from './dtos/setup.dto';
 import { CreateAccountDto, UpdateAcountDto  } from './dtos/acount.dto'
 import { CreateAccountPlayerDto, UpdateAccountPlayerDto } from './dtos/accountplayer.dto';
 import { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto } from './dtos/qualifier.dto';
+import { CreateRulesetDto, UpdateRulesetDto } from './dtos/ruleset.dto';
+import { CommitPhaseProgressionDto } from './dtos/phase_progression.dto';
 
 export { CreateDivisionDto, UpdateDivisionDto };
 export { CreateMatchDto, UpdateMatchDto };
@@ -29,3 +31,5 @@ export { CreateSetupDto, UpdateSetupDto };
 export { CreateAccountDto, UpdateAcountDto };
 export { CreateAccountPlayerDto, UpdateAccountPlayerDto };
 export { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto };
+export { CreateRulesetDto, UpdateRulesetDto };
+export { CommitPhaseProgressionDto };
