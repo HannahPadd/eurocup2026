@@ -74,27 +74,19 @@ const seedingRoundTemplate = {
 
 const doubleWaterfallTemplate = {
   tiePolicy: "MANUAL_EXTRA_SONG",
+  notes:
+    "Default Waterfall + Loser Bracket re-entry. Configure sourceMatchId/targetMatchId values to your actual matches.",
   steps: [
     {
-      name: "Seed Placement (1-2 -> R3, 3-4 -> R2, 5-8 -> R1)",
+      name: "Round 1 (winner pool)",
       sourceMatchId: 0,
       rules: [
-        { type: "SEND_RANK_RANGE_TO_PHASE", fromRank: 1, toRank: 2, targetPhaseId: 0, targetMatchId: 0 },
-        { type: "SEND_RANK_RANGE_TO_PHASE", fromRank: 3, toRank: 4, targetPhaseId: 0, targetMatchId: 0 },
-        { type: "SEND_RANK_RANGE_TO_PHASE", fromRank: 5, toRank: 8, targetPhaseId: 0, targetMatchId: 0 },
+        { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
         { type: "SEND_REMAINING_TO_PHASE", targetPhaseId: 0, targetMatchId: 0, lane: "LOSERS" },
       ],
     },
     {
-      name: "Round 1",
-      sourceMatchId: 0,
-      rules: [
-        { type: "ADVANCE_TOP_N", count: 2, targetMatchId: 0 },
-        { type: "SEND_REMAINING_TO_PHASE", targetPhaseId: 0, targetMatchId: 0, lane: "LOSERS" },
-      ],
-    },
-    {
-      name: "Round 1 Losers",
+      name: "Loser 1",
       sourceMatchId: 0,
       rules: [
         { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
@@ -102,15 +94,55 @@ const doubleWaterfallTemplate = {
       ],
     },
     {
-      name: "Round 2",
+      name: "Round 2 (winner pool)",
       sourceMatchId: 0,
       rules: [
-        { type: "ADVANCE_TOP_N", count: 2, targetMatchId: 0 },
+        { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
         { type: "SEND_REMAINING_TO_PHASE", targetPhaseId: 0, targetMatchId: 0, lane: "LOSERS" },
       ],
     },
     {
-      name: "Round 2 Losers",
+      name: "Loser 2",
+      sourceMatchId: 0,
+      rules: [
+        { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
+        { type: "ELIMINATE_BOTTOM_PERCENT", percent: 50, rounding: "DOWN" },
+      ],
+    },
+    {
+      name: "Round 3 (winner pool)",
+      sourceMatchId: 0,
+      rules: [
+        { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
+        { type: "SEND_REMAINING_TO_PHASE", targetPhaseId: 0, targetMatchId: 0, lane: "LOSERS" },
+      ],
+    },
+    {
+      name: "Loser 3",
+      sourceMatchId: 0,
+      rules: [
+        { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
+        { type: "ELIMINATE_BOTTOM_PERCENT", percent: 50, rounding: "DOWN" },
+      ],
+    },
+    {
+      name: "Round 4 (winner pool)",
+      sourceMatchId: 0,
+      rules: [
+        { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
+        { type: "SEND_REMAINING_TO_PHASE", targetPhaseId: 0, targetMatchId: 0, lane: "LOSERS" },
+      ],
+    },
+    {
+      name: "Round 5 (merge seeds + unbeaten winners)",
+      sourceMatchId: 0,
+      rules: [
+        { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
+        { type: "SEND_REMAINING_TO_PHASE", targetPhaseId: 0, targetMatchId: 0, lane: "LOSERS" },
+      ],
+    },
+    {
+      name: "Loser 4 (Round5 losers + climbers)",
       sourceMatchId: 0,
       rules: [
         { type: "ADVANCE_TOP_PERCENT", percent: 50, rounding: "UP", targetMatchId: 0 },
