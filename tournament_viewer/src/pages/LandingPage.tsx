@@ -28,6 +28,8 @@ type QualifierSong = {
 type QualifierPhase = {
   phaseId: number;
   phaseName: string;
+  advanceMinPercentage?: number;
+  minimumSubmissions?: number;
   songs: QualifierSong[];
 };
 
@@ -35,6 +37,11 @@ type QualifierDivision = {
   divisionId: number;
   divisionName: string;
   phases: QualifierPhase[];
+};
+
+type DivisionPhaseRulesetConfig = {
+  advanceMinPercentage?: number;
+  minimumSubmissions?: number;
 };
 
 type PlayerProfile = {
@@ -398,6 +405,53 @@ export default function LandingPage() {
   const selectedDivisions = divisions.filter((division) =>
     selectedDivisionIds.includes(division.id)
   );
+  const qualifierDivisionById = useMemo(() => {
+    const map = new Map<number, QualifierDivision>();
+    for (const division of qualifiers) {
+      map.set(division.divisionId, division);
+    }
+    return map;
+  }, [qualifiers]);
+  const qualifierRulesByDivisionId = useMemo(() => {
+    const map = new Map<number, DivisionPhaseRulesetConfig>();
+
+    for (const division of divisions) {
+      for (const phase of division.phases ?? []) {
+        const phaseName = (phase.name ?? "").toLowerCase();
+        const rulesetName = ((phase.ruleset as { name?: string } | undefined)?.name ?? "")
+          .trim()
+          .toLowerCase();
+        const isQualifierPhase =
+          phaseName.includes("seeding") ||
+          phaseName.includes("qualifier") ||
+          rulesetName.includes("seeding") ||
+          rulesetName.includes("qualifier");
+        if (!isQualifierPhase) {
+          continue;
+        }
+
+        const rawConfig = (phase.ruleset as { config?: Record<string, unknown> } | undefined)
+          ?.config;
+        if (!rawConfig || typeof rawConfig !== "object") {
+          continue;
+        }
+
+        const rawThreshold = rawConfig.advanceMinPercentage;
+        const rawMinimumSubmissions = rawConfig.minimumSubmissions;
+        const advanceMinPercentage =
+          typeof rawThreshold === "number" ? Math.max(0, Math.min(100, rawThreshold)) : undefined;
+        const minimumSubmissions =
+          typeof rawMinimumSubmissions === "number" && Number.isFinite(rawMinimumSubmissions)
+            ? Math.max(0, Math.floor(rawMinimumSubmissions))
+            : undefined;
+
+        map.set(division.id, { advanceMinPercentage, minimumSubmissions });
+        break;
+      }
+    }
+
+    return map;
+  }, [divisions]);
 
   const countryLabel = playerProfile?.country?.trim() || UNKNOWN_COUNTRY_LABEL;
   const countryFlag = countryToFlagUrl(playerProfile?.country, 40);
@@ -523,34 +577,91 @@ export default function LandingPage() {
             {registrationLocked && selectedDivisions.length > 0 ? (
               <div className="mt-5 space-y-3">
               {selectedDivisions.map((division) => (
-                <div
-                  key={division.id}
-                  className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-200">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                      aria-hidden="true"
+                (() => {
+                  const qualifierDivision = qualifierDivisionById.get(division.id);
+                  const qualifierPhases = qualifierDivision?.phases ?? [];
+                  const phaseThresholdFromQualifiers = qualifierPhases.find(
+                    (phase) => typeof phase.advanceMinPercentage === "number",
+                  )?.advanceMinPercentage;
+                  const minimumSubmissionsFromQualifiers =
+                    qualifierPhases.find(
+                      (phase) => typeof phase.minimumSubmissions === "number",
+                    )?.minimumSubmissions ?? 0;
+                  const fallbackRules = qualifierRulesByDivisionId.get(division.id);
+                  const phaseThreshold =
+                    phaseThresholdFromQualifiers ?? fallbackRules?.advanceMinPercentage;
+                  const minimumSubmissions =
+                    minimumSubmissionsFromQualifiers || fallbackRules?.minimumSubmissions || 0;
+                  const hasQualifierPhase =
+                    qualifierPhases.length > 0 ||
+                    phaseThreshold !== undefined ||
+                    minimumSubmissions > 0;
+                  const submittedPercentages = qualifierPhases.flatMap((phase) =>
+                    phase.songs
+                      .map((song) =>
+                        song.submission ? Number(song.submission.percentage ?? 0) : null,
+                      )
+                      .filter((value): value is number => value !== null),
+                  );
+                  const submittedCount = submittedPercentages.length;
+                  const averagePercentage =
+                    submittedCount > 0
+                      ? submittedPercentages.reduce((sum, value) => sum + value, 0) /
+                        submittedCount
+                      : 0;
+                  const hasRequiredSubmissions = submittedCount >= minimumSubmissions;
+                  const isQualifiedByThreshold =
+                    hasQualifierPhase &&
+                    typeof phaseThreshold === "number" &&
+                    hasRequiredSubmissions &&
+                    averagePercentage >= phaseThreshold;
+                  const statusText =
+                    !hasQualifierPhase
+                      ? `Signed up for ${division.name}`
+                      : typeof phaseThreshold === "number"
+                        ? isQualifiedByThreshold
+                          ? `Qualified for ${division.name}`
+                          : `score needs to be higher than ${phaseThreshold}% for ${division.name}`
+                        : `Signed up for ${division.name}`;
+                  const statusToneClass = isQualifiedByThreshold
+                    ? "bg-emerald-500/20 text-emerald-200"
+                    : hasQualifierPhase && typeof phaseThreshold === "number"
+                      ? "bg-amber-500/20 text-amber-100"
+                      : "bg-emerald-500/20 text-emerald-200";
+
+                  return (
+                    <div
+                      key={division.id}
+                      className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
                     >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </span>
-                  <span className="flex-1">
-                    Signed up for {division.name}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
-                  >
-                    See rules
-                  </button>
-                </div>
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-full ${statusToneClass}`}>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                          aria-hidden="true"
+                        >
+                          {isQualifiedByThreshold || !hasQualifierPhase ? (
+                            <polyline points="20 6 9 17 4 12" />
+                          ) : (
+                            <path d="M12 8v4m0 4h.01M10.29 3.86l-7.2 12.47A2 2 0 0 0 4.8 19.3h14.4a2 2 0 0 0 1.71-2.97l-7.2-12.47a2 2 0 0 0-3.42 0Z" />
+                          )}
+                        </svg>
+                      </span>
+                      <span className="flex-1">{statusText}</span>
+                      <button
+                        type="button"
+                        className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
+                      >
+                        See rules
+                      </button>
+                    </div>
+                  );
+                })()
               ))}
               </div>
             ) : (

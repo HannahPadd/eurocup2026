@@ -144,6 +144,22 @@ const adaptiveWaterfall10To5Template = {
   ],
 };
 
+const laderTemplate = {
+  tiePolicy: "MANUAL_EXTRA_SONG",
+  notes:
+    "Stamina ladder / last-man-standing. Eliminate bottom player each round; all survivors proceed to next ladder round.",
+  steps: [
+    {
+      name: "Lader Round",
+      sourceMatchId: 0,
+      rules: [
+        { type: "ELIMINATE_BOTTOM_N", count: 1 },
+        { type: "SEND_REMAINING_TO_PHASE", targetPhaseId: 0, targetMatchId: 0 },
+      ],
+    },
+  ],
+};
+
 const finalsTemplate = {
   tiePolicy: "MANUAL_EXTRA_SONG",
   steps: [
@@ -649,6 +665,12 @@ export default function RulesetsManager() {
             className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
           >
             Adaptive Waterfall (10 to 5)
+          </button>
+          <button
+            onClick={() => setRulesetConfigText(JSON.stringify(laderTemplate, null, 2))}
+            className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
+          >
+            Lader
           </button>
           <button
             onClick={() => setRulesetConfigText(JSON.stringify(finalsTemplate, null, 2))}

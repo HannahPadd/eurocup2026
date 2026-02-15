@@ -12,6 +12,8 @@ type QualifierSong = {
 type QualifierPhase = {
   phaseId: number;
   phaseName: string;
+  advanceMinPercentage?: number;
+  minimumSubmissions?: number;
   songs: QualifierSong[];
 };
 
@@ -102,6 +104,7 @@ export class QualifiersService {
       divisionId: division.id,
       divisionName: division.name,
       phases: phases.map((phase) => ({
+        ...this.getQualifierPhaseRulesetConfig(phase.ruleset?.config),
         phaseId: phase.id,
         phaseName: phase.name,
         songs: this.extractQualifierSongs(phase, submissions),
@@ -443,6 +446,22 @@ export class QualifiersService {
       return {};
     }
     return config as QualifierRulesetConfig;
+  }
+
+  private getQualifierPhaseRulesetConfig(
+    config: Record<string, unknown> | undefined,
+  ): Pick<QualifierPhase, 'advanceMinPercentage' | 'minimumSubmissions'> {
+    const rulesetConfig = this.getQualifierRulesetConfig(config);
+    return {
+      advanceMinPercentage: this.normalizePercentageThreshold(
+        rulesetConfig.advanceMinPercentage,
+      ),
+      minimumSubmissions:
+        typeof rulesetConfig.minimumSubmissions === 'number' &&
+        Number.isFinite(rulesetConfig.minimumSubmissions)
+          ? Math.max(0, Math.floor(rulesetConfig.minimumSubmissions))
+          : undefined,
+    };
   }
 
   private compareQualifierEntries(
