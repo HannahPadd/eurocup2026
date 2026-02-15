@@ -562,124 +562,137 @@ export default function RulesetsManager() {
         <p className="mb-4 text-xs text-gray-300">
           Choose an existing ruleset to edit/delete, or keep <span className="font-semibold">New ruleset</span> selected to create one.
         </p>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
-              Mode
-            </label>
-            <select
-              value={editingRulesetId ?? ""}
-              onChange={(event) =>
-                selectRulesetForEdit(event.target.value ? Number(event.target.value) : null)
-              }
-              className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-white"
-            >
-              <option value="">New ruleset</option>
-              {rulesets.map((ruleset) => (
-                <option key={ruleset.id} value={ruleset.id}>
-                  Edit: {ruleset.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-400">
-              Editing mode enables save and delete for that ruleset.
-            </p>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
-              Name
-            </label>
-            <input
-              type="text"
-              value={rulesetName}
-              onChange={(event) => setRulesetName(event.target.value)}
-              placeholder="Ruleset name"
-              className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-white"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
-              State
-            </label>
-            <label className="flex items-center gap-2 rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-gray-300">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.2fr]">
+          <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
+                Mode
+              </label>
+              <select
+                value={editingRulesetId ?? ""}
+                onChange={(event) =>
+                  selectRulesetForEdit(event.target.value ? Number(event.target.value) : null)
+                }
+                className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-white"
+              >
+                <option value="">New ruleset</option>
+                {rulesets.map((ruleset) => (
+                  <option key={ruleset.id} value={ruleset.id}>
+                    Edit: {ruleset.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400">
+                Editing mode enables save and delete for that ruleset.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+              <div className="space-y-1">
+                <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={rulesetName}
+                  onChange={(event) => setRulesetName(event.target.value)}
+                  placeholder="Ruleset name"
+                  className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
+                  State
+                </label>
+                <label className="flex items-center gap-2 rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={rulesetIsActive}
+                    onChange={(event) => setRulesetIsActive(event.target.checked)}
+                  />
+                  Active
+                </label>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
+                Description
+              </label>
               <input
-                type="checkbox"
-                checked={rulesetIsActive}
-                onChange={(event) => setRulesetIsActive(event.target.checked)}
+                type="text"
+                value={rulesetDescription}
+                onChange={(event) => setRulesetDescription(event.target.value)}
+                placeholder="Optional description"
+                className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-white"
               />
-              Active ruleset
-            </label>
+            </div>
           </div>
-          <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
-              Description
-            </label>
-            <input
-              type="text"
-              value={rulesetDescription}
-              onChange={(event) => setRulesetDescription(event.target.value)}
-              placeholder="Optional description"
-              className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-white"
-            />
-          </div>
-          <div className="space-y-1 md:col-span-2">
+          <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
+                Templates
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setRulesetConfigText(JSON.stringify(qualifiersTemplate, null, 2))}
+                  className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
+                >
+                  Qualifiers
+                </button>
+                <button
+                  onClick={() => setRulesetConfigText(JSON.stringify(seedingRoundTemplate, null, 2))}
+                  className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
+                >
+                  Seeding (ranking only)
+                </button>
+                <button
+                  onClick={() =>
+                    setRulesetConfigText(JSON.stringify(doubleWaterfallTemplate, null, 2))
+                  }
+                  className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
+                >
+                  Double Waterfall
+                </button>
+                <button
+                  onClick={() =>
+                    setRulesetConfigText(JSON.stringify(adaptiveWaterfall10To5Template, null, 2))
+                  }
+                  className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
+                >
+                  Adaptive Waterfall (10 to 5)
+                </button>
+                <button
+                  onClick={() => setRulesetConfigText(JSON.stringify(laderTemplate, null, 2))}
+                  className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
+                >
+                  Lader
+                </button>
+                <button
+                  onClick={() => setRulesetConfigText(JSON.stringify(finalsTemplate, null, 2))}
+                  className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
+                >
+                  Finals
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1">
             <label className="text-xs font-medium uppercase tracking-wide text-gray-300">
               Config (JSON)
             </label>
             <textarea
               value={rulesetConfigText}
               onChange={(event) => setRulesetConfigText(event.target.value)}
-              rows={10}
+              rows={16}
               className="w-full rounded-md border border-white/15 bg-[#0f1720] px-3 py-2 font-mono text-xs text-white"
             />
             <p className="text-xs text-gray-400">
-              Use template buttons below, then replace placeholder IDs like <code>sourceMatchId</code> and <code>targetPhaseId</code>.
+              Use a template, then adjust config for your phase. Progression templates usually need
+              real <code>sourceMatchId</code> values and target routing (<code>targetMatchId</code> or <code>targetPhaseId</code>);
+              qualifier/seeding templates may only need thresholds/sorting.
             </p>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            onClick={() => setRulesetConfigText(JSON.stringify(qualifiersTemplate, null, 2))}
-            className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
-          >
-            Qualifiers
-          </button>
-          <button
-            onClick={() => setRulesetConfigText(JSON.stringify(seedingRoundTemplate, null, 2))}
-            className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
-          >
-            Seeding (ranking only)
-          </button>
-          <button
-            onClick={() =>
-              setRulesetConfigText(JSON.stringify(doubleWaterfallTemplate, null, 2))
-            }
-            className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
-          >
-            Double Waterfall
-          </button>
-          <button
-            onClick={() =>
-              setRulesetConfigText(JSON.stringify(adaptiveWaterfall10To5Template, null, 2))
-            }
-            className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
-          >
-            Adaptive Waterfall (10 to 5)
-          </button>
-          <button
-            onClick={() => setRulesetConfigText(JSON.stringify(laderTemplate, null, 2))}
-            className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
-          >
-            Lader
-          </button>
-          <button
-            onClick={() => setRulesetConfigText(JSON.stringify(finalsTemplate, null, 2))}
-            className="rounded-md border border-white/20 px-3 py-2 text-xs text-white"
-          >
-            Finals
-          </button>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             onClick={saveRuleset}
             className="rounded-md bg-lighter px-3 py-2 text-sm text-white"
