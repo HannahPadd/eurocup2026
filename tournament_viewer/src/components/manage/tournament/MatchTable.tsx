@@ -14,16 +14,12 @@ import { Phase } from "../../../models/Phase";
 import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 import { useEffect, useState } from "react";
 import AddStandingToMatchModal from "./modals/AddStandingToMatchModal";
-import {
-  HttpTransportType,
-  HubConnection,
-  HubConnectionBuilder,
-} from "@microsoft/signalr";
 import { toast } from "react-toastify";
 import { Log } from "../../../models/Log";
 import LogViewer from "../../layout/LogViewer";
 import { Tab } from "@headlessui/react";
 import { classNames } from "../../../pages/ManagePage";
+import { connectJsonWebSocket } from "../../../services/websocket/jsonWebSocket";
 
 type MatchTableProps = {
   division: Division;
@@ -114,13 +110,6 @@ export default function MatchTable({
     songTitle: string;
   }>({ songId: 0, playerId: 0, playerName: "", songTitle: "" });
 
-  const [scoreConnection, setScoreConnection] = useState<null | HubConnection>(
-    null,
-  );
-  const [errorConnection, setErrorConnection] = useState<null | HubConnection>(
-    null,
-  );
-
   match.rounds.forEach((round) => {
     round.standings.forEach((standing) => {
       const key = `${standing.score.player.id}-${standing.score.song.id}`;
@@ -133,57 +122,61 @@ export default function MatchTable({
   });
 
   useEffect(() => {
-    if (scoreConnection === null && isActive) {
-      const conn = new HubConnectionBuilder()
-        .withUrl(`${import.meta.env.VITE_PUBLIC_API_URL}../matchupdatehub`, {
-          skipNegotiation: true,
-          transport: HttpTransportType.WebSockets,
-        })
-        .build();
-
-      conn.on("OnMatchUpdate", () => {
-        onGetActiveMatch();
-      });
-
-      conn.start().then(() => {
-        console.log("Now listening to match changes.");
-        toast.info("Now listening to match changes.");
-      });
-
-      if (!errorConnection && controls) {
-        const errConn = new HubConnectionBuilder()
-          .withUrl(`${import.meta.env.VITE_PUBLIC_API_URL}../logupdatehub`, {
-            skipNegotiation: true,
-            transport: HttpTransportType.WebSockets,
-          })
-          .build();
-
-        errConn.on("OnLogUpdate", ({ message, error }: Log) => {
-          console.log(message, error);
-
-          error &&
-            toast.error(`Error: ${message} - ${error}`, {
-              autoClose: false,
-            });
-
-          setLogs((prevLogs) => [
-            ...prevLogs,
-            { message, error: error, timestamp: new Date().toISOString() },
-          ]);
-        });
-
-        errConn.start().then(() => {
-          console.log("Now listening to log changes.");
-          toast.info("Now listening to log changes.");
-        });
-
-        setErrorConnection(errConn);
-      }
-
-      setScoreConnection(conn);
+    if (!isActive) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, scoreConnection, errorConnection]);
+
+    const scoreConn = connectJsonWebSocket("/matchupdatehub", {
+      OnMatchUpdate: () => {
+        onGetActiveMatch();
+      },
+    });
+    scoreConn.onopen = () => {
+      console.log("Now listening to match changes.");
+      toast.info("Now listening to match changes.");
+    };
+
+    let errorConn: WebSocket | null = null;
+
+    if (controls) {
+      const onLog = (message: string, error?: string | null) => {
+        console.log(message, error);
+
+        if (error) {
+          toast.error(`Error: ${message} - ${error}`, {
+            autoClose: false,
+          });
+        }
+
+        setLogs((prevLogs) => [
+          ...prevLogs,
+          { message, error: error ?? "", timestamp: new Date().toISOString() },
+        ]);
+      };
+
+      errorConn = connectJsonWebSocket("/logupdatehub", {
+        OnLogUpdate: (payload) => {
+          const logPayload = payload as Log;
+          onLog(logPayload.message, logPayload.error);
+        },
+        error: (payload) => onLog(String(payload), "error"),
+        warning: (payload) => onLog(String(payload), "warning"),
+        info: (payload) => onLog(String(payload), null),
+      });
+
+      errorConn.onopen = () => {
+        console.log("Now listening to log changes.");
+        toast.info("Now listening to log changes.");
+      };
+    }
+
+    return () => {
+      scoreConn.close();
+      if (errorConn) {
+        errorConn.close();
+      }
+    };
+  }, [controls, isActive, onGetActiveMatch]);
 
   // Calculate total points for each player
   const getTotalPoints = (playerId: number) => {

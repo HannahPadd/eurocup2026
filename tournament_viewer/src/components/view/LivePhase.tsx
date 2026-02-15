@@ -5,19 +5,14 @@ import { Division } from "../../models/Division";
 import { Phase } from "../../models/Phase";
 import axios from "axios";
 import MatchesView from "../manage/tournament/MatchesView";
-import {
-  HttpTransportType,
-  HubConnection,
-  HubConnectionBuilder,
-} from "@microsoft/signalr";
 import LiveScores from "./LiveScores";
+import { connectJsonWebSocket } from "../../services/websocket/jsonWebSocket";
 
 export default function LivePhase() {
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<Phase | null>(null);
   const [division, setDivision] = useState<Division | null>(null);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
-  const [connection, setConnection] = useState<HubConnection | null>(null);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -44,28 +39,18 @@ export default function LivePhase() {
   useEffect(() => {
     fetchData();
 
-    const conn = new HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_PUBLIC_API_URL}../matchupdatehub`, {
-        skipNegotiation: true,
-        transport: HttpTransportType.WebSockets,
-      })
-      .build();
-
-    conn.on("OnMatchUpdate", fetchData);
-
-    conn
-      .start()
-      .then(() => {
-        console.log("Now listening to match changes.");
-      })
-      .catch((error) => console.error("Connection failed: ", error));
-
-    setConnection(conn);
+    const conn = connectJsonWebSocket("/matchupdatehub", {
+      OnMatchUpdate: () => fetchData(),
+    });
+    conn.onopen = () => {
+      console.log("Now listening to match changes.");
+    };
+    conn.onerror = (error) => {
+      console.error("Connection failed: ", error);
+    };
 
     return () => {
-      if (connection) {
-        conn.stop();
-      }
+      conn.close();
     };
   }, [fetchData]);
 

@@ -4,16 +4,12 @@ import axios from "axios";
 import { faMedal, faSpoon } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Player } from "../../models/Player.ts";
-import {HttpTransportType, HubConnection, HubConnectionBuilder} from "@microsoft/signalr";
 import {toast} from "react-toastify";
+import { connectJsonWebSocket } from "../../services/websocket/jsonWebSocket";
 
 export default function Rankings() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-
-  const [scoreConnection, setScoreConnection] = useState<null | HubConnection>(
-      null,
-  );
 
   useEffect(() => {
     axios.get("teams").then((response) => {
@@ -26,15 +22,8 @@ export default function Rankings() {
   }, []);
 
   useEffect(() => {
-    if (scoreConnection === null) {
-      const conn = new HubConnectionBuilder()
-          .withUrl(`${import.meta.env.VITE_PUBLIC_API_URL}../matchupdatehub`, {
-            skipNegotiation: true,
-            transport: HttpTransportType.WebSockets,
-          })
-          .build();
-
-      conn.on("OnMatchUpdate", () => {
+    const conn = connectJsonWebSocket("/matchupdatehub", {
+      OnMatchUpdate: () => {
         axios.get("teams").then((response) => {
           setTeams(response.data);
         });
@@ -42,17 +31,18 @@ export default function Rankings() {
         axios.get("players").then((response) => {
           setPlayers(response.data);
         });
-      });
+      },
+    });
 
-      conn.start().then(() => {
-        console.log("Now listening to ranking changes.");
-        toast.info("Now listening to ranking changes.");
-      });
+    conn.onopen = () => {
+      console.log("Now listening to ranking changes.");
+      toast.info("Now listening to ranking changes.");
+    };
 
-      setScoreConnection(conn);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoreConnection]);
+    return () => {
+      conn.close();
+    };
+  }, []);
 
 
   return (

@@ -1,8 +1,3 @@
-import {
-  HttpTransportType,
-  HubConnection,
-  HubConnectionBuilder,
-} from "@microsoft/signalr";
 import { useEffect, useState, useMemo } from "react";
 import { RawScore } from "../../models/RawScore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,9 +6,9 @@ import axios from "axios";
 import { Player } from "../../models/Player.ts";
 import { Team, TEAM_COLORS } from "../../models/Team.ts";
 import { countryToFlagUrl } from "../../utils/flags";
+import { connectJsonWebSocket } from "../../services/websocket/jsonWebSocket";
 
 export default function LiveScores() {
-  const [, setScoreUpdateConnection] = useState<HubConnection | null>(null);
   const [scores, setScores] = useState<RawScore[]>([]);
   const [showJudgements, setShowJudgements] = useState(true);
 
@@ -21,27 +16,21 @@ export default function LiveScores() {
   const [teams, setTeams] = useState<Team[]>([]);
 
   useEffect(() => {
-    const conn = new HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_PUBLIC_API_URL}../scoreupdatehub`, {
-        skipNegotiation: true,
-        transport: HttpTransportType.WebSockets,
-      })
-      .build();
-
-    conn.on("OnScoreUpdate", (msg: RawScore) => {
-      setScores((prev) => {
-        const newScores = prev.filter(
-          (score) => score.score.playerName !== msg.score.playerName,
-        );
-        return [...newScores, msg];
-      });
+    const conn = connectJsonWebSocket("/scoreupdatehub", {
+      OnScoreUpdate: (payload) => {
+        const msg = payload as RawScore;
+        setScores((prev) => {
+          const newScores = prev.filter(
+            (score) => score.score.playerName !== msg.score.playerName,
+          );
+          return [...newScores, msg];
+        });
+      },
     });
 
-    conn.start().then(() => {
+    conn.onopen = () => {
       console.log("Now listening to scores changes.");
-    });
-
-    setScoreUpdateConnection(conn);
+    };
 
     axios.get("players").then((response) => {
       setPlayers(response.data);
@@ -52,7 +41,7 @@ export default function LiveScores() {
     });
 
     return () => {
-      conn.stop();
+      conn.close();
     };
   }, []);
 
