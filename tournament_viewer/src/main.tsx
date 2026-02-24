@@ -5,13 +5,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import axios from "axios";
 import { AuthProvider } from "./context/AuthContext.tsx";
 
-//TODO: REPLACE WITH ACTUAL URL WHEN MAKING PR
-axios.defaults.baseURL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_PUBLIC_API_URL ||
-  "http://localhost:3000";
-axios.defaults.withCredentials = true;
 
+axios.defaults.baseURL = "api.itgeurocup.com";
+axios.defaults.withCredentials = true;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
