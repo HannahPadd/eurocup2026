@@ -334,10 +334,9 @@ export default function RegisterCompontent() {
                     required
                     aria-invalid={validPwd ? 'false' : 'true'}
                     aria-describedby="pwdnote"
-                    onBlur={() => setPwdFocus(false)}
                   />
                   <p id="pwdnote" className="mt-1 text-xs text-white/80">
-                    <FontAwesomeIcon icon={faInfoCircle} className="mr-1" /> 8 to 24 chars with upper/lowercase,
+                    <FontAwesomeIcon icon={faInfoCircle} className="mr-1"/> 8 to 24 chars with upper/lowercase,
                     number, and !@#$%.
                   </p>
                 </div>
