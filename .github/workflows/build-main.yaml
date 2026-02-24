@@ -1,0 +1,57 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull-request:
+    branches: [ "main" ]
+jobs:
+  build-main:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker metadata for viewer
+        id: meta_viewer
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/tournamentviewer
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build viewer
+        uses: docker/build-push-action@v6
+        with:
+          context: ./tournament_viewer
+          file: ./tournament_viewer/Dockerfile
+          push: false
+          load: true
+          tags: ${{ steps.meta_viewer.outputs.tags }}
+          labels: ${{ steps.meta_viewer.outputs.labels }}
+          secrets: |
+            vite_api_base_url=${{ secrets.VITE_API_BASE_URL }}
+
+      - name: Set up Docker metadata for backend
+        id: meta_backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/tournamentserver
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./tournament_server
+          file: ./tournament_server/Dockerfile
+          push: false
+          load: true
+          tags: ${{ steps.meta_backend.outputs.tags }}
+          labels: ${{ steps.meta_backend.outputs.labels }}
