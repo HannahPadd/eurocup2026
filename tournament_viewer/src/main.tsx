@@ -6,7 +6,7 @@ import axios from "axios";
 import { AuthProvider } from "./context/AuthContext.tsx";
 
 
-axios.defaults.baseURL = "api.itgeurocup.com";
+axios.defaults.baseURL = "https://api.itgeurocup.com";
 axios.defaults.withCredentials = true;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
