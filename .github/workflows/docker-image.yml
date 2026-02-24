@@ -8,6 +8,7 @@ on:
 
 jobs:
   build-and-push:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -35,8 +36,8 @@ jobs:
       - name: Build & Push viewer
         uses: docker/build-push-action@v6
         with:
-          context: ./
-          file: Dockerfile
+          context: ./tournament_viewer
+          file: ./tournament_viewer/Dockerfile
           push: true
           tags: ${{ steps.meta_viewer.outputs.tags }}
           labels: ${{ steps.meta_viewer.outputs.labels }}
@@ -47,7 +48,7 @@ jobs:
         id: meta_backend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/tournament_manager_backend
+          images: ghcr.io/${{ github.repository }}/tournamentserver
           tags: |
             type=sha
             type=raw,value=latest
@@ -55,8 +56,8 @@ jobs:
       - name: Build & Push backend
         uses: docker/build-push-action@v6
         with:
-          context: ./
-          file: Dockerfile
+          context: ./tournament_server
+          file: ./tournament_server/Dockerfile
           push: true
           tags: ${{ steps.meta_backend.outputs.tags }}
           labels: ${{ steps.meta_backend.outputs.labels }}
