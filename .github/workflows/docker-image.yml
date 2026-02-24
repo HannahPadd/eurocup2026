@@ -36,7 +36,7 @@ jobs:
       - name: Build & Push viewer
         uses: docker/build-push-action@v6
         with:
-          context: ./tournament_viewer/*
+          context: ./tournament_viewer/
           file: Dockerfile
           push: true
           tags: ${{ steps.meta_viewer.outputs.tags }}
@@ -56,7 +56,7 @@ jobs:
       - name: Build & Push backend
         uses: docker/build-push-action@v6
         with:
-          context: ./tournnament_server/*
+          context: ./tournnament_server/
           file: Dockerfile
           push: true
           tags: ${{ steps.meta_backend.outputs.tags }}
