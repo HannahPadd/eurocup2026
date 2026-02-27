@@ -16,20 +16,79 @@ export default function LiveScores() {
   const [teams, setTeams] = useState<Team[]>([]);
 
   useEffect(() => {
-    const conn = connectJsonWebSocket("/scoreupdatehub", {
-      OnScoreUpdate: (payload) => {
-        const msg = payload as RawScore;
-        setScores((prev) => {
-          const newScores = prev.filter(
-            (score) => score.score.playerName !== msg.score.playerName,
-          );
-          return [...newScores, msg];
-        });
+    const conn = connectJsonWebSocket("/", {
+		lobbyState: (payload: any) => {
+			const oldScores:any[] = payload?.players;
+			if(!oldScores || !oldScores[0].judgments) {
+				console.log("Skip", oldScores);
+				return;
+			}
+
+			const newScores:RawScore[] = oldScores.map((player: any) => {
+				const newPlayer: RawScore = {
+					score: {
+						playerName: player.name,
+						song: payload.songInfo.songPath,
+						formattedScore: player.score.toString(),
+						life: player.health,
+						isFailed: player.failed,
+						actualDancePoints: 0,
+					  	currentPossibleDancePoints: 0,
+						possibleDancePoints: 0,
+						totalHoldsCount: player.judgments.totalHolds,
+						playerNumber: parseInt(player.playerId.replace("P", "")),
+						id: player.playerId,
+						holdNote: {
+							held: player.judgments.holdsHeld,
+							letGo: 0,
+							missed: 0,
+							none: 0
+						},
+						tapNote: {
+							W0: player.judgments.fantasticPlus,
+							W1: player.judgments.fantastics,
+							W2: player.judgments.excellents,
+							W3: player.judgments.greats,
+							W4: player.judgments.decents,
+							W5: player.judgments.wayOffs,
+							miss: player.judgments.misses,
+							avoidMine: 0,
+							checkpointHit: 0,
+							checkpointMiss: 0,
+							hitMine: player.minesHit,
+							none: 0
+						},
+					},
+				}
+				return newPlayer;
+			});
+
+			setScores(() => {
+				return newScores;
+			});
+			console.log("SetScores");
+        // const msg = payload as RawScore;
+        // setScores((prev) => {
+        //   const newScores = prev.filter(
+        //     (score) => score.score.playerName !== msg.score.playerName,
+        //   );
+        //   return [...newScores, msg];
+        // });
       },
     });
 
     conn.onopen = () => {
       console.log("Now listening to scores changes.");
+	  conn.send(JSON.stringify({ 
+		event: "spectateLobby",
+		data: {
+			code: "MPGS",
+			password: "",
+			spectator: {
+				profileName: "Tournament Viewer",
+			}
+		}
+	 }));
     };
 
     axios.get("players").then((response) => {
