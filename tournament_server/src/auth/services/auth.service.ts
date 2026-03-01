@@ -9,6 +9,8 @@ import * as bcrypt from 'bcrypt';
 import { AuthRefreshTokenDto } from '../dtos';
 
 import { Account } from '@persistence/entities';
+import { createHash, randomBytes } from 'crypto';
+import { UpdateUserPlayerDto } from '@user/dtos';
 
 
 @Injectable()
@@ -57,5 +59,34 @@ export class AuthService {
         return {
             access_token: await this.jwtService.signAsync(payload),
         };
+    }
+
+    async validateApiKey(apiKey: string) {
+        const isValid = true;
+        if (isValid) {
+            return { id: 'api-client', role: 'user'};
+        }
+        return null;
+    }
+
+    async generateApiKey(req: any) {
+        const buffer = randomBytes(32);
+        const rawKey = `ak${buffer.toString('base64url')}`;
+        const hashedKey = createHash('sha256').update(rawKey).digest('hex');
+
+        const username = req;
+
+        const user = await this.accountRepo.findOneBy({ username })
+        
+        if (!user) {
+            console.log("user not found")
+            return
+        }
+        
+        
+        user.tournamentManagerApi = hashedKey;
+        this.accountRepo.save;
+
+        return rawKey;
     }
 }

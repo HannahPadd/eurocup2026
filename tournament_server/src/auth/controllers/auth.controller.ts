@@ -12,8 +12,9 @@ import { AuthRefreshTokenDto } from '../dtos';
 import { Roles } from '../decorators';
 
 import { UserService } from '@user/services';
-import { CreateUserPlayerDto } from '@user/dtos';
+import { CreateUserPlayerDto, UpdateUserPlayerDto } from '@user/dtos';
 import { LocalAuthGuard, RolesGuard, JwtAuthGuard } from '@auth/guards';
+import { UpdateAccountPlayerDto, UpdateAcountDto } from '@tournament/dtos';
 
 
 @Controller('auth')
@@ -34,19 +35,25 @@ export class AuthController {
         return req.logout();
     }
 
-    @UseGuards(LocalAuthGuard, RolesGuard)
     @Post()
-    @Roles(['admin'])
     async create(@Body() createUserPlayerDto: CreateUserPlayerDto) {
         this.userService.create(createUserPlayerDto);
     }
 
-    //@UseGuards(JwtAuthGuard)
+
+    @UseGuards(JwtAuthGuard)
     @Get('profile')
     getProfile(@Request() req) {
         console.log("getProfile")
         return req.user;
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('genapi')
+    async generateApiKey(@Request() req) {
+    console.log("Generating API key for user:", req.user.username);
+    return await this.authService.generateApiKey(req.user.username);
+}
 
     @Get('refresh')
     async getRefreshToken(@Body(new ValidationPipe()) refreshToken: AuthRefreshTokenDto) {

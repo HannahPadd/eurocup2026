@@ -13,6 +13,7 @@ import { AccountModule } from '@user/user.module';
 import { PersistenceModule } from '@persistence/persistence.module';
 
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { ApiKeyStrategy } from './strategies/api-key.strategy';
 
 
 @Module({
@@ -32,7 +33,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     providers: [
         AuthService,
         LocalStrategy,
-        JwtStrategy
+        JwtStrategy,
+        ApiKeyStrategy
     ],
     controllers: [AuthController],
     exports: [AuthService]

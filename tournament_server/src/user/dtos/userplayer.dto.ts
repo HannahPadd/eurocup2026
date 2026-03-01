@@ -44,6 +44,16 @@ export class CreateUserPlayerDto {
 
     @ApiProperty({
         example: 1,
+        description: 'Tournament manager api key for the account',
+        required: false
+    })
+    @IsString()
+    @IsOptional()
+    @Type(() => String)
+    tournamentManagerApi: string;
+
+    @ApiProperty({
+        example: 1,
         description: 'ID of the player table this account belongs to',
         required: false,
     })
@@ -275,6 +285,16 @@ export class UpdateUserPlayerDto {
     @IsOptional()
     @Type(() => String)
     grooveStatsApi: string;
+
+    @ApiProperty({
+        example: 1,
+        description: 'Tournament manager api key for the account',
+        required: false
+    })
+    @IsString()
+    @IsOptional()
+    @Type(() => String)
+    tournamentManagerApi: string;
 
     @ApiProperty({
         example: 1,

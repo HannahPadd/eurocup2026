@@ -30,6 +30,9 @@ export class Account {
     @Column({ default: "" })
     grooveStatsApi: string;
 
+    @Column({ default: "" })
+    tournamentManagerApi: string;
+
     @OneToOne(() => Player)
     @JoinColumn()
     player: Player

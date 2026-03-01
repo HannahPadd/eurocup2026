@@ -453,6 +453,28 @@ export default function LandingPage() {
     return map;
   }, [divisions]);
 
+  /*
+  const handleGenerateAPI = async () => {
+    try {
+      const response = await axios.post('auth/genapi',
+        {
+          'username' : auth?.username
+        },
+        {
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization' : `Bearer ${auth?.accessToken}`
+           },
+          withCredentials: true
+        });
+      console.log('Your new API Key:', response.data.apiKey);
+      alert(`Save this key, it won't be shown again: ${response.data.apiKey}`);
+    } catch (error) {
+      console.error('Failed to generate API key', error);
+    }
+  };
+  */
+
   const countryLabel = playerProfile?.country?.trim() || UNKNOWN_COUNTRY_LABEL;
   const countryFlag = countryToFlagUrl(playerProfile?.country, 40);
 
@@ -768,6 +790,23 @@ export default function LandingPage() {
           Go to tournament
         </Link>
       </section>
+
+{/*
+      <section>
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
+          <h3 className="text-xl font-semibold theme-text">Generate API token</h3>
+          <input
+            disabled={true}
+            type="text">
+          </input>
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+            onClick={handleGenerateAPI}>
+            Generate API Token
+          </button>
+        </div>
+      </section>
+      */}
     </div>
   );
 }
