@@ -27,6 +27,12 @@ import DivisionMembersModal from "../divisions/DivisionMembersModal";
 import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 import EditMatchNotesModal from "./modals/EditMatchNotesModal";
 import EditMatchPlayersModal from "./modals/EditMatchPlayersModal";
+import {
+  getLiveLobbyCode,
+  getLiveLobbyPassword,
+  setLiveLobbyCode,
+  setLiveLobbyPassword,
+} from "../../../utils/liveLobbyCode";
 
 type TournamentSettingsProps = {
   controls: boolean;
@@ -50,6 +56,10 @@ export default function TournamentSettings({
   const [notesMatch, setNotesMatch] = useState<Match | null>(null);
   const [playersMatch, setPlayersMatch] = useState<Match | null>(null);
   const [songsMatch, setSongsMatch] = useState<Match | null>(null);
+  const [liveLobbyCode, setLiveLobbyCodeState] = useState(getLiveLobbyCode());
+  const [liveLobbyPassword, setLiveLobbyPasswordState] = useState(
+    getLiveLobbyPassword(),
+  );
 
   useEffect(() => {
     if (!controls) {
@@ -150,6 +160,39 @@ export default function TournamentSettings({
               <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-1">
                 Manage matches
               </span>
+            </div>
+            <div className="mt-3 grid w-full grid-cols-1 gap-2 text-xs text-gray-300 sm:flex sm:flex-wrap sm:items-center">
+              <label htmlFor="live-lobby-code" className="font-semibold">
+                Live lobby code:
+              </label>
+              <input
+                id="live-lobby-code"
+                value={liveLobbyCode}
+                onChange={(event) => setLiveLobbyCodeState(event.target.value)}
+                onBlur={() =>
+                  setLiveLobbyCodeState(setLiveLobbyCode(liveLobbyCode))
+                }
+                placeholder="BGYJ"
+                className="w-full rounded border border-white/20 bg-black/30 px-2 py-1 font-mono uppercase tracking-wide text-white sm:w-24"
+              />
+              <label htmlFor="live-lobby-password" className="font-semibold sm:ml-2">
+                Password:
+              </label>
+              <input
+                id="live-lobby-password"
+                type="password"
+                value={liveLobbyPassword}
+                onChange={(event) =>
+                  setLiveLobbyPasswordState(event.target.value)
+                }
+                onBlur={() =>
+                  setLiveLobbyPasswordState(
+                    setLiveLobbyPassword(liveLobbyPassword),
+                  )
+                }
+                placeholder="(optional)"
+                className="w-full rounded border border-white/20 bg-black/30 px-2 py-1 text-white sm:w-28"
+              />
             </div>
           </div>
         )}

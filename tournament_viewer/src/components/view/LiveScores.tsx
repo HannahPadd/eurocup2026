@@ -1,72 +1,190 @@
 import { useEffect, useState, useMemo } from "react";
 import { RawScore } from "../../models/RawScore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHeart } from "@fortawesome/free-solid-svg-icons";
+import { faCheckCircle, faHeart } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { Player } from "../../models/Player.ts";
 import { Team, TEAM_COLORS } from "../../models/Team.ts";
 import { countryToFlagUrl } from "../../utils/flags";
 import { connectJsonWebSocket } from "../../services/websocket/jsonWebSocket";
+import { getLiveLobbyCode, getLiveLobbyPassword } from "../../utils/liveLobbyCode";
+
+const normalizePercent = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  const scaled = value <= 1 ? value * 100 : value;
+  return Math.max(0, Math.min(100, scaled));
+};
+
+const normalizeDifficultyType = (diffType?: string): string => {
+  if (!diffType) return "";
+  return diffType.replace("Difficulty_", "").toLowerCase();
+};
+
+const getDifficultyColor = (diffType?: string): string => {
+  switch (normalizeDifficultyType(diffType)) {
+    case "beginner":
+      return "#22c55e";
+    case "easy":
+      return "#3b82f6";
+    case "normal":
+      return "#f59e0b";
+    case "hard":
+      return "#f97316";
+    case "expert":
+      return "#ef4444";
+    default:
+      return "#6b7280";
+  }
+};
+
+const normalizePlayerIdentity = (value?: string): string =>
+  (value ?? "").trim().toLowerCase();
+
+type LobbyPlayer = {
+  name: string;
+  playerId: string;
+  score: number;
+  health: number;
+  failed: boolean;
+  diffLevel?: number;
+  diffType?: string;
+  ready?: boolean;
+  judgments?: {
+    decents: number;
+    excellents: number;
+    fantasticPlus: number;
+    fantastics: number;
+    greats: number;
+    holdsHeld: number;
+    minesHit: number;
+    misses: number;
+    totalHolds: number;
+    wayOffs: number;
+  };
+};
+
+type LobbyStatePayload = {
+  players?: LobbyPlayer[];
+  songInfo?: {
+    songPath?: string;
+    title?: string;
+  };
+};
 
 export default function LiveScores() {
   const [scores, setScores] = useState<RawScore[]>([]);
   const [showJudgements, setShowJudgements] = useState(true);
+  const [showFaPlusSplit, setShowFaPlusSplit] = useState(true);
+  const [readyById, setReadyById] = useState<Record<string, boolean>>({});
+  const [songTitle, setSongTitle] = useState("");
+  const [songDiffType, setSongDiffType] = useState<string | undefined>();
+  const [songDiffLevel, setSongDiffLevel] = useState<number | undefined>();
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
 
   useEffect(() => {
     const conn = connectJsonWebSocket("/", {
-		lobbyState: (payload: any) => {
-			const oldScores:any[] = payload?.players;
-			if(!oldScores || !oldScores[0].judgments) {
-				console.log("Skip", oldScores);
-				return;
-			}
+      lobbyState: (payload: unknown) => {
+        const typedPayload = payload as LobbyStatePayload;
+        const oldScores = typedPayload?.players;
 
-			const newScores:RawScore[] = oldScores.map((player: any) => {
-				const newPlayer: RawScore = {
-					score: {
-						playerName: player.name,
-						song: payload.songInfo.songPath,
-						formattedScore: player.score.toString(),
-						life: player.health,
-						isFailed: player.failed,
-						actualDancePoints: 0,
-					  	currentPossibleDancePoints: 0,
-						possibleDancePoints: 0,
-						totalHoldsCount: player.judgments.totalHolds,
-						playerNumber: parseInt(player.playerId.replace("P", "")),
-						id: player.playerId,
-						holdNote: {
-							held: player.judgments.holdsHeld,
-							letGo: 0,
-							missed: 0,
-							none: 0
-						},
-						tapNote: {
-							W0: player.judgments.fantasticPlus,
-							W1: player.judgments.fantastics,
-							W2: player.judgments.excellents,
-							W3: player.judgments.greats,
-							W4: player.judgments.decents,
-							W5: player.judgments.wayOffs,
-							miss: player.judgments.misses,
-							avoidMine: 0,
-							checkpointHit: 0,
-							checkpointMiss: 0,
-							hitMine: player.minesHit,
-							none: 0
-						},
-					},
-				}
-				return newPlayer;
-			});
+        if (!oldScores?.length) {
+          console.log("Skip", oldScores);
+          return;
+        }
 
-			setScores(() => {
-				return newScores;
-			});
-			console.log("SetScores");
+        const newScores: RawScore[] = oldScores.map((player) => {
+          const judgments = player.judgments;
+          if (!judgments) {
+            return {
+              score: {
+                playerName: player.name,
+                song: typedPayload.songInfo?.songPath ?? "",
+                formattedScore: "0.00",
+                life: 0,
+                isFailed: Boolean(player.failed),
+                actualDancePoints: 0,
+                currentPossibleDancePoints: 0,
+                possibleDancePoints: 0,
+                totalHoldsCount: 0,
+                playerNumber: parseInt(player.playerId.replace("P", ""), 10),
+                id: player.playerId,
+                holdNote: { held: 0, letGo: 0, missed: 0, none: 0 },
+                tapNote: {
+                  W0: 0,
+                  W1: 0,
+                  W2: 0,
+                  W3: 0,
+                  W4: 0,
+                  W5: 0,
+                  miss: 0,
+                  avoidMine: 0,
+                  checkpointHit: 0,
+                  checkpointMiss: 0,
+                  hitMine: 0,
+                  none: 0,
+                },
+              },
+            };
+          }
+
+          const formattedScore = normalizePercent(Number(player.score));
+          const lifePercent = normalizePercent(Number(player.health));
+
+          return {
+            score: {
+              playerName: player.name,
+              song: typedPayload.songInfo?.songPath ?? "",
+              formattedScore: formattedScore.toFixed(2),
+              life: lifePercent,
+              isFailed: Boolean(player.failed),
+              actualDancePoints: 0,
+              currentPossibleDancePoints: 0,
+              possibleDancePoints: 0,
+              totalHoldsCount: judgments.totalHolds,
+              playerNumber: parseInt(player.playerId.replace("P", ""), 10),
+              id: player.playerId,
+              holdNote: {
+                held: judgments.holdsHeld,
+                letGo: 0,
+                missed: 0,
+                none: 0,
+              },
+              tapNote: {
+                W0: judgments.fantasticPlus,
+                W1: judgments.fantastics,
+                W2: judgments.excellents,
+                W3: judgments.greats,
+                W4: judgments.decents,
+                W5: judgments.wayOffs,
+                miss: judgments.misses,
+                avoidMine: 0,
+                checkpointHit: 0,
+                checkpointMiss: 0,
+                hitMine: judgments.minesHit,
+                none: 0,
+              },
+            },
+          };
+        });
+
+        setScores(() => {
+          return newScores;
+        });
+        setReadyById(
+          Object.fromEntries(
+            oldScores.map((player) => [player.playerId, Boolean(player.ready)]),
+          ),
+        );
+        setSongTitle(
+          typedPayload?.songInfo?.title ??
+            typedPayload?.songInfo?.songPath?.split("/")?.[1] ??
+            "",
+        );
+        setSongDiffType(oldScores[0]?.diffType);
+        setSongDiffLevel(oldScores[0]?.diffLevel);
+        console.log("SetScores");
         // const msg = payload as RawScore;
         // setScores((prev) => {
         //   const newScores = prev.filter(
@@ -74,21 +192,25 @@ export default function LiveScores() {
         //   );
         //   return [...newScores, msg];
         // });
-      },
+      }
     });
 
     conn.onopen = () => {
       console.log("Now listening to scores changes.");
-	  conn.send(JSON.stringify({ 
-		event: "spectateLobby",
-		data: {
-			code: "MPGS",
-			password: "",
-			spectator: {
-				profileName: "Tournament Viewer",
-			}
-		}
-	 }));
+      const lobbyCode = getLiveLobbyCode();
+      const lobbyPassword = getLiveLobbyPassword();
+      conn.send(
+        JSON.stringify({
+          event: "spectateLobby",
+          data: {
+            code: lobbyCode,
+            password: lobbyPassword,
+            spectator: {
+              profileName: "Tournament Viewer",
+            },
+          },
+        }),
+      );
     };
 
     axios.get("players").then((response) => {
@@ -105,20 +227,31 @@ export default function LiveScores() {
   }, []);
 
   const sortedScores = useMemo(() => {
-    return scores.sort((a, b) => {
+    return [...scores].sort((a, b) => {
       const scoreA = +a.score.formattedScore;
       const scoreB = +b.score.formattedScore;
+      const isDeadA = a.score.isFailed || a.score.life <= 0;
+      const isDeadB = b.score.isFailed || b.score.life <= 0;
 
-      if (a.score.isFailed && !b.score.isFailed) return 1;
-      if (!a.score.isFailed && b.score.isFailed) return -1;
+      if (isDeadA && !isDeadB) return 1;
+      if (!isDeadA && isDeadB) return -1;
       return scoreB - scoreA;
     });
   }, [scores]);
 
+  const playersByIdentity = useMemo(() => {
+    const map = new Map<string, Player>();
+    for (const player of players) {
+      const byName = normalizePlayerIdentity(player.name);
+      const byPlayerName = normalizePlayerIdentity(player.playerName);
+      if (byName && !map.has(byName)) map.set(byName, player);
+      if (byPlayerName && !map.has(byPlayerName)) map.set(byPlayerName, player);
+    }
+    return map;
+  }, [players]);
+
   const getPlayer = (playerName: string) =>
-    players.find(
-      (p) => p.name === playerName || p.playerName === playerName,
-    );
+    playersByIdentity.get(normalizePlayerIdentity(playerName));
 
   const getTeamColor = (playerName: string) => {
     const player = getPlayer(playerName);
@@ -144,29 +277,58 @@ export default function LiveScores() {
 
   return (
     <div className="text-bianco w-auto">
-      <div className="flex flex-row gap-3 items-center">
-        <h2 className="theme-text">
-          Now playing: {sortedScores[0]?.score.song.split("/")[1]}
+      <div className="flex flex-col items-center gap-1 text-center">
+        <h2 className="theme-text leading-tight">
+          <span className="block">Now playing:</span>
+          <span className="block flex items-center justify-center gap-2">
+            <span>{songTitle || sortedScores[0]?.score.song.split("/")[1]}</span>
+            {typeof songDiffLevel === "number" && (
+              <span
+                className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white rounded-sm"
+                style={{ backgroundColor: getDifficultyColor(songDiffType) }}
+                title={normalizeDifficultyType(songDiffType) || "difficulty"}
+              >
+                {songDiffLevel}
+              </span>
+            )}
+          </span>
         </h2>
-        <div>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowJudgements((prev) => !prev)}
-            className="text-bianco bg-lighter p-0.5 text-xs rounded-md"
+            className="text-bianco bg-lighter px-2 py-0.5 text-xs rounded-md"
           >
             {showJudgements ? "Hide" : "Show"} judgements
+          </button>
+          <button
+            onClick={() => setShowFaPlusSplit((prev) => !prev)}
+            className="text-bianco bg-lighter px-2 py-0.5 text-xs rounded-md"
+            title="Toggle Fantastic split"
+          >
+            {showFaPlusSplit ? "FA+" : "FA"}
           </button>
         </div>
       </div>
       <div className="grid my-2 border-b pb-2  grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-1">
-        {sortedScores.map((score, idx) => (
-          <div
-            key={score.score.playerName}
-            style={{ backgroundColor: getTeamColor(score.score.playerName) }}
-            className={`flex flex-col items-start p-2  rounded-md shadow-md transition-transform transform ${
-              score.score.isFailed ? "bg-red-300 opacity-50" : ""
-            } text-sfondoPagina ${idx === 0 ? "animate-first-place" : ""} `}
-          >
-            <div className="flex flex-row gap-5 justify-between items-end w-full">
+        {sortedScores.map((score, idx) => {
+          const isDead = score.score.isFailed || score.score.life <= 0;
+          return (
+            <div
+              key={score.score.playerName}
+              style={{
+                backgroundColor: isDead
+                  ? "#5a2a2a"
+                  : getTeamColor(score.score.playerName),
+              }}
+              className={`flex flex-col items-start p-2  rounded-md shadow-md transition-transform transform ${
+                isDead ? "opacity-90" : ""
+              } text-sfondoPagina ${idx === 0 ? "animate-first-place" : ""} `}
+            >
+              <div
+                className={`flex flex-row gap-5 justify-between items-end w-full ${
+                  isDead ? "text-gray-300" : "text-white"
+                }`}
+              >
               <span className="flex items-center gap-2 text-xl">
                 <span className="italic">#{idx + 1}</span>{" "}
                 <img
@@ -178,22 +340,41 @@ export default function LiveScores() {
                   className="h-4 w-6 rounded-sm border border-white/20 object-cover"
                   loading="lazy"
                 />
-                <span className="font-bold">{score.score.playerName}</span>
+                <span className="font-bold flex items-center gap-1">
+                  {score.score.playerName}
+                  {readyById[score.score.id] && (
+                    <FontAwesomeIcon
+                      icon={faCheckCircle}
+                      className="text-green-200 text-sm"
+                      title="Ready"
+                    />
+                  )}
+                </span>
               </span>
 
               <span className=" font-bold text-xl">
                 {score.score.formattedScore}%
               </span>
-            </div>
+              </div>
             {showJudgements && (
               <div className=" flex text-xs text-ellipsis flex-wrap gap-3  text-bianco">
-                {score.score.tapNote.W0 > 0 && (
-                  <span className="text-blue-200">
-                    {score.score.tapNote.W0}FA
-                  </span>
-                )}
-                {score.score.tapNote.W1 > 0 && (
-                  <span>{score.score.tapNote.W1}FA</span>
+                {showFaPlusSplit ? (
+                  <>
+                    {score.score.tapNote.W0 > 0 && (
+                      <span className="text-blue-200">
+                        {score.score.tapNote.W0}FA+
+                      </span>
+                    )}
+                    {score.score.tapNote.W1 > 0 && (
+                      <span>{score.score.tapNote.W1}FA</span>
+                    )}
+                  </>
+                ) : (
+                  score.score.tapNote.W0 + score.score.tapNote.W1 > 0 && (
+                    <span className="text-blue-200">
+                      {score.score.tapNote.W0 + score.score.tapNote.W1}FA
+                    </span>
+                  )
                 )}
                 {score.score.tapNote.W2 > 0 && (
                   <span className="text-yellow-300">
@@ -227,18 +408,19 @@ export default function LiveScores() {
               <div className="relative w-full h-2 my-2 rounded-md bg-grigio overflow-hidden">
                 <div
                   className={`absolute top-0 left-0 h-full transition-all ${
-                    score.score.life === 1
+                    score.score.life >= 99
                       ? "bg-green-500"
-                      : score.score.life < 0.2
+                      : score.score.life < 20
                         ? "bg-red-500"
                         : "bg-blue-500"
                   }`}
-                  style={{ width: `${score.score.life * 100}%` }}
+                  style={{ width: `${score.score.life}%` }}
                 ></div>
               </div>
             </div>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

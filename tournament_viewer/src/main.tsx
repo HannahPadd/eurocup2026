@@ -6,7 +6,7 @@ import axios from "axios";
 import { AuthProvider } from "./context/AuthContext.tsx";
 
 
-axios.defaults.baseURL = "http://localhost:3001";
+axios.defaults.baseURL = "http://localhost:3000";
 axios.defaults.withCredentials = true;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
