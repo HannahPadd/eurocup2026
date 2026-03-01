@@ -57,13 +57,30 @@ export default function LivePhase() {
   return (
     <div>
       {import.meta.env.VITE_PUBLIC_ENABLE_LIVE_SCORES === "true" && (
-        <LiveScores />
+        <LiveScores
+          divisionName={division?.name}
+          phaseName={phase?.name}
+          matchName={activeMatch?.name}
+          roundLabel={
+            activeMatch
+              ? `${Math.min(
+                  Math.max(
+                    activeMatch.rounds.findIndex(
+                      (round) => round.standings.length === 0,
+                    ) + 1,
+                    1,
+                  ),
+                  Math.max(activeMatch.rounds.length, 1),
+                )}/${Math.max(activeMatch.rounds.length, 1)}`
+              : undefined
+          }
+        />
       )}
       {loading && <p>Loading...</p>}
       {!loading && !activeMatch && <p>No match in progress. Stay tuned!</p>}
       {division && phase && activeMatch && (
         <div>
-          <h1 className="text-center text-7xl theme-text font-bold">
+          <h1 className="text-center text-4xl sm:text-6xl theme-text font-bold">
             {division.name}
           </h1>
 

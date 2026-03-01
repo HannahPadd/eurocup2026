@@ -71,7 +71,19 @@ type LobbyStatePayload = {
   };
 };
 
-export default function LiveScores() {
+type LiveScoresProps = {
+  divisionName?: string;
+  phaseName?: string;
+  matchName?: string;
+  roundLabel?: string;
+};
+
+export default function LiveScores({
+  divisionName,
+  phaseName,
+  matchName,
+  roundLabel,
+}: LiveScoresProps) {
   const [scores, setScores] = useState<RawScore[]>([]);
   const [showJudgements, setShowJudgements] = useState(true);
   const [showFaPlusSplit, setShowFaPlusSplit] = useState(true);
@@ -277,36 +289,43 @@ export default function LiveScores() {
 
   return (
     <div className="text-bianco w-auto">
-      <div className="flex flex-col items-center gap-1 text-center">
-        <h2 className="theme-text leading-tight">
-          <span className="block">Now playing:</span>
-          <span className="block flex items-center justify-center gap-2">
-            <span>{songTitle || sortedScores[0]?.score.song.split("/")[1]}</span>
+      <div className="mb-3">
+        <p className="text-[11px] uppercase tracking-wide text-gray-300">Now playing:</p>
+        <div className="mt-1">
+          <h2 className="theme-text text-left text-lg sm:text-2xl font-bold leading-tight break-words flex flex-wrap items-center gap-2">
+            {songTitle || sortedScores[0]?.score.song.split("/")[1]}
             {typeof songDiffLevel === "number" && (
               <span
-                className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white rounded-sm"
+                className="inline-flex shrink-0 items-center justify-center w-7 h-7 text-xs font-bold text-white rounded-sm"
                 style={{ backgroundColor: getDifficultyColor(songDiffType) }}
                 title={normalizeDifficultyType(songDiffType) || "difficulty"}
               >
                 {songDiffLevel}
               </span>
             )}
-          </span>
-        </h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowJudgements((prev) => !prev)}
-            className="text-bianco bg-lighter px-2 py-0.5 text-xs rounded-md"
-          >
-            {showJudgements ? "Hide" : "Show"} judgements
-          </button>
-          <button
-            onClick={() => setShowFaPlusSplit((prev) => !prev)}
-            className="text-bianco bg-lighter px-2 py-0.5 text-xs rounded-md"
-            title="Toggle Fantastic split"
-          >
-            {showFaPlusSplit ? "FA+" : "FA"}
-          </button>
+          </h2>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-200">
+          {matchName && (
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-2 py-0.5">
+              Match: <span className="ml-1 font-semibold text-white">{matchName}</span>
+            </span>
+          )}
+          {roundLabel && (
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-2 py-0.5">
+              Round: <span className="ml-1 font-semibold text-white">{roundLabel}</span>
+            </span>
+          )}
+          {phaseName && (
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-2 py-0.5">
+              Phase: <span className="ml-1 font-semibold text-white">{phaseName}</span>
+            </span>
+          )}
+          {divisionName && (
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-2 py-0.5">
+              Division: <span className="ml-1 font-semibold text-white">{divisionName}</span>
+            </span>
+          )}
         </div>
       </div>
       <div className="grid my-2 border-b pb-2  grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-1">
@@ -421,6 +440,21 @@ export default function LiveScores() {
             </div>
           );
         })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 justify-center sm:justify-end">
+        <button
+          onClick={() => setShowJudgements((prev) => !prev)}
+          className="text-bianco bg-lighter px-2 py-0.5 text-xs rounded-md"
+        >
+          {showJudgements ? "Hide" : "Show"} judgements
+        </button>
+        <button
+          onClick={() => setShowFaPlusSplit((prev) => !prev)}
+          className="text-bianco bg-lighter px-2 py-0.5 text-xs rounded-md"
+          title="Toggle Fantastic split"
+        >
+          {showFaPlusSplit ? "FA+" : "FA"}
+        </button>
       </div>
     </div>
   );
