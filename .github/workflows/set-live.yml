@@ -59,4 +59,9 @@ jobs:
           push: true
           tags: ${{ steps.meta_backend.outputs.tags }}
           labels: ${{ steps.meta_backend.outputs.labels }}
+          build-args: |
+            NODE_ENV=production
+          secrets: |
+            jwt_secret=${{ secrets.JWT_SECRET }}
+            cors_origin=${{ secrets.CORS_ORIGIN }}
 

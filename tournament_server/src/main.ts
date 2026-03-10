@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { RolesGuard } from './auth/guards';
 import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap() {
@@ -14,8 +13,18 @@ async function bootstrap() {
     .addTag('api')
     .build();
 
+  // Determine environment
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  // Read CORS origins from env variable
+  const originsEnv = process.env.CORS_ORIGIN || '';
+  const origins = originsEnv
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: 'https://tournament.itgeurocup.com',
+    origin: isDev ? '*' : origins, // Allow all in dev, only configured in prod
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -28,4 +37,5 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
+
 bootstrap();

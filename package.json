@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "passport-headerapikey": "^1.2.2"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }
