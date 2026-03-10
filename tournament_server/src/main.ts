@@ -14,18 +14,9 @@ async function bootstrap() {
     .addTag('api')
     .build();
 
-  /*
   app.enableCors({
     origin: 'http://manager.itgeurocup.com',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  });
-  */
-  
-  app.enableCors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost', 'http://127.0.0.1'],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
