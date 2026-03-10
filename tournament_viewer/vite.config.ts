@@ -20,7 +20,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: "0.0.0.0",
-    allowedHosts: ["api.itgeurocup.com"],
+    allowedHosts: ["https://api.itgeurocup.com"],
     watch: {
       usePolling: true,
     },
