@@ -49,8 +49,6 @@
     "rxjs": "^7.8.1",
     "socket": "^1.1.64",
     "socket.io": "^4.8.3",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.20",
     "ws": "^8.19.0"
