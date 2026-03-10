@@ -21,9 +21,9 @@ import { UpdateAccountPlayerDto, UpdateAcountDto } from '@tournament/dtos';
 export class AuthController {
     constructor(
         private readonly authService: AuthService,
-        private readonly userService: UserService) { }
+        private readonly userService: UserService
+    ) { }
 
-    @UseGuards(LocalAuthGuard)
     @Post('login')
     async login(@Request() req) {
         return this.authService.login(req.user);
