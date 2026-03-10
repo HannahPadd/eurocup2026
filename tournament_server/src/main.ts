@@ -15,7 +15,7 @@ async function bootstrap() {
     .build();
 
   app.enableCors({
-    origin: 'http://tournament.itgeurocup.com',
+    origin: 'https://tournament.itgeurocup.com',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
