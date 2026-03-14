@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, ValidationPipe } from '@nestjs/common';
 import { PlayerService } from '../services';
 import { CreatePlayerDto, UpdatePlayerDto } from '../dtos';
 import { Player } from '@persistence/entities'
+import { JwtAuthGuard } from '@auth/guards';
 
 @Controller('players')
 export class PlayersController {
@@ -14,7 +15,7 @@ export class PlayersController {
 
     //@Post('login')
     //async 
-
+    @UseGuards(JwtAuthGuard)
     @Get()
     async findAll(): Promise<Player[]> {
         return await this.service.findAll();

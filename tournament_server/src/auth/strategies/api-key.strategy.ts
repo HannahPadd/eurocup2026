@@ -13,6 +13,7 @@ export class ApiKeyStrategy extends PassportStrategy(HeaderAPIKeyStrategy, 'api-
     }
     
     async validate(apiKey: string, done: (err: Error | null, user?: any) => void) {
+        console.log("valiating api key")
         const user = await this.authService.validateApiKey(apiKey);
         
         if (!user) {

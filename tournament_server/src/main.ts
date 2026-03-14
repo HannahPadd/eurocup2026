@@ -22,9 +22,11 @@ async function bootstrap() {
     .split(',')
     .map(o => o.trim())
     .filter(Boolean);
+  
+  console.log(origins)
 
   app.enableCors({
-    origin: isDev ? '*' : origins, // Allow all in dev, only configured in prod
+    origin: origins, 
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

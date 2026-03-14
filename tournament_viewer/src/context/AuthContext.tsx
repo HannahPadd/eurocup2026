@@ -1,4 +1,5 @@
 import { createContext, useEffect, useState } from "react";
+import { registerAuthTokenGetter } from "../authHelper";
 
 export interface Auth {
     username: string,
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode}) => {
     useEffect(() => {
         if (auth) {
             localStorage.setItem("auth", JSON.stringify(auth));
+            registerAuthTokenGetter(() => auth?.accessToken ?? null);
         } else {
             localStorage.removeItem("auth");
         }

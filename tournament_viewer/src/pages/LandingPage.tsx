@@ -453,7 +453,7 @@ export default function LandingPage() {
     return map;
   }, [divisions]);
 
-  /*
+
   const handleGenerateAPI = async () => {
     try {
       const response = await axios.post('auth/genapi',
@@ -473,7 +473,6 @@ export default function LandingPage() {
       console.error('Failed to generate API key', error);
     }
   };
-  */
 
   const countryLabel = playerProfile?.country?.trim() || UNKNOWN_COUNTRY_LABEL;
   const countryFlag = countryToFlagUrl(playerProfile?.country, 40);
@@ -791,7 +790,6 @@ export default function LandingPage() {
         </Link>
       </section>
 
-{/*
       <section>
         <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
           <h3 className="text-xl font-semibold theme-text">Generate API token</h3>
@@ -806,7 +804,6 @@ export default function LandingPage() {
           </button>
         </div>
       </section>
-      */}
     </div>
   );
 }
