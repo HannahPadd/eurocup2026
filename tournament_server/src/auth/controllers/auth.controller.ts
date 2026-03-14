@@ -15,6 +15,7 @@ import { UserService } from '@user/services';
 import { CreateUserPlayerDto, UpdateUserPlayerDto } from '@user/dtos';
 import { LocalAuthGuard, RolesGuard, JwtAuthGuard } from '@auth/guards';
 import { UpdateAccountPlayerDto, UpdateAcountDto } from '@tournament/dtos';
+import { Public } from '@auth/public.decorator';
 
 
 @Controller('auth')
@@ -24,6 +25,7 @@ export class AuthController {
         private readonly userService: UserService
     ) { }
 
+    @Public()
     @UseGuards(LocalAuthGuard)
     @Post('login')
     async login(@Request() req) {

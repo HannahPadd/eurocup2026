@@ -14,6 +14,9 @@ import { Entities } from '@persistence/entities';
 import { AuthService } from '@auth/services';
 import { AuthController } from '@auth/controllers';
 
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from '@auth/guards';
+
 
 @Module({
   imports: [
@@ -44,7 +47,11 @@ import { AuthController } from '@auth/controllers';
     AuthController
   ],
   providers: [
-    AuthService
+    AuthService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
   ],
 })
 export class AppModule { }
