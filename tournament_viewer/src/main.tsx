@@ -4,7 +4,7 @@ import "./index.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import axios from "axios";
 import { AuthProvider } from "./context/AuthContext.tsx";
-import "./authHelper";
+import "./api/authHelper.ts";
 
 
 axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;

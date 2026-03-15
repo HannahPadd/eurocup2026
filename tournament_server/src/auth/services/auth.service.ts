@@ -71,7 +71,7 @@ export class AuthService {
 
     async generateApiKey(req: any) {
         const buffer = randomBytes(32);
-        const rawKey = `ak${buffer.toString('base64url')}`;
+        const rawKey = `api_${buffer.toString('base64url')}`;
         const hashedKey = createHash('sha256').update(rawKey).digest('hex');
 
         const username = req;
@@ -83,10 +83,10 @@ export class AuthService {
             return
         }
         
-        
+        console.log(user)
         user.tournamentManagerApi = hashedKey;
-        this.accountRepo.save;
-
-        return rawKey;
+        await this.accountRepo.save(user);
+        console.log(rawKey)
+        return { rawKey };
     }
 }

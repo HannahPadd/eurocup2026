@@ -467,8 +467,8 @@ export default function LandingPage() {
            },
           withCredentials: true
         });
-      console.log('Your new API Key:', response.data.apiKey);
-      alert(`Save this key, it won't be shown again: ${response.data.apiKey}`);
+      console.log('Your new API Key:', response.data.rawKey);
+      alert(`Save this key, it won't be shown again: \n${response.data.rawKey}`);
     } catch (error) {
       console.error('Failed to generate API key', error);
     }
@@ -792,11 +792,6 @@ export default function LandingPage() {
 
       <section>
         <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
-          <h3 className="text-xl font-semibold theme-text">Generate API token</h3>
-          <input
-            disabled={true}
-            type="text">
-          </input>
           <button
             className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
             onClick={handleGenerateAPI}>

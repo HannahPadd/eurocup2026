@@ -43,7 +43,6 @@ export class AuthController {
         this.userService.create(createUserPlayerDto);
     }
 
-
     @UseGuards(JwtAuthGuard)
     @Get('profile')
     getProfile(@Request() req) {
@@ -54,10 +53,11 @@ export class AuthController {
     @UseGuards(JwtAuthGuard)
     @Post('genapi')
     async generateApiKey(@Request() req) {
-    console.log("Generating API key for user:", req.user.username);
-    return await this.authService.generateApiKey(req.user.username);
-}
+        console.log("Generating API key for user:", req.user.username);
+        return await this.authService.generateApiKey(req.user.username);
+    }
 
+    @UseGuards(JwtAuthGuard)
     @Get('refresh')
     async getRefreshToken(@Body(new ValidationPipe()) refreshToken: AuthRefreshTokenDto) {
         return await this.authService.getRefreshToken(refreshToken);

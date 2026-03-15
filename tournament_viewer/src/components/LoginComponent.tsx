@@ -2,6 +2,7 @@ import {useRef, useState, useEffect} from 'react';
 import useAuth from '../hooks/useAuth';
 import {login} from "../services/login.api"
 import {Link, useNavigate, useLocation} from 'react-router-dom';
+import { AxiosError } from 'axios';
 
 const LOGIN_URL = '/auth/login';
 
@@ -43,17 +44,24 @@ export default function SignIn() {
             const destination = from ?? (isAdmin ? "/manage" : "/");
             navigate(destination, {replace: true})
 
-        } catch (err: any) {
-            if (!err?.response) {
-                setErrMsg('No Server response');
-            } else if (err.response?.status === 400) {
-                setErrMsg('Missing Username or Password');
-            } else if (err.response?.status === 401) {
-                setErrMsg('Unauthorized');
+        } catch (err: unknown) {
+            const error = err as AxiosError
+            if (error.response) {
+                switch (error.response.status) {
+                    case 400:
+                        setErrMsg('Missing Username or Password');
+                        break;
+                    case 401:
+                        setErrMsg('Unauthorized');
+                        break;
+                    default:
+                        setErrMsg('Login Failed');
+                }
+            } else if (error.request) {
+                setErrMsg('No Server Response');
             } else {
                 setErrMsg('Login Failed');
             }
-            //errRef?.current.focus();
         }
     }
 
