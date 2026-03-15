@@ -23,7 +23,7 @@ async function bootstrap() {
     .map(o => o.trim())
     .filter(Boolean);
   
-  console.log(origins)
+  console.log(`CORS Origins: ${origins}`)
 
   app.enableCors({
     origin: origins, 
