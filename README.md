@@ -23,11 +23,14 @@ Open:
 You will still need a database, here's how you can run just the database with docker
 ```bash
 docker compose -f docker-compose-db.yaml up
-``
+```
 
+Run the application itself
 ```bash
 git clone https://github.com/HannahPadd/eurocup2026.git
 cd eurocup2026
+cp tournament_server/.env.example tournament_server/.env
+cp tournament_viewer/.env.example tournament_viewer/.env
 npm i
 npm start
 ```
