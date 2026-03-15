@@ -38,6 +38,7 @@ export class AuthController {
         return req.logout();
     }
 
+    @Public()
     @Post()
     async create(@Body() createUserPlayerDto: CreateUserPlayerDto) {
         this.userService.create(createUserPlayerDto);
