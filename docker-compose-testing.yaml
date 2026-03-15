@@ -30,6 +30,7 @@ services:
         DATABASE_PASSWORD: "example"
         PORT: "3000"
         JWT_SECRET: example_secret
+        CORS_ORIGIN: 127.0.0.1:5173
     depends_on:
       mariadb:
         condition: service_healthy
