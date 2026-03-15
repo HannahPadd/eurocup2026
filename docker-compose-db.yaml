@@ -26,7 +26,7 @@ services:
     image: phpmyadmin
     restart: always
     ports:
-      - 80:8403
+      - 127.0.0.1:8403:80
     environment:
       PMA_HOST: mariadb
       PMA_PORT: 3306
