@@ -3,6 +3,7 @@ import { MatchesService } from '../services';
 import { CommitPhaseProgressionDto, CreateMatchDto, UpdateMatchDto } from '../dtos';
 import { Match } from '@persistence/entities';
 import { PhaseProgressionService } from '../services/phase_progression.service';
+import { Public } from '@auth/public.decorator';
 
 @Controller('matches')
 export class MatchesController {
@@ -16,11 +17,13 @@ export class MatchesController {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<Match[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Match | null> {
         return this.service.findOne(id); 
