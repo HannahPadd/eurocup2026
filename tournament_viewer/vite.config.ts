@@ -2,6 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from 'vite-plugin-pwa';
 import manifest from './public/manifest.json';
+import 'dotenv/config';
+
+const serverPort = process.env.PORT ?? 5173;
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -18,7 +21,7 @@ export default defineConfig({
     port: 5174
   },
   server: {
-    port: 5173,
+    port: serverPort,
     host: "0.0.0.0",
     watch: {
       usePolling: true,

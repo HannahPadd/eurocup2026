@@ -1,5 +1,4 @@
 services:
-
   mariadb:
     image: mariadb:lts
     container_name: mariadb
@@ -9,15 +8,27 @@ services:
     volumes:
     - ./db:/var/lib/mysql:Z
     environment:
-        MARIADB_DATABASE: "tournament"
+        MARIADB_DATABASE: tournament
         MARIADB_ROOT_PASSWORD: example
-        DATABASE_HOST: "mariadb"
-        DATABASE_NAME: "tournament"
-        DATABASE_USER: "root"
-        DATABASE_PASSWORD: "example"
+        DATABASE_HOST: mariadb
+        DATABASE_NAME: tournament
+        DATABASE_USER: root
+        DATABASE_PASSWORD: example
+        DATABASE_PORT: 3306
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  adminer:
-    image: adminer
+  phpmyadmin:
+    image: phpmyadmin
     restart: always
     ports:
-      - 127.0.0.1:8080:8080
+      - 80:8403
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: example

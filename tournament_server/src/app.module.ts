@@ -28,7 +28,7 @@ import { JwtAuthGuard } from '@auth/guards';
     useFactory: (config: ConfigService) => ({
       type: 'mariadb',
       host: config.getOrThrow('DATABASE_HOST'),
-      port: 3306,
+      port: config.getOrThrow('DATABASE_PORT'),
       username: config.getOrThrow('DATABASE_USER'),
       password: config.getOrThrow('DATABASE_PASSWORD'),
       database: config.getOrThrow('DATABASE_NAME'),
