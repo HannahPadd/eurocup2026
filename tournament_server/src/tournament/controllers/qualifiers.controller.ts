@@ -1,11 +1,13 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, ValidationPipe } from '@nestjs/common';
 import { QualifiersService } from '../services/qualifiers.service';
 import { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto } from '../dtos';
+import { Public } from '@auth/public.decorator';
 
 @Controller()
 export class QualifiersController {
   constructor(private readonly service: QualifiersService) {}
 
+  @Public()
   @Get('qualifiers')
   async list(@Query('playerId') playerId?: string) {
     const parsedPlayerId = playerId ? Number(playerId) : undefined;
@@ -15,6 +17,7 @@ export class QualifiersController {
     return await this.service.list(parsedPlayerId);
   }
 
+  @Public()
   @Get('qualifiers/rankings')
   async rankings() {
     return await this.service.rankings();

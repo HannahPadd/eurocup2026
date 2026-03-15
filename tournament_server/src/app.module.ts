@@ -48,12 +48,10 @@ import { JwtAuthGuard } from '@auth/guards';
   ],
   providers: [
     AuthService,
-    /*
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    */
   ],
 })
 export class AppModule { }

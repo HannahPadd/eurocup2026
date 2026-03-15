@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { RulesetsService } from '../services/rulesets.service';
 import { CreateRulesetDto, UpdateRulesetDto } from '../dtos';
+import { Public } from '@auth/public.decorator';
 
 @Controller('rulesets')
 export class RulesetsController {
@@ -21,11 +22,13 @@ export class RulesetsController {
     return await this.service.create(dto);
   }
 
+  @Public()
   @Get()
   async findAll() {
     return await this.service.findAll();
   }
 
+  @Public()
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return await this.service.findOne(id);

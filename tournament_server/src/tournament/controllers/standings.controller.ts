@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } fro
 import { StandingsService } from '../services';
 import { CreateStandingDto, UpdateStandingDto } from '../dtos';
 import { Standing } from '@persistence/entities'
+import { Public } from '@auth/public.decorator';
 
 @Controller('standings')
 export class StandingsController {
@@ -12,11 +13,13 @@ export class StandingsController {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<Standing[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Standing | null> {
         return this.service.findOne(id); 

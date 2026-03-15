@@ -3,22 +3,26 @@ import { DivisionsService } from '../services';
 import { Division } from '@persistence/entities';
 import { CreateDivisionDto, UpdateDivisionDto } from '../dtos';
 import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
+import { Public } from '@auth/public.decorator';
 
 @Controller('divisions')
 export class DivisionsController {
     constructor(private readonly service: DivisionsService) { }
 
+    @Public()
     @Post()
     async create(@Body(new ValidationPipe()) dto: CreateDivisionDto): Promise<Division> {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<Division[]> {
         const divisions = await this.service.findAll();
         return divisions;
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Division | null> {
         return this.service.findOne(id); 

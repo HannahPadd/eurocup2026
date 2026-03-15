@@ -3,6 +3,7 @@ import { PhasesService } from '../services';
 import { Phase } from '@persistence/entities';
 import { CommitPhaseProgressionDto, CreatePhaseDto, UpdatePhaseDto } from '../dtos';
 import { PhaseProgressionService } from '../services/phase_progression.service';
+import { Public } from '@auth/public.decorator';
 
 @Controller('phases')
 export class PhasesController {
@@ -16,11 +17,13 @@ export class PhasesController {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<Phase[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Phase | null> {
         return this.service.findOne(id); 

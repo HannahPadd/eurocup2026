@@ -3,6 +3,7 @@ import { PlayerService } from '../services';
 import { CreatePlayerDto, UpdatePlayerDto } from '../dtos';
 import { Player } from '@persistence/entities'
 import { JwtAuthGuard } from '@auth/guards';
+import { Public } from '@auth/public.decorator';
 
 @Controller('players')
 export class PlayersController {
@@ -13,14 +14,13 @@ export class PlayersController {
         return await this.service.create(dto);
     }
 
-    //@Post('login')
-    //async 
-    @UseGuards(JwtAuthGuard)
+    @Public()
     @Get()
     async findAll(): Promise<Player[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Player | null> {
         return this.service.findOne(id); 

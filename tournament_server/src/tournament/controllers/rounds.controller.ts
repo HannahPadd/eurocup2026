@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } fro
 import { RoundsService } from '../services';
 import { CreateRoundDto, UpdateRoundDto } from '../dtos';
 import { Round } from '@persistence/entities'
+import { Public } from '@auth/public.decorator';
 
 @Controller('rounds')
 export class RoundsController {
@@ -12,11 +13,13 @@ export class RoundsController {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<Round[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Round | null> {
         return this.service.findOne(id); 

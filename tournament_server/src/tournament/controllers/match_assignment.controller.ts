@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } fro
 import { MatchAssignmentService } from '../services';
 import { CreateMatchAssignmentDto, UpdateMatchAssignmentDto } from '../dtos';
 import { MatchAssignment } from '@persistence/entities';
+import { Public } from '@auth/public.decorator';
 
 @Controller('matches')
 export class MatchAssignmentController {
@@ -12,11 +13,13 @@ export class MatchAssignmentController {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<MatchAssignment[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<MatchAssignment | null> {
         return this.service.findOne(id); 

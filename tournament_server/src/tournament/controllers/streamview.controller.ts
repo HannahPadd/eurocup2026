@@ -1,13 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, ValidationPipe } from '@nestjs/common';
 import { StreamViewService } from '../services';
 import { Player } from '@persistence/entities';
 import { StreamView } from '../view/stream.view';
+import { ApiKeyGuard } from '@auth/guards/api-key-auth.guard';
+import { JwtAuthGuard } from '@auth/guards';
 
 
 @Controller('streamview')
 export class StreamViewController {
     constructor(private readonly service: StreamViewService) { }
 
+    @UseGuards(ApiKeyGuard)
+    @UseGuards(JwtAuthGuard)
     @Get()
     async findall(): Promise<StreamView[]> {
         const players = this.service.findAllPlayers();
@@ -38,7 +42,9 @@ export class StreamViewController {
         console.log(streamViewList);
         return streamViewList;
     }
-
+    
+    @UseGuards(ApiKeyGuard)
+    @UseGuards(JwtAuthGuard)
      @Get(':id')
     async findOne(@Param('id') id: number): Promise<StreamView | null> {
         const player = await this.service.findOnePlayer(id);

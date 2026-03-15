@@ -3,6 +3,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } fro
 import { SongService } from '../services';
 import { Song } from '@persistence/entities';
 import { CreateSongDto, UpdateSongDto } from '../dtos';
+import { Public } from '@auth/public.decorator';
 
 @Controller('songs')
 export class SongsController {
@@ -13,11 +14,13 @@ export class SongsController {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<Song[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Song | null> {
         return this.service.findOne(id); 
