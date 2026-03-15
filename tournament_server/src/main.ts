@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WsAdapter } from '@nestjs/platform-ws';
+import 'dotenv/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,9 +28,11 @@ async function bootstrap() {
 
   app.enableCors({
     origin: origins, 
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'OPTIONS', 'HEAD', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
+	preflightContinue: false,
+    optionsSuccessStatus: 204
   });
 
   app.useWebSocketAdapter(new WsAdapter(app));
