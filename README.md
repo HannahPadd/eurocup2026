@@ -11,7 +11,7 @@ Make sure Docker is installed.
 ```bash
 git clone https://github.com/HannahPadd/eurocup2026.git
 cd eurocup2026
-docker compose up
+docker compose up --build
 ```
 
 Open:
