@@ -5,46 +5,35 @@ Software for managing tournaments (built for ITG Eurocup workflows).
 - `tournament_server`: NestJS + TypeORM + MariaDB API (REST + websocket updates)
 - `tournament_viewer`: React + Vite frontend for viewing and managing tournaments
 
-## Quick Start (Docker)
+## Run application with Docker
 Make sure Docker is installed.
 
-Clone the repo
 ```bash
 git clone https://github.com/HannahPadd/eurocup2026.git
-```
-
-### Linux/OS X
-```bash
-chmod +x build-testing.sh
-./build-testing.sh
-```
-
-### Windows
-```bash
-docker compose -f docker-compose-testing.yaml build --no-cache
-docker compose -f docker-compose-testing.yaml up
+cd eurocup2026
+docker compose up --build
 ```
 
 Open:
-- Viewer: [http://127.0.0.1:80](http://127.0.0.1:80)
-- API: [http://127.0.0.1:3000](http://127.0.0.1:3000)
-- Adminer: [http://127.0.0.1:8080](http://127.0.0.1:8080)
+- Viewer (Main application): [http://127.0.0.1:8401](http://127.0.0.1:8401)
+- API: [http://127.0.0.1:8402](http://127.0.0.1:8402)
+- PhpMyAdmin: [http://127.0.0.1:8403](http://127.0.0.1:8403)
 
-## Local Dev (without full Docker stack)
-- DB only: `./db.sh` or `docker compose -f docker-compose-db.yaml up -d`
-- Server:
+## Run application without Docker
+You will still need a database, here's how you can run just the database with docker
 ```bash
-cd tournament_server
-npm install
-npm run start:dev
+docker compose -f docker-compose-db.yaml up
 ```
-- Viewer:
+
+Run the application itself
 ```bash
-cd tournament_viewer
-npm install
-npm run dev
+git clone https://github.com/HannahPadd/eurocup2026.git
+cd eurocup2026
+cp tournament_server/.env.example tournament_server/.env
+cp tournament_viewer/.env.example tournament_viewer/.env
+npm i
+npm start
 ```
-Viewer dev URL: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 
 ## Notes
 - Main tournament management UI is in `/manage` (General tab handles divisions/phases/matches).
