@@ -21,6 +21,7 @@ export default function ManagePage() {
   const [importMode, setImportMode] = useState<"songs" | "players" | null>(
     null,
   );
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const { auth } = useAuth();
 
   useEffect(() => {
@@ -30,6 +31,14 @@ export default function ManagePage() {
   useEffect(() => {
     axios.defaults.headers.common["Authorization"] = `${apiKey}`;
   }, [apiKey]);
+
+  useEffect(() => {
+    const openRulesetsTab = () => setSelectedTabIndex(4);
+    window.addEventListener("open-rulesets-tab", openRulesetsTab);
+    return () => {
+      window.removeEventListener("open-rulesets-tab", openRulesetsTab);
+    };
+  }, []);
 
   const handleGenerateAPI = async () => {
     try {
@@ -72,7 +81,7 @@ export default function ManagePage() {
         open={importMode !== null}
         onClose={() => setImportMode(null)}
       />
-      <Tab.Group>
+      <Tab.Group selectedIndex={selectedTabIndex} onChange={setSelectedTabIndex}>
         <Tab.List className="flex flex-row gap-10 border-b mt-5">
           <Tab
             className={({ selected }) =>

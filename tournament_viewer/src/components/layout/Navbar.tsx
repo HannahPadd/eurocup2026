@@ -20,12 +20,14 @@ export default function Navbar() {
         </h2>
         <div className="ml-auto flex items-center gap-4">
           <div className="hidden md:flex items-center gap-4">
-            <Link
-              to="/tournament"
-              className="text-white hover:text-gray-200 px-3 py-2"
-            >
-              Tournament
-            </Link>
+            {auth?.isAdmin ? (
+              <Link
+                to="/tournament"
+                className="text-white hover:text-gray-200 px-3 py-2"
+              >
+                Tournament
+              </Link>
+            ) : null}
             <Link
               to="/faq"
               className="text-white hover:text-gray-200 px-3 py-2"
