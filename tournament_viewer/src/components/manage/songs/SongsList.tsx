@@ -1,7 +1,6 @@
 import {
   faPenToSquare,
   faGaugeHigh,
-  faLayerGroup,
   faPlus,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
@@ -138,12 +137,16 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
             <span>Add song</span>
           </button>
           <button
-            title={"Add song in new group"}
+            title={
+              !selectedGroupName
+                ? "plz select group"
+                : "Add song in selected group"
+            }
             onClick={addNewSongInNewGroup}
             className="disabled:opacity-50 inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
           >
-            <FontAwesomeIcon icon={faLayerGroup} />
-            <span>New group</span>
+            <FontAwesomeIcon icon={faPlus} />
+            <span>Add song with new group (this is dumb and we should change it)</span>
           </button>
         </div>
         <Select
@@ -151,7 +154,7 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
             return { value: g, label: g };
           })}
           placeholder="Select group..."
-          className="w-full md:w-[300px]"
+          className="w-full md:w-[300px] text-black"
           value={
             selectedGroupName
               ? { value: selectedGroupName, label: selectedGroupName }
@@ -240,9 +243,7 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
               songs.filter((s) =>
                 s.title.toLowerCase().includes(search.toLowerCase()),
               ).length === 0 && (
-                <div className="text-center py-2 theme-text">
-                  No song found
-                </div>
+                <div className="text-center py-2 theme-text">No song found</div>
               )}
           </div>
           <div className="flex-1 min-w-0">
@@ -286,7 +287,9 @@ function SongItem({ song }: { song: Song }) {
         <span className="text-lg font-semibold">{song.title}</span>
       </div>
       <div className="mt-4">
-        <h3 className="theme-text text-sm uppercase tracking-wide">Difficulty</h3>
+        <h3 className="theme-text text-sm uppercase tracking-wide">
+          Difficulty
+        </h3>
         <div className="flex flex-row items-center ml-1 gap-1">
           {[...Array(levelCount)].map((_, i) => (
             <span
@@ -302,7 +305,9 @@ function SongItem({ song }: { song: Song }) {
       </div>
       <div className="mt-4">
         <h3 className="theme-text">Player Scores</h3>
-        <p className="text-sm text-gray-300">No scores on record for this song.</p>
+        <p className="text-sm text-gray-300">
+          No scores on record for this song.
+        </p>
       </div>
     </div>
   );

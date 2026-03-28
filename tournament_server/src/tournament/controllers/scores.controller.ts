@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } fro
 import { ScoresService } from '../services';
 import { CreateScoreDto, UpdateScoreDto } from '../dtos';
 import { Score } from '@persistence/entities'
+import { Public } from '@auth/public.decorator';
 
 @Controller('scores')
 export class ScoresController {
@@ -12,11 +13,13 @@ export class ScoresController {
         return await this.service.create(dto);
     }
 
+    @Public()
     @Get()
     async findAll(): Promise<Score[]> {
         return await this.service.findAll();
     }
 
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number): Promise<Score | null> {
         return this.service.findOne(id); 

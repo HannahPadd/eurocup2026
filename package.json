@@ -1,8 +1,13 @@
 {
   "dependencies": {
+    "concurrently": "^9.2.1",
     "passport-headerapikey": "^1.2.2"
   },
   "devDependencies": {
     "cross-env": "^10.1.0"
+  },
+  "scripts": {
+	"start": "concurrently \"npm --prefix tournament_server run start:dev\" \"npm --prefix tournament_viewer run dev\"",
+	"postinstall": "cd tournament_viewer && npm i && cd ../tournament_server && npm i"
   }
 }

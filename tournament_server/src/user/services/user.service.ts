@@ -61,6 +61,12 @@ export class UserService {
         return value ? this.normalizeValue(value) === 'yes' : false;
     }
 
+    async checkForDuplicate(gamerTag: string): Promise<boolean> {
+        const exists = await this.accountRepo.findOneBy({username: gamerTag})
+        if (!exists) return false;
+        return true;
+    }
+
     async getRegistrationPrefillByGamerTag(gamerTag: string): Promise<RegistrationPrefillResponse> {
         const response = await fetch(this.registrationSourceUrl);
         if (!response.ok) {

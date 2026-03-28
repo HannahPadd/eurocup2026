@@ -19,5 +19,5 @@ COPY ./ ./
 RUN --mount=type=secret,id=vite_api_base_url \
     export VITE_API_BASE_URL="$(cat /run/secrets/vite_api_base_url)"
 
-EXPOSE 8081
+EXPOSE 8401
 ENTRYPOINT ["npm", "run", "dev"]
