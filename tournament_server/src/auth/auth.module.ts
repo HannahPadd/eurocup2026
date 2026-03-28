@@ -26,7 +26,7 @@ import { ApiKeyStrategy } from './strategies/api-key.strategy';
             global: true,
             useFactory: (config: ConfigService) => ({
                 secret: config.get<string>('JWT_SECRET'),
-                signOptions: { expiresIn: '60s'},
+                signOptions: { expiresIn: '1h'},
             }),
         }),
     ],
