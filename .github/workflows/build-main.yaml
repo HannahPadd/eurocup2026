@@ -1,10 +1,12 @@
 name: Build Main
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
 jobs:
   build-main:
     runs-on: ubuntu-latest
@@ -23,15 +25,25 @@ jobs:
           images: ghcr.io/${{ github.repository }}/tournamentviewer
           tags: |
             type=sha
-            type=raw,value=latest
+            type=raw,value=dev
+            type=ref,event=branch
+          labels: |
+            org.opencontainers.image.title=tournamentviewer
+            org.opencontainers.image.description=Non-production build from main branch
+            org.opencontainers.image.version=dev
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.vendor=non-production
+            org.opencontainers.image.ref.name=main
+            com.yourproject.environment=development
+            com.yourproject.production=false
 
-      - name: Build viewer
+      - name: Build & Push viewer
         uses: docker/build-push-action@v6
         with:
           context: ./tournament_viewer
           file: ./tournament_viewer/Dockerfile
-          push: false
-          load: true
+          push: true
           tags: ${{ steps.meta_viewer.outputs.tags }}
           labels: ${{ steps.meta_viewer.outputs.labels }}
           secrets: |
@@ -44,14 +56,29 @@ jobs:
           images: ghcr.io/${{ github.repository }}/tournamentserver
           tags: |
             type=sha
-            type=raw,value=latest
+            type=raw,value=dev
+            type=ref,event=branch
+          labels: |
+            org.opencontainers.image.title=tournamentserver
+            org.opencontainers.image.description=Non-production build from main branch
+            org.opencontainers.image.version=dev
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.vendor=non-production
+            org.opencontainers.image.ref.name=main
+            com.yourproject.environment=development
+            com.yourproject.production=false
 
-      - name: Build backend
+      - name: Build & Push backend
         uses: docker/build-push-action@v6
         with:
           context: ./tournament_server
           file: ./tournament_server/Dockerfile
-          push: false
-          load: true
+          push: true
           tags: ${{ steps.meta_backend.outputs.tags }}
           labels: ${{ steps.meta_backend.outputs.labels }}
+          build-args: |
+            NODE_ENV=production
+          secrets: |
+            jwt_secret=${{ secrets.JWT_SECRET }}
+            cors_origin=${{ secrets.CORS_ORIGIN }}
