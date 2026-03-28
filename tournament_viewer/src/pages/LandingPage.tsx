@@ -75,7 +75,7 @@ export default function LandingPage() {
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [registrationSaving, setRegistrationSaving] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(
-    null
+    null,
   );
   const [registrationLocked, setRegistrationLocked] = useState(false);
   const [countrySaving, setCountrySaving] = useState(false);
@@ -94,7 +94,9 @@ export default function LandingPage() {
           playerName: string;
           country?: string;
         }[];
-        const player = players.find((item) => item.playerName === auth.username);
+        const player = players.find(
+          (item) => item.playerName === auth.username,
+        );
         if (!player) {
           setQualifierError("Player profile not found for this account.");
           setPlayerId(null);
@@ -142,8 +144,7 @@ export default function LandingPage() {
       try {
         const response = await axios.get<PlayerProfile>(`players/${playerId}`);
         const existing = response.data?.divisions ?? [];
-        const registered =
-          response.data?.hasRegistered ?? existing.length > 0;
+        const registered = response.data?.hasRegistered ?? existing.length > 0;
         setSelectedDivisionIds(existing.map((division) => division.id));
         setRegistrationLocked(registered);
         setPlayerProfile(response.data ?? null);
@@ -212,10 +213,10 @@ export default function LandingPage() {
             division,
             phase,
             song,
-          }))
-        )
+          })),
+        ),
       ),
-    [qualifiers]
+    [qualifiers],
   );
 
   const qualifierItems = useMemo<QualifierListItem[]>(
@@ -233,7 +234,7 @@ export default function LandingPage() {
   const updateQualifierInput = (
     songId: number,
     field: "percentage" | "screenshotUrl",
-    value: string
+    value: string,
   ) => {
     setQualifierInputs((prev) => ({
       ...prev,
@@ -273,9 +274,7 @@ export default function LandingPage() {
           return;
         }
         if (percentage < 0 || percentage > 100) {
-          setQualifierError(
-            "Qualifier scores must be between 0.00 and 100.",
-          );
+          setQualifierError("Qualifier scores must be between 0.00 and 100.");
           setQualifierSaving(false);
           return;
         }
@@ -292,14 +291,11 @@ export default function LandingPage() {
 
       await Promise.all(
         submissions.map((submission) =>
-          axios.post(
-            `qualifier/${playerId}/${submission.songId}`,
-            {
-              percentage: submission.percentage,
-              screenshotUrl: submission.screenshotUrl,
-            }
-          )
-        )
+          axios.post(`qualifier/${playerId}/${submission.songId}`, {
+            percentage: submission.percentage,
+            screenshotUrl: submission.screenshotUrl,
+          }),
+        ),
       );
 
       const refreshed = await axios.get<QualifierDivision[]>("qualifiers", {
@@ -321,7 +317,7 @@ export default function LandingPage() {
     setSelectedDivisionIds((prev) =>
       prev.includes(divisionId)
         ? prev.filter((id) => id !== divisionId)
-        : [...prev, divisionId]
+        : [...prev, divisionId],
     );
   };
 
@@ -349,7 +345,9 @@ export default function LandingPage() {
 
   const requestRegistrationChange = async () => {
     if (!playerId) {
-      setRegistrationError("Player profile is required to update registration.");
+      setRegistrationError(
+        "Player profile is required to update registration.",
+      );
       return;
     }
     setRegistrationSaving(true);
@@ -403,7 +401,7 @@ export default function LandingPage() {
   };
 
   const selectedDivisions = divisions.filter((division) =>
-    selectedDivisionIds.includes(division.id)
+    selectedDivisionIds.includes(division.id),
   );
   const qualifierDivisionById = useMemo(() => {
     const map = new Map<number, QualifierDivision>();
@@ -418,7 +416,9 @@ export default function LandingPage() {
     for (const division of divisions) {
       for (const phase of division.phases ?? []) {
         const phaseName = (phase.name ?? "").toLowerCase();
-        const rulesetName = ((phase.ruleset as { name?: string } | undefined)?.name ?? "")
+        const rulesetName = (
+          (phase.ruleset as { name?: string } | undefined)?.name ?? ""
+        )
           .trim()
           .toLowerCase();
         const isQualifierPhase =
@@ -430,8 +430,9 @@ export default function LandingPage() {
           continue;
         }
 
-        const rawConfig = (phase.ruleset as { config?: Record<string, unknown> } | undefined)
-          ?.config;
+        const rawConfig = (
+          phase.ruleset as { config?: Record<string, unknown> } | undefined
+        )?.config;
         if (!rawConfig || typeof rawConfig !== "object") {
           continue;
         }
@@ -439,9 +440,12 @@ export default function LandingPage() {
         const rawThreshold = rawConfig.advanceMinPercentage;
         const rawMinimumSubmissions = rawConfig.minimumSubmissions;
         const advanceMinPercentage =
-          typeof rawThreshold === "number" ? Math.max(0, Math.min(100, rawThreshold)) : undefined;
+          typeof rawThreshold === "number"
+            ? Math.max(0, Math.min(100, rawThreshold))
+            : undefined;
         const minimumSubmissions =
-          typeof rawMinimumSubmissions === "number" && Number.isFinite(rawMinimumSubmissions)
+          typeof rawMinimumSubmissions === "number" &&
+          Number.isFinite(rawMinimumSubmissions)
             ? Math.max(0, Math.floor(rawMinimumSubmissions))
             : undefined;
 
@@ -452,27 +456,6 @@ export default function LandingPage() {
 
     return map;
   }, [divisions]);
-
-
-  const handleGenerateAPI = async () => {
-    try {
-      const response = await axios.post('auth/genapi',
-        {
-          'username' : auth?.username
-        },
-        {
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization' : `Bearer ${auth?.accessToken}`
-           },
-          withCredentials: true
-        });
-      console.log('Your new API Key:', response.data.rawKey);
-      alert(`Save this key, it won't be shown again: \n${response.data.rawKey}`);
-    } catch (error) {
-      console.error('Failed to generate API key', error);
-    }
-  };
 
   const countryLabel = playerProfile?.country?.trim() || UNKNOWN_COUNTRY_LABEL;
   const countryFlag = countryToFlagUrl(playerProfile?.country, 40);
@@ -597,93 +580,107 @@ export default function LandingPage() {
             </p>
             {registrationLocked && selectedDivisions.length > 0 ? (
               <div className="mt-5 space-y-3">
-              {selectedDivisions.map((division) => (
-                (() => {
-                  const qualifierDivision = qualifierDivisionById.get(division.id);
-                  const qualifierPhases = qualifierDivision?.phases ?? [];
-                  const phaseThresholdFromQualifiers = qualifierPhases.find(
-                    (phase) => typeof phase.advanceMinPercentage === "number",
-                  )?.advanceMinPercentage;
-                  const minimumSubmissionsFromQualifiers =
-                    qualifierPhases.find(
-                      (phase) => typeof phase.minimumSubmissions === "number",
-                    )?.minimumSubmissions ?? 0;
-                  const fallbackRules = qualifierRulesByDivisionId.get(division.id);
-                  const phaseThreshold =
-                    phaseThresholdFromQualifiers ?? fallbackRules?.advanceMinPercentage;
-                  const minimumSubmissions =
-                    minimumSubmissionsFromQualifiers || fallbackRules?.minimumSubmissions || 0;
-                  const hasQualifierPhase =
-                    qualifierPhases.length > 0 ||
-                    phaseThreshold !== undefined ||
-                    minimumSubmissions > 0;
-                  const submittedPercentages = qualifierPhases.flatMap((phase) =>
-                    phase.songs
-                      .map((song) =>
-                        song.submission ? Number(song.submission.percentage ?? 0) : null,
-                      )
-                      .filter((value): value is number => value !== null),
-                  );
-                  const submittedCount = submittedPercentages.length;
-                  const averagePercentage =
-                    submittedCount > 0
-                      ? submittedPercentages.reduce((sum, value) => sum + value, 0) /
-                        submittedCount
-                      : 0;
-                  const hasRequiredSubmissions = submittedCount >= minimumSubmissions;
-                  const isQualifiedByThreshold =
-                    hasQualifierPhase &&
-                    typeof phaseThreshold === "number" &&
-                    hasRequiredSubmissions &&
-                    averagePercentage >= phaseThreshold;
-                  const statusText =
-                    !hasQualifierPhase
+                {selectedDivisions.map((division) =>
+                  (() => {
+                    const qualifierDivision = qualifierDivisionById.get(
+                      division.id,
+                    );
+                    const qualifierPhases = qualifierDivision?.phases ?? [];
+                    const phaseThresholdFromQualifiers = qualifierPhases.find(
+                      (phase) => typeof phase.advanceMinPercentage === "number",
+                    )?.advanceMinPercentage;
+                    const minimumSubmissionsFromQualifiers =
+                      qualifierPhases.find(
+                        (phase) => typeof phase.minimumSubmissions === "number",
+                      )?.minimumSubmissions ?? 0;
+                    const fallbackRules = qualifierRulesByDivisionId.get(
+                      division.id,
+                    );
+                    const phaseThreshold =
+                      phaseThresholdFromQualifiers ??
+                      fallbackRules?.advanceMinPercentage;
+                    const minimumSubmissions =
+                      minimumSubmissionsFromQualifiers ||
+                      fallbackRules?.minimumSubmissions ||
+                      0;
+                    const hasQualifierPhase =
+                      qualifierPhases.length > 0 ||
+                      phaseThreshold !== undefined ||
+                      minimumSubmissions > 0;
+                    const submittedPercentages = qualifierPhases.flatMap(
+                      (phase) =>
+                        phase.songs
+                          .map((song) =>
+                            song.submission
+                              ? Number(song.submission.percentage ?? 0)
+                              : null,
+                          )
+                          .filter((value): value is number => value !== null),
+                    );
+                    const submittedCount = submittedPercentages.length;
+                    const averagePercentage =
+                      submittedCount > 0
+                        ? submittedPercentages.reduce(
+                            (sum, value) => sum + value,
+                            0,
+                          ) / submittedCount
+                        : 0;
+                    const hasRequiredSubmissions =
+                      submittedCount >= minimumSubmissions;
+                    const isQualifiedByThreshold =
+                      hasQualifierPhase &&
+                      typeof phaseThreshold === "number" &&
+                      hasRequiredSubmissions &&
+                      averagePercentage >= phaseThreshold;
+                    const statusText = !hasQualifierPhase
                       ? `Signed up for ${division.name}`
                       : typeof phaseThreshold === "number"
                         ? isQualifiedByThreshold
                           ? `Qualified for ${division.name}`
                           : `score needs to be higher than ${phaseThreshold}% for ${division.name}`
                         : `Signed up for ${division.name}`;
-                  const statusToneClass = isQualifiedByThreshold
-                    ? "bg-emerald-500/20 text-emerald-200"
-                    : hasQualifierPhase && typeof phaseThreshold === "number"
-                      ? "bg-amber-500/20 text-amber-100"
-                      : "bg-emerald-500/20 text-emerald-200";
+                    const statusToneClass = isQualifiedByThreshold
+                      ? "bg-emerald-500/20 text-emerald-200"
+                      : hasQualifierPhase && typeof phaseThreshold === "number"
+                        ? "bg-amber-500/20 text-amber-100"
+                        : "bg-emerald-500/20 text-emerald-200";
 
-                  return (
-                    <div
-                      key={division.id}
-                      className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
-                    >
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-full ${statusToneClass}`}>
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                          aria-hidden="true"
-                        >
-                          {isQualifiedByThreshold || !hasQualifierPhase ? (
-                            <polyline points="20 6 9 17 4 12" />
-                          ) : (
-                            <path d="M12 8v4m0 4h.01M10.29 3.86l-7.2 12.47A2 2 0 0 0 4.8 19.3h14.4a2 2 0 0 0 1.71-2.97l-7.2-12.47a2 2 0 0 0-3.42 0Z" />
-                          )}
-                        </svg>
-                      </span>
-                      <span className="flex-1">{statusText}</span>
-                      <button
-                        type="button"
-                        className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
+                    return (
+                      <div
+                        key={division.id}
+                        className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
                       >
-                        See rules
-                      </button>
-                    </div>
-                  );
-                })()
-              ))}
+                        <span
+                          className={`flex h-8 w-8 items-center justify-center rounded-full ${statusToneClass}`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
+                            {isQualifiedByThreshold || !hasQualifierPhase ? (
+                              <polyline points="20 6 9 17 4 12" />
+                            ) : (
+                              <path d="M12 8v4m0 4h.01M10.29 3.86l-7.2 12.47A2 2 0 0 0 4.8 19.3h14.4a2 2 0 0 0 1.71-2.97l-7.2-12.47a2 2 0 0 0-3.42 0Z" />
+                            )}
+                          </svg>
+                        </span>
+                        <span className="flex-1">{statusText}</span>
+                        <button
+                          type="button"
+                          className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
+                        >
+                          See rules
+                        </button>
+                      </div>
+                    );
+                  })(),
+                )}
               </div>
             ) : (
               <div
@@ -699,78 +696,75 @@ export default function LandingPage() {
             <h2 className="text-2xl font-semibold theme-text">
               Register for tournament
             </h2>
-          {!registrationLocked && (
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {registrationLoading && (
-                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
-                  Loading divisions...
-                </div>
-              )}
-              {!registrationLoading && divisions.length === 0 && (
-                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
-                  No divisions available yet.
-                </div>
-              )}
-              {divisions.map((division) => (
-                <label
-                  key={division.id}
-                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition text-white"
+            {!registrationLocked && (
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {registrationLoading && (
+                  <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                    Loading divisions...
+                  </div>
+                )}
+                {!registrationLoading && divisions.length === 0 && (
+                  <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                    No divisions available yet.
+                  </div>
+                )}
+                {divisions.map((division) => (
+                  <label
+                    key={division.id}
+                    className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      disabled={registrationLoading}
+                      checked={selectedDivisionIds.includes(division.id)}
+                      onChange={() => toggleDivisionSelection(division.id)}
+                    />
+                    <span>{division.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {registrationError && (
+              <p className="mt-3 text-sm text-red-200">{registrationError}</p>
+            )}
+            {registrationLocked ? (
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p
+                  className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100"
+                  role="alert"
                 >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    disabled={registrationLoading}
-                    checked={selectedDivisionIds.includes(division.id)}
-                    onChange={() => toggleDivisionSelection(division.id)}
-                  />
-                  <span>{division.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          {registrationError && (
-            <p className="mt-3 text-sm text-red-200">{registrationError}</p>
-          )}
-          {registrationLocked ? (
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p
-                className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100"
-                role="alert"
-              >
-                You are registered.
-              </p>
-              <button
-                type="button"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
-                onClick={requestRegistrationChange}
-                disabled={
-                  registrationSaving ||
-                  registrationLoading
-                }
-              >
-                {registrationSaving ? "Updating..." : "Request register change"}
-              </button>
-            </div>
-          ) : (
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p
-                className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
-                role="alert"
-              >
-                Registration after submit can only be edited on request.
-              </p>
-              <button
-                type="button"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
-                onClick={saveRegistration}
-                disabled={
-                  registrationSaving || registrationLoading
-                }
-              >
-                {registrationSaving ? "Submitting..." : "Submit"}
-              </button>
-            </div>
-          )}
+                  You are registered.
+                </p>
+                <button
+                  type="button"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={requestRegistrationChange}
+                  disabled={registrationSaving || registrationLoading}
+                >
+                  {registrationSaving
+                    ? "Updating..."
+                    : "Request register change"}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p
+                  className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
+                  role="alert"
+                >
+                  Registration after submit can only be edited on request.
+                </p>
+                <button
+                  type="button"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={saveRegistration}
+                  disabled={registrationSaving || registrationLoading}
+                >
+                  {registrationSaving ? "Submitting..." : "Submit"}
+                </button>
+              </div>
+            )}
           </section>
         </div>
       </div>
@@ -788,16 +782,6 @@ export default function LandingPage() {
         >
           Go to tournament
         </Link>
-      </section>
-
-      <section>
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
-            onClick={handleGenerateAPI}>
-            Generate API Token
-          </button>
-        </div>
       </section>
     </div>
   );
