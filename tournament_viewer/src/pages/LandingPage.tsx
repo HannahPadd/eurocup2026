@@ -671,12 +671,14 @@ export default function LandingPage() {
                           </svg>
                         </span>
                         <span className="flex-1">{statusText}</span>
-                        <button
+                        <a
                           type="button"
+                          href="https://ddrexp.nl/eurocup-rules/"
+                          target="_blank"
                           className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
                         >
                           See rules
-                        </button>
+                        </a>
                       </div>
                     );
                   })(),
