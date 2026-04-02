@@ -227,6 +227,7 @@ export default function LandingPage() {
         songId: song.song.id,
         songTitle: song.song.title,
         difficulty: song.song.difficulty,
+        hasSavedScreenshot: Boolean(song.submission?.screenshotUrl?.trim()),
       })),
     [qualifierSongs],
   );
@@ -773,17 +774,31 @@ export default function LandingPage() {
 
       <section className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
         <div>
+          <h3 className="text-xl font-semibold theme-text">Registrations</h3>
+          <p className="text-gray-300 mt-1">See all current Eurocup registrations.</p>
+        </div>
+        <Link
+          to="/contestainst"
+          className="bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+        >
+          Go to registrations
+        </Link>
+      </section>
+
+      <section className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
+        <div>
           <h3 className="text-xl font-semibold theme-text">See tournament</h3>
           <p className="text-gray-300 mt-1">
             Check live standings and matches.
           </p>
         </div>
-        <Link
-          to="/tournament"
-          className="bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+        <button
+          type="button"
+          disabled
+          className="bg-white/60 text-black/70 px-4 py-2 rounded-md font-semibold cursor-not-allowed"
         >
-          Go to tournament
-        </Link>
+          Opens later
+        </button>
       </section>
     </div>
   );

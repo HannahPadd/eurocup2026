@@ -14,6 +14,7 @@ import Layout from "./components/Layout";
 import Missing from "./pages/Missing";
 import LandingPage from "./pages/LandingPage";
 import FaqPage from "./pages/FaqPage";
+import ContestainstPage from "./pages/ContestainstPage";
 
 function App() {
 
@@ -32,6 +33,7 @@ function App() {
           { /* Logged in user Route */}
           <Route element={<RequireAuth requireAdmin={false} />}>
             <Route index element={<LandingPage />} />
+            <Route path="contestainst" element={<ContestainstPage />} />
           </Route>
           { /* Admin routes */ }
           <Route element={<RequireAuth requireAdmin={true} />}>
