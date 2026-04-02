@@ -6,11 +6,10 @@ type JsonEventPayload = {
 type JsonEventHandler = (payload: unknown) => void;
 
 export function buildWebSocketUrl(path: string): string {
-  const env = import.meta.env as Record<string, string | undefined>;
-  const base = env.VITE_ITGONLINE_URL || window.location.origin;
-  const url = new URL(path, base);
-  if (url.protocol === "https:") url.protocol = "wss:";
-  if (url.protocol === "http:") url.protocol = "ws:";
+  const apiBase =
+      import.meta.env.VITE_ITGONLINE_URL
+  const url = new URL(path, apiBase);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
 }
 
