@@ -63,9 +63,9 @@ export default function ContestainstPage() {
   }, [rows]);
 
   return (
-    <div className="mx-auto mt-6 w-full max-w-7xl rounded-xl bg-[#1E74BA] px-6 py-8 md:px-10 md:py-10">
-      <h1 className="text-center text-3xl font-semibold text-white">Eurocup Registrations</h1>
-      <p className="mt-2 text-center text-sm text-white/90">
+    <div className="mx-auto mt-6 w-full max-w-7xl px-6 py-8 md:px-10 md:py-10">
+      <h1 className="text-center text-3xl font-semibold theme-text">Eurocup Registrations</h1>
+      <p className="mt-2 text-center text-sm text-gray-300">
         {loading
           ? "Loading registrations..."
           : error
