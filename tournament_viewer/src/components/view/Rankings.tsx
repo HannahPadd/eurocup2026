@@ -34,13 +34,15 @@ export default function Rankings() {
       },
     });
 
-    conn.onopen = () => {
-      console.log("Now listening to ranking changes.");
-      toast.info("Now listening to ranking changes.");
-    };
+    if (conn) {
+      conn.onopen = () => {
+        console.log("Now listening to ranking changes.");
+        toast.info("Now listening to ranking changes.");
+      };
+    }
 
     return () => {
-      conn.close();
+      conn?.close();
     };
   }, []);
 

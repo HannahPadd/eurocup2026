@@ -42,15 +42,17 @@ export default function LivePhase() {
     const conn = connectJsonWebSocket("/matchupdatehub", {
       OnMatchUpdate: () => fetchData(),
     });
-    conn.onopen = () => {
-      console.log("Now listening to match changes.");
-    };
-    conn.onerror = (error) => {
-      console.error("Connection failed: ", error);
-    };
+    if (conn) {
+      conn.onopen = () => {
+        console.log("Now listening to match changes.");
+      };
+      conn.onerror = (error) => {
+        console.error("Connection failed: ", error);
+      };
+    }
 
     return () => {
-      conn.close();
+      conn?.close();
     };
   }, [fetchData]);
 
