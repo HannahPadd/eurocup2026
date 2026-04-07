@@ -8,6 +8,7 @@ import QualifierList, {
   QualifierListItem,
 } from "../components/qualifiers/QualifierList";
 import { formatPercentageDisplay, parsePercentage } from "../utils/formatting";
+import { buildRegistrationDivisionOptions } from "../utils/registrationDivisionOptions";
 
 type QualifierSubmission = {
   percentage: number;
@@ -43,6 +44,7 @@ type DivisionPhaseRulesetConfig = {
   advanceMinPercentage?: number;
   minimumSubmissions?: number;
 };
+
 
 type PlayerProfile = {
   id: number;
@@ -314,14 +316,6 @@ export default function LandingPage() {
     }
   };
 
-  const toggleDivisionSelection = (divisionId: number) => {
-    setSelectedDivisionIds((prev) =>
-      prev.includes(divisionId)
-        ? prev.filter((id) => id !== divisionId)
-        : [...prev, divisionId],
-    );
-  };
-
   const saveRegistration = async () => {
     if (!playerId) {
       setRegistrationError("Player profile is required to register.");
@@ -404,6 +398,23 @@ export default function LandingPage() {
   const selectedDivisions = divisions.filter((division) =>
     selectedDivisionIds.includes(division.id),
   );
+  const registrationDivisionOptions = useMemo(() => {
+    return buildRegistrationDivisionOptions(divisions);
+  }, [divisions]);
+
+  const toggleDivisionGroup = (divisionIds: number[]) => {
+    setSelectedDivisionIds((prev) => {
+      const allSelected = divisionIds.every((id) => prev.includes(id));
+      if (allSelected) {
+        return prev.filter((id) => !divisionIds.includes(id));
+      }
+      const next = new Set(prev);
+      for (const id of divisionIds) {
+        next.add(id);
+      }
+      return Array.from(next);
+    });
+  };
   const qualifierDivisionById = useMemo(() => {
     const map = new Map<number, QualifierDivision>();
     for (const division of qualifiers) {
@@ -723,19 +734,21 @@ export default function LandingPage() {
                     No divisions available yet.
                   </div>
                 )}
-                {divisions.map((division) => (
+                {registrationDivisionOptions.map((option) => (
                   <label
-                    key={division.id}
+                    key={option.key}
                     className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition text-white"
                   >
                     <input
                       type="checkbox"
                       className="h-4 w-4"
                       disabled={registrationLoading}
-                      checked={selectedDivisionIds.includes(division.id)}
-                      onChange={() => toggleDivisionSelection(division.id)}
+                      checked={option.divisionIds.every((id) =>
+                        selectedDivisionIds.includes(id),
+                      )}
+                      onChange={() => toggleDivisionGroup(option.divisionIds)}
                     />
-                    <span>{division.name}</span>
+                    <span>{option.label}</span>
                   </label>
                 ))}
               </div>
