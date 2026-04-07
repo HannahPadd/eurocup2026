@@ -15,6 +15,7 @@ import {
   faLayerGroup,
   faListCheck,
   faMusic,
+  faMedal,
   faPlay,
   faStickyNote,
   faTrash,
@@ -131,6 +132,15 @@ export default function TournamentSettings({
   }, [selectedPhase?.id, matchRefreshSignal]);
 
   const triggerMatchRefresh = () => setMatchRefreshSignal((prev) => prev + 1);
+  const setQualifierMatchName = async (matchId: number) => {
+    try {
+      await axios.patch(`matches/${matchId}`, { name: "Qualifier" });
+      triggerMatchRefresh();
+      toast.success("Match name set to Qualifier.");
+    } catch {
+      toast.error("Unable to set qualifier match name.");
+    }
+  };
 
   return (
     <div>
@@ -217,24 +227,26 @@ export default function TournamentSettings({
                   divisionId={selectedDivision.id}
                 />
                 {controls && selectedPhase && (
-                  <div className="inline-flex w-fit self-start bg-gray-200 p-2 px-4 rounded-lg">
-                    <button
-                      onClick={() => {
-                        setOpenCreateMatchModalSignal((prev) => prev + 1)
-                        triggerMatchRefresh();
-                      }}
-                      className="text-green-800 font-bold inline-flex w-fit flex-row gap-2 items-center"
-                    >
-                      <FontAwesomeIcon icon={faHandFist} />
-                      <span>New match</span>
-                    </button>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide pb-3 text-gray-400">
+                      Matches
+                    </div>
+                      <div className="inline-flex w-fit self-start bg-gray-200 p-2 px-4 rounded-lg">
+                        <button
+                          onClick={() => {
+                            setOpenCreateMatchModalSignal((prev) => prev + 1)
+                            triggerMatchRefresh();
+                          }}
+                          className="text-green-800 font-bold inline-flex w-fit flex-row gap-2 items-center"
+                        >
+                          <FontAwesomeIcon icon={faHandFist} />
+                          <span>New match</span>
+                        </button>
+                      </div>
                   </div>
                 )}
                 {controls && selectedPhase && matches.length > 0 && (
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-400">
-                      Matches
-                    </div>
                     <div className="mt-2 space-y-2">
                       {matches.map((match, index) => {
                         const isActive = activeMatchId === match.id;
@@ -304,6 +316,15 @@ export default function TournamentSettings({
                                 className="rounded-md border border-indigo-400/50 px-2 py-1 text-xs text-indigo-200"
                               >
                                 <FontAwesomeIcon icon={faUsers} />
+                              </button>
+                              <button
+                                title="Set match name to Qualifier"
+                                onClick={async () => {
+                                  await setQualifierMatchName(match.id);
+                                }}
+                                className="rounded-md border border-amber-400/50 px-2 py-1 text-xs text-amber-200"
+                              >
+                                <FontAwesomeIcon icon={faMedal} />
                               </button>
                               <button
                                 title="Delete match"

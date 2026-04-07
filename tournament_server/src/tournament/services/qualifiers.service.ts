@@ -425,13 +425,14 @@ export class QualifiersService {
   }
 
   private isQualifierPhase(phase: { name?: string; ruleset?: { name?: string } }): boolean {
-    const rulesetName = phase.ruleset?.name?.trim().toLowerCase();
-    if (rulesetName === 'seeding') {
+    const rulesetName = phase.ruleset?.name?.trim().toLowerCase() ?? '';
+    if (rulesetName.includes('qualifier')) {
       return true;
     }
 
     // Backward compatibility for older data that encoded this in the phase name.
-    return phase.name?.toLowerCase().includes('seeding') ?? false;
+    const phaseName = phase.name?.toLowerCase() ?? '';
+    return phaseName.includes('qualifier');
   }
 
   private async getQualifierSongIds(): Promise<Set<number>> {

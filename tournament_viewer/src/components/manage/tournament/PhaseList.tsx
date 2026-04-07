@@ -208,6 +208,18 @@ export default function PhaseList({
             <FontAwesomeIcon icon={faMusic} />
             Qualifier songs
           </button>
+          {selectedPhase && !selectedPhase.ruleset && (
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-rulesets-tab"));
+              }}
+              className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              title="Open Rulesets tab"
+            >
+              <FontAwesomeIcon icon={faPlus} />
+              Add ruleset
+            </button>
+          )}
           <button
             onClick={deletePhase}
             className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-60"

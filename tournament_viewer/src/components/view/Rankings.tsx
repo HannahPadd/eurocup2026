@@ -34,13 +34,15 @@ export default function Rankings() {
       },
     });
 
-    conn.onopen = () => {
-      console.log("Now listening to ranking changes.");
-      toast.info("Now listening to ranking changes.");
-    };
+    if (conn) {
+      conn.onopen = () => {
+        console.log("Now listening to ranking changes.");
+        toast.info("Now listening to ranking changes.");
+      };
+    }
 
     return () => {
-      conn.close();
+      conn?.close();
     };
   }, []);
 
@@ -48,7 +50,7 @@ export default function Rankings() {
   return (
     <div>
       <div className={"flex flex-col gap-2"}>
-        <h2 className={"rankings-title text-2xl"}>Teams ranking</h2>
+        
         <TeamRanking teams={teams} />
         <h2 className={"rankings-title text-2xl"}>Overall players ranking</h2>
         <PlayerRanking players={players} />
