@@ -29,43 +29,37 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
   }, []);
 
   const addNewSongInGroup = () => {
+    if (!selectedGroupName) {
+      alert("Select a group first.");
+      return;
+    }
+
     const title = prompt("Enter song title");
 
     if (!title) return;
 
     const difficulty = prompt("Enter song difficulty");
+    if (!difficulty) return;
 
     if (title && difficulty) {
       axios
         .post<Song>("songs", { title, difficulty, group: selectedGroupName })
         .then((response) => {
-          setSongs([...songs, response.data]);
+          setSongs((prev) => [...prev, response.data]);
         });
     }
   };
 
-  const addNewSongInNewGroup = () => {
-    const title = prompt("Enter song title");
-
-    if (!title) return;
-
-    const difficulty = prompt("Enter song difficulty");
-
-    if (!difficulty) return;
-
-    const group = prompt("Enter group name");
-
-    if (group && groups.includes(group)) return alert("Group already exists");
-
-    if (title && difficulty && group) {
-      axios
-        .post<Song>("songs", { title, difficulty, group })
-        .then((response) => {
-          setSongs([...songs, response.data]);
-          setGroups([...groups, group]);
-          setSelectedGroupName(group);
-        });
+  const addGroup = () => {
+    const group = prompt("Enter group name")?.trim();
+    if (!group) return;
+    if (groups.includes(group)) {
+      alert("Group already exists");
+      setSelectedGroupName(group);
+      return;
     }
+    setGroups((prev) => [...prev, group]);
+    setSelectedGroupName(group);
   };
 
   const deleteSong = (id: number) => {
@@ -126,27 +120,23 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
           <button
             title={
               !selectedGroupName
-                ? "plz select group"
-                : "Add song in selected group"
+                ? "Select a group first"
+                : "Add song to selected group"
             }
             disabled={!selectedGroupName}
             onClick={addNewSongInGroup}
             className="disabled:opacity-50 inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
           >
             <FontAwesomeIcon icon={faPlus} />
-            <span>Add song</span>
+            <span>Add to current group</span>
           </button>
           <button
-            title={
-              !selectedGroupName
-                ? "plz select group"
-                : "Add song in selected group"
-            }
-            onClick={addNewSongInNewGroup}
-            className="disabled:opacity-50 inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
+            title="Add group"
+            onClick={addGroup}
+            className="inline-flex items-center gap-2 rounded-md border border-blue-500 px-2 py-1 text-xs font-semibold text-blue-400"
           >
             <FontAwesomeIcon icon={faPlus} />
-            <span>Add song with new group (this is dumb and we should change it)</span>
+            <span>Add group</span>
           </button>
         </div>
         <Select

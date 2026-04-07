@@ -207,23 +207,25 @@ export default function LiveScores({
       }
     });
 
-    conn.onopen = () => {
-      console.log("Now listening to scores changes.");
-      const lobbyCode = getLiveLobbyCode();
-      const lobbyPassword = getLiveLobbyPassword();
-      conn.send(
-        JSON.stringify({
-          event: "spectateLobby",
-          data: {
-            code: lobbyCode,
-            password: lobbyPassword,
-            spectator: {
-              profileName: "Tournament Viewer",
+    if (conn) {
+      conn.onopen = () => {
+        console.log("Now listening to scores changes.");
+        const lobbyCode = getLiveLobbyCode();
+        const lobbyPassword = getLiveLobbyPassword();
+        conn.send(
+          JSON.stringify({
+            event: "spectateLobby",
+            data: {
+              code: lobbyCode,
+              password: lobbyPassword,
+              spectator: {
+                profileName: "Tournament Viewer",
+              },
             },
-          },
-        }),
-      );
-    };
+          }),
+        );
+      };
+    }
 
     axios.get("players").then((response) => {
       setPlayers(response.data);
@@ -234,7 +236,7 @@ export default function LiveScores({
     });
 
     return () => {
-      conn.close();
+      conn?.close();
     };
   }, []);
 

@@ -47,6 +47,12 @@ export class UserController {
     return await this.service.getRegistrationPrefillByGamerTag(gamerTag);
   }
 
+  @Public()
+  @Get('registrations')
+  async getRegistrations() {
+    return await this.service.getRegistrations();
+  }
+
   //@UseGuards(AuthGuard)
   //@Get('profile')
   //async getProfile(@Request() req) {

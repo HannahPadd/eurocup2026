@@ -243,7 +243,7 @@ export default function RegisterCompontent() {
           </p>
         </section>
       ) : (
-        <section className="w-full flex justify-center px-4">
+        <section className="w-full flex flex-col items-center gap-4 px-4">
           <p
             ref={errRef}
             className={errMsg ? "errmsg" : "offscreen"}
@@ -531,20 +531,17 @@ export default function RegisterCompontent() {
                 </>
               )}
             </div>
-
-            <p className="text-center">
-              Already registered?
-              <br />
-              <span className="inline-flex w-full justify-center">
-                <Link
-                  to="/login"
-                  className="mt-2 inline-flex items-center justify-center rounded border border-white/60 px-3 py-1 text-xs text-white hover:bg-white/10"
-                >
-                  Sign in
-                </Link>
-              </span>
-            </p>
           </form>
+
+          <div className="w-full max-w-sm mx-auto rounded-xl border border-white/20 bg-black/20 p-4 text-center">
+            <p className="text-sm opacity-80">Already registered?</p>
+            <Link
+              to="/login"
+              className="mt-2 inline-flex w-full items-center justify-center rounded border border-white/60 px-3 py-1 text-xs text-white hover:bg-white/10"
+            >
+              Sign in
+            </Link>
+          </div>
         </section>
       )}
     </>

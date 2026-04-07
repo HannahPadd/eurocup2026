@@ -72,7 +72,7 @@ export default function SignIn() {
                 <h1 className="text-3xl">Sign in to Eurocup!</h1>
                 <p className="text-sm opacity-80">Use your account to continue.</p>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-3 border border-white/20 bg-black/20 p-4 rounded-xl">
 
                 <label htmlFor='username' className="block mb-1">Username:</label>
                 <input
@@ -101,12 +101,12 @@ export default function SignIn() {
 
                 <button id="signin" className='bg-lighter text-white p-2 rounded-lg w-full mt-2'>Sign in</button>
             </form>
-            <div className="space-y-4 text-center">
+            <div className="space-y-4 text-center  border border-white/20 bg-black/20 p-4 rounded-xl">
                 <div className="space-y-2">
                     <p className="text-sm opacity-80">Need an Account?</p>
                     <Link
                         to="/signup"
-                        className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                        className="w-full inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
                     >
                         Sign Up
                     </Link>
@@ -115,9 +115,9 @@ export default function SignIn() {
                     <p className="text-sm opacity-80">Go to official website</p>
                     <a
                         href="http://itgeurocup.com"
-                        className="inline-flex items-center justify-center rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900"
+                        className="w-full inline-flex items-center justify-center rounded-lg bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900"
                     >
-                        ITGEUROCUP
+                        ITGEUROCUP.COM
                     </a>
                 </div>
             </div>

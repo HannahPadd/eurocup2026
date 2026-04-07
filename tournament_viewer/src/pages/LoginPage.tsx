@@ -1,12 +1,18 @@
-import { useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import Login from "../components/LoginComponent";
+import useAuth from "../hooks/useAuth";
 
 
 
 export default function LoginPage() {
+    const { auth } = useAuth();
     const location = useLocation();
     const alertMessage =
         typeof location.state?.alert === "string" ? location.state.alert : null;
+
+    if (auth?.accessToken) {
+        return <Navigate to="/" replace />;
+    }
 
     return (
         <div className=" flex items-center justify-center px-4">
