@@ -263,7 +263,7 @@ export default function LandingPage() {
       }[] = [];
       for (const { song } of qualifierSongs) {
         const entry = qualifierInputs[song.song.id];
-        if (!entry?.percentage || !entry?.screenshotUrl) {
+        if (!entry?.percentage) {
           continue;
         }
         const percentage = Number(entry.percentage);
@@ -286,7 +286,7 @@ export default function LandingPage() {
         submissions.push({
           songId: song.song.id,
           percentage: normalized,
-          screenshotUrl: entry.screenshotUrl,
+          screenshotUrl: entry.screenshotUrl?.trim() ?? "",
         });
       }
 
@@ -509,7 +509,7 @@ export default function LandingPage() {
             Send in qualifiers
           </h2>
           <p className="text-gray-300 mt-2">
-            Submit a score (e.g. 77.77) and the URL of your screenshot.
+            Submit a score (e.g. 77.77). Screenshot URL is optional.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-4">
             {qualifierLoading && (
@@ -608,37 +608,49 @@ export default function LandingPage() {
                       qualifierPhases.length > 0 ||
                       phaseThreshold !== undefined ||
                       minimumSubmissions > 0;
-                    const submittedPercentages = qualifierPhases.flatMap(
-                      (phase) =>
-                        phase.songs
-                          .map((song) =>
+                    const songSubmissionById = new Map<number, number | null>();
+                    for (const phase of qualifierPhases) {
+                      for (const song of phase.songs) {
+                        if (!songSubmissionById.has(song.song.id)) {
+                          songSubmissionById.set(
+                            song.song.id,
                             song.submission
                               ? Number(song.submission.percentage ?? 0)
                               : null,
-                          )
-                          .filter((value): value is number => value !== null),
-                    );
+                          );
+                        }
+                      }
+                    }
+                    const totalQualifierSongs = songSubmissionById.size;
+                    const submittedPercentages = Array.from(
+                      songSubmissionById.values(),
+                    ).filter((value): value is number => value !== null);
                     const submittedCount = submittedPercentages.length;
-                    const averagePercentage =
-                      submittedCount > 0
-                        ? submittedPercentages.reduce(
-                            (sum, value) => sum + value,
-                            0,
-                          ) / submittedCount
-                        : 0;
                     const hasRequiredSubmissions =
                       submittedCount >= minimumSubmissions;
+                    const hasAllQualifierSongsSubmitted =
+                      totalQualifierSongs === 0 ||
+                      submittedCount >= totalQualifierSongs;
+                    const meetsPerSongThreshold =
+                      typeof phaseThreshold !== "number" ||
+                      Array.from(songSubmissionById.values()).every(
+                        (value) =>
+                          typeof value === "number" &&
+                          !Number.isNaN(value) &&
+                          value >= phaseThreshold,
+                      );
                     const isQualifiedByThreshold =
                       hasQualifierPhase &&
                       typeof phaseThreshold === "number" &&
                       hasRequiredSubmissions &&
-                      averagePercentage >= phaseThreshold;
+                      hasAllQualifierSongsSubmitted &&
+                      meetsPerSongThreshold;
                     const statusText = !hasQualifierPhase
                       ? `Signed up for ${division.name}`
                       : typeof phaseThreshold === "number"
                         ? isQualifiedByThreshold
                           ? `Qualified for ${division.name}`
-                          : `score needs to be higher than ${phaseThreshold}% for ${division.name}`
+                          : `all qualifier songs must be ${phaseThreshold}% or higher for ${division.name}`
                         : `Signed up for ${division.name}`;
                     const statusToneClass = isQualifiedByThreshold
                       ? "bg-emerald-500/20 text-emerald-200"
@@ -779,7 +791,7 @@ export default function LandingPage() {
         </div>
         <Link
           to="/contestainst"
-          className="bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+          className="inline-flex w-full items-center justify-center text-center sm:w-auto bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
         >
           Go to registrations
         </Link>
