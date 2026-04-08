@@ -85,66 +85,68 @@ export default function QualifierList({
                 </div>
               </div>
             </div>
-            <input
-              type="text"
-              placeholder="Score (77.77)"
-              className="w-full rounded-md bg-white text-black px-3 py-1.5"
-              value={input.percentage}
-              onChange={(event) =>
-                onChange(item.songId, "percentage", event.target.value)
-              }
-              onBlur={(event) => onBlurPercentage(item.songId, event.target.value)}
-            />
-            {isEditingScreenshot ? (
-              <div className="space-y-2">
-                <input
-                  type="url"
-                  placeholder="Screenshot URL"
-                  className="w-full rounded-md bg-white text-black px-3 py-1.5 text-[0.95rem]"
-                  value={input.screenshotUrl}
-                  onChange={(event) =>
-                    onChange(item.songId, "screenshotUrl", event.target.value)
-                  }
-                />
-              </div>
-            ) : (
-              <div className="flex justify-end">
-                <div className="relative aspect-video w-32">
-                <img
-                  src={screenshotUrl}
-                  alt={`${item.songTitle} screenshot`}
-                  className="h-full w-full rounded-md border border-white/20 object-cover"
-                  loading="lazy"
-                />
-                <button
-                  type="button"
-                  aria-label="Update image"
-                  onClick={() =>
-                    setEditingScreenshotBySongId((prev) => ({
-                      ...prev,
-                      [item.songId]: true,
-                    }))
-                  }
-                  className="absolute right-0 top-0 inline-flex h-6 w-6 -translate-y-1/3 translate-x-1/3 items-center justify-center rounded-full border border-white/50 bg-black/80 text-white hover:bg-black"
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                  </svg>
-                </button>
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-2 md:contents">
+              <input
+                type="text"
+                placeholder="Score (77.77)"
+                className="w-full min-w-0 rounded-md bg-white text-black px-3 py-1.5"
+                value={input.percentage}
+                onChange={(event) =>
+                  onChange(item.songId, "percentage", event.target.value)
+                }
+                onBlur={(event) => onBlurPercentage(item.songId, event.target.value)}
+              />
+              {isEditingScreenshot ? (
+                <div className="space-y-2">
+                  <input
+                    type="url"
+                    placeholder="Screenshot URL (optional)"
+                    className="w-full min-w-0 rounded-md bg-white text-black px-3 py-1.5 text-[0.95rem]"
+                    value={input.screenshotUrl}
+                    onChange={(event) =>
+                      onChange(item.songId, "screenshotUrl", event.target.value)
+                    }
+                  />
                 </div>
+              ) : (
+                <div className="flex justify-end md:justify-end">
+                  <div className="relative aspect-video w-32">
+                    <img
+                      src={screenshotUrl}
+                      alt={`${item.songTitle} screenshot`}
+                      className="h-full w-full rounded-md border border-white/20 object-cover"
+                      loading="lazy"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Update image"
+                      onClick={() =>
+                        setEditingScreenshotBySongId((prev) => ({
+                          ...prev,
+                          [item.songId]: true,
+                        }))
+                      }
+                      className="absolute right-0 top-0 inline-flex h-6 w-6 -translate-y-1/3 translate-x-1/3 items-center justify-center rounded-full border border-white/50 bg-black/80 text-white hover:bg-black"
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
               </div>
-            )}
           </div>
         );
       })}

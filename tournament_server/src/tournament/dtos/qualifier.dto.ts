@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsNumber, IsUrl } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsUrl, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateQualifierSubmissionDto {
@@ -9,10 +9,14 @@ export class CreateQualifierSubmissionDto {
   @Type(() => Number)
   percentage: number;
 
-  @ApiProperty({ description: 'Screenshot URL for proof', example: 'https://example.com/score.png' })
-  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Optional screenshot URL for proof',
+    example: 'https://example.com/score.png',
+    required: false,
+  })
+  @ValidateIf((_, value) => value !== undefined && value !== null && value !== '')
   @IsUrl()
-  screenshotUrl: string;
+  screenshotUrl?: string;
 }
 
 export class UpdateQualifierSubmissionStatusDto {

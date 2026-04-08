@@ -167,6 +167,7 @@ export class QualifiersService {
           playerCountry?: string;
           totalPercentage: number;
           submittedCount: number;
+          songPercentages: Map<number, number>;
         }
       >
     >();
@@ -188,9 +189,11 @@ export class QualifiersService {
           playerCountry: submission.player.country ?? undefined,
           totalPercentage: 0,
           submittedCount: 0,
+          songPercentages: new Map<number, number>(),
         };
         entry.totalPercentage += Number.isNaN(percentage) ? 0 : percentage;
         entry.submittedCount += 1;
+        entry.songPercentages.set(submission.song.id, Number.isNaN(percentage) ? 0 : percentage);
         divisionMap.set(playerId, entry);
         rankingsByDivision.set(divisionId, divisionMap);
       }
@@ -208,6 +211,9 @@ export class QualifiersService {
       const minimumSubmissions = rulesetConfig.minimumSubmissions ?? 0;
 
       const totalSongs = divisionSongIds.get(division.id)?.size ?? 0;
+      const divisionSongIdsList = Array.from(
+        divisionSongIds.get(division.id)?.values() ?? [],
+      );
       let entries = Array.from(
         rankingsByDivision.get(division.id)?.values() ?? []
       )
@@ -221,6 +227,7 @@ export class QualifiersService {
               )
             : 0,
           submittedCount: entry.submittedCount,
+          songPercentages: entry.songPercentages,
         }));
 
       if (approvedOnly) {
@@ -258,7 +265,16 @@ export class QualifiersService {
 
       if (minPercentageThreshold !== undefined) {
         recommendedEntries = recommendedEntries.filter(
-          (entry) => entry.averagePercentage >= minPercentageThreshold,
+          (entry) =>
+            entry.submittedCount >= totalSongs &&
+            divisionSongIdsList.every((songId) => {
+              const percentage = entry.songPercentages.get(songId);
+              return (
+                typeof percentage === 'number' &&
+                !Number.isNaN(percentage) &&
+                percentage >= minPercentageThreshold
+              );
+            }),
         );
       }
 
@@ -275,7 +291,7 @@ export class QualifiersService {
         divisionId: division.id,
         divisionName: division.name,
         totalSongs,
-        rankings: entries,
+        rankings: entries.map(({ songPercentages, ...entry }) => entry),
         recommendedAdvances,
       };
     });
@@ -362,7 +378,7 @@ export class QualifiersService {
     }
 
     submission.percentage = dto.percentage;
-    submission.screenshotUrl = dto.screenshotUrl;
+    submission.screenshotUrl = dto.screenshotUrl?.trim() ?? '';
 
     return await this.qualifierRepo.save(submission);
   }
