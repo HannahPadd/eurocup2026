@@ -1,10 +1,22 @@
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import useAuth from "../../hooks/useAuth";
 
 export default function Navbar() {
   const { auth, setAuth } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `px-3 py-2 rounded-md transition ${
+      isActive
+        ? "bg-white/15 text-white"
+        : "text-white hover:text-gray-200"
+    }`;
+  const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `px-3 py-2 rounded-md transition ${
+      isActive
+        ? "bg-white/15 text-white"
+        : "text-white hover:text-gray-200"
+    }`;
 
   const handleLogout = () => {
     setAuth(null);
@@ -12,43 +24,44 @@ export default function Navbar() {
   return (
     <nav className="w-full h-16 navbar-bg relative z-50">
       <div className="lg:container lg:mx-auto mx-3 flex flex-row gap-6 items-center h-full">
-        <span className="hidden lg:inline">
+        <NavLink to="/login" className="hidden lg:inline" aria-label="Go to login">
           <img src="/icon.png" alt="logo" className="h-12 w-12 rounded-lg" />
-        </span>
+        </NavLink>
         <h2 className="text-white font-bold text-xl">
           Eurocup 2026 Standings
         </h2>
         <div className="ml-auto flex items-center gap-4">
           <div className="hidden md:flex items-center gap-4">
             {auth?.isAdmin ? (
-              <Link
+              <NavLink
                 to="/tournament"
-                className="text-white hover:text-gray-200 px-3 py-2"
+                className={navLinkClass}
               >
                 Tournament
-              </Link>
+              </NavLink>
             ) : null}
-            <Link
+            <NavLink
               to="/faq"
-              className="text-white hover:text-gray-200 px-3 py-2"
+              className={navLinkClass}
             >
               FAQ
-            </Link>
+            </NavLink>
             {auth?.username ? (
-              <Link
+              <NavLink
                 to="/"
-                className="text-white hover:text-gray-200 px-3 py-2"
+                end
+                className={navLinkClass}
               >
-                Overview
-              </Link>
+                Profile
+              </NavLink>
             ) : null}
             {auth?.isAdmin ? (
-              <Link
+              <NavLink
                 to="/manage"
-                className="text-white hover:text-gray-200 px-3 py-2"
+                className={navLinkClass}
               >
                 Manage
-              </Link>
+              </NavLink>
             ) : null}
             {auth?.username ? (
               <a
@@ -63,9 +76,9 @@ export default function Navbar() {
                 Logout
               </button>
             ) : (
-              <Link to="/login" className="px-3 py-2">
+              <NavLink to="/login" className={navLinkClass}>
                 Login
-              </Link>
+              </NavLink>
             )}
           </div>
           <button
@@ -104,37 +117,38 @@ export default function Navbar() {
       {menuOpen ? (
         <div className="md:hidden absolute left-0 right-0 top-full border-t border-white/10 bg-black/90">
           <div className="mx-3 py-3 flex flex-col gap-2">
-            <Link
+            <NavLink
               to="/tournament"
-              className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+              className={mobileNavLinkClass}
               onClick={() => setMenuOpen(false)}
             >
               Tournament
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               to="/faq"
-              className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+              className={mobileNavLinkClass}
               onClick={() => setMenuOpen(false)}
             >
               FAQ
-            </Link>
+            </NavLink>
             {auth?.username ? (
-              <Link
+              <NavLink
                 to="/"
-                className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+                end
+                className={mobileNavLinkClass}
                 onClick={() => setMenuOpen(false)}
               >
-                Overview
-              </Link>
+                Profile
+              </NavLink>
             ) : null}
             {auth?.isAdmin ? (
-              <Link
+              <NavLink
                 to="/manage"
-                className="text-white hover:text-gray-200 px-3 py-2 rounded-md"
+                className={mobileNavLinkClass}
                 onClick={() => setMenuOpen(false)}
               >
                 Manage
-              </Link>
+              </NavLink>
             ) : null}
             {auth?.username ? (
               <a
@@ -157,13 +171,13 @@ export default function Navbar() {
                 Logout
               </button>
             ) : (
-              <Link
+              <NavLink
                 to="/login"
                 onClick={() => setMenuOpen(false)}
-                className="px-3 py-2 rounded-md"
+                className={mobileNavLinkClass}
               >
                 Login
-              </Link>
+              </NavLink>
             )}
           </div>
         </div>

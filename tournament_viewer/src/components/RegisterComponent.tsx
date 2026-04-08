@@ -3,7 +3,7 @@ import {
   getRegistrationPrefill,
   RegistrationPrefill,
 } from "../services/user.api";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheck,
@@ -13,6 +13,9 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Division } from "../models/Division";
+import {
+  buildRegistrationDivisionOptions,
+} from "../utils/registrationDivisionOptions";
 
 const USER_REGEX = /^[A-Za-z0-9-_]{3,23}$/;
 const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%]).{8,24}$/;
@@ -57,6 +60,10 @@ export default function RegisterCompontent() {
     type: "success" | "warning";
     message: string;
   } | null>(null);
+  const registrationDivisionOptions = useMemo(
+    () => buildRegistrationDivisionOptions(divisions),
+    [divisions],
+  );
 
   const errorMessage = (error: unknown, fallback: string) =>
     error instanceof Error && error.message ? error.message : fallback;
@@ -123,11 +130,11 @@ export default function RegisterCompontent() {
     setErrMsg("");
   }, [step, user, email, pwd, matchPwd, country]);
 
-  const toggleDivisionSelection = (divisionId: number) => {
+  const toggleDivisionGroup = (divisionIds: number[]) => {
     setSelectedDivisionIds((prev) =>
-      prev.includes(divisionId)
-        ? prev.filter((id) => id !== divisionId)
-        : [...prev, divisionId],
+      divisionIds.every((id) => prev.includes(id))
+        ? prev.filter((id) => !divisionIds.includes(id))
+        : [...new Set([...prev, ...divisionIds])],
     );
   };
 
@@ -473,26 +480,22 @@ export default function RegisterCompontent() {
                         No divisions available.
                       </div>
                     )}
-                    {divisions != null
-                      ? divisions.map((division) => (
-                          <label
-                            key={division.id}
-                            className="flex items-center gap-2 rounded border border-white/60 px-3 py-2 text-sm text-white"
-                          >
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              checked={selectedDivisionIds.includes(
-                                division.id,
-                              )}
-                              onChange={() =>
-                                toggleDivisionSelection(division.id)
-                              }
-                            />
-                            <span>{division.name}</span>
-                          </label>
-                        ))
-                      : ""}
+                    {registrationDivisionOptions.map((option) => (
+                      <label
+                        key={option.key}
+                        className="flex items-center gap-2 rounded border border-white/60 px-3 py-2 text-sm text-white"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={option.divisionIds.every((id) =>
+                            selectedDivisionIds.includes(id),
+                          )}
+                          onChange={() => toggleDivisionGroup(option.divisionIds)}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </>
