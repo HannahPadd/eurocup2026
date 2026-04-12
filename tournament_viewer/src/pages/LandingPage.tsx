@@ -740,7 +740,7 @@ export default function LandingPage() {
             <p className="mt-2 text-sm text-gray-300">No overlapping registrations allowed, check the timetable for when competitions are held
               <a type="link"
                  className="ml-2 link text-blue-400 hover:text-blue-300 transition"
-                 href="https://drive.google.com/drive/folders/1U_SMAWewRgqoEy4Ra3yExsGgm1aSz6IO?usp=drive_link">
+                 href="https://ddrexp.nl/eurocup-time-table/">
                 See Timetable
               </a>
             </p>
