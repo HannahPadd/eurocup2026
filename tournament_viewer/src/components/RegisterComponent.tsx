@@ -320,7 +320,7 @@ export default function RegisterCompontent() {
               <>
                 <div>
                   <label htmlFor="username" className="block mb-1">
-                    Player Name:
+                    Player Name / User name:
                     <span className={validName ? "valid" : "hide"}>
                       <FontAwesomeIcon icon={faCheck} />
                     </span>
