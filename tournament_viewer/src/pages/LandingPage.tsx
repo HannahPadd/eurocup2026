@@ -519,8 +519,18 @@ export default function LandingPage() {
           <h2 className="text-2xl font-semibold theme-text">
             Send in qualifiers
           </h2>
-          <p className="text-gray-300 mt-2">
-            Submit a score (e.g. 77.77). Screenshot URL is optional.
+          <p className="mt-2 text-sm text-gray-300">
+            Submit a score (e.g. 77.77) in ITG score timing window{" "}
+            <details className="relative inline-block align-middle">
+              <summary className="inline cursor-pointer list-none text-blue-200 hover:text-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70 rounded-sm">
+                (i)
+              </summary>
+              <div className="absolute left-0 z-20 mt-2 w-64 rounded-md border border-white/15 bg-slate-900/95 p-3 text-xs text-gray-100 shadow-lg">
+                Qualifications will be held in standard ITG timing window and
+                not EX score
+              </div>
+            </details>
+            . Screenshots are checked before the qualifications close.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-4">
             {qualifierLoading && (
@@ -727,6 +737,13 @@ export default function LandingPage() {
             <h2 className="text-2xl font-semibold theme-text">
               Register for tournament
             </h2>
+            <p className="mt-2 text-sm text-gray-300">No overlapping registrations allowed, check the timetable for when competitions are held
+              <a type="link"
+                 className="ml-2 link text-blue-400 hover:text-blue-300 transition"
+                 href="https://drive.google.com/drive/folders/1U_SMAWewRgqoEy4Ra3yExsGgm1aSz6IO?usp=drive_link">
+                See Timetable
+              </a>
+            </p>
             {!registrationLocked && (
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {registrationLoading && (
