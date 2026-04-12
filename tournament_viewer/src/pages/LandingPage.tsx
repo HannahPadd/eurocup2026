@@ -571,6 +571,11 @@ export default function LandingPage() {
                 Qualifiers saved
               </span>
             ) : null}
+            <a type="button"
+               className="bg-green-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-green-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+               href="https://drive.google.com/drive/folders/1U_SMAWewRgqoEy4Ra3yExsGgm1aSz6IO?usp=drive_link">
+              Download qualifiers
+            </a>
             <button
               type="button"
               className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
