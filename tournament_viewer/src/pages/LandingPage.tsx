@@ -9,6 +9,7 @@ import QualifierList, {
 } from "../components/qualifiers/QualifierList";
 import { formatPercentageDisplay, parsePercentage } from "../utils/formatting";
 import { buildRegistrationDivisionOptions } from "../utils/registrationDivisionOptions";
+import OkModal from "../components/layout/OkModal";
 
 type QualifierSubmission = {
   percentage: number;
@@ -81,6 +82,13 @@ export default function LandingPage() {
   );
   const [registrationLocked, setRegistrationLocked] = useState(false);
   const [countrySaving, setCountrySaving] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const loadPlayer = async () => {
@@ -392,6 +400,49 @@ export default function LandingPage() {
       setRegistrationError("Unable to update country.");
     } finally {
       setCountrySaving(false);
+    }
+  };
+
+  const openPasswordModal = () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordModalOpen(true);
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setPasswordError(null);
+  };
+
+  const updatePassword = async () => {
+    if (!currentPassword.trim() || !newPassword.trim()) {
+      setPasswordError("Please fill in both password fields.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      await axios.post("auth/password", {
+        currentPassword,
+        newPassword,
+      });
+      setPasswordSuccess("Password updated successfully.");
+      setPasswordModalOpen(false);
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error) &&
+        typeof error.response?.data?.message === "string"
+          ? error.response.data.message
+          : "Unable to update password.";
+      setPasswordError(message);
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -847,6 +898,69 @@ export default function LandingPage() {
           Opens later
         </button>
       </section>
+
+      <section className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
+        <div>
+          <h3 className="text-xl font-semibold theme-text">Account security</h3>
+          <p className="text-gray-300 mt-1">
+            Set a new password for your account.
+          </p>
+          {passwordSuccess && (
+            <p className="mt-2 text-sm text-emerald-200">{passwordSuccess}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={openPasswordModal}
+          className="inline-flex w-full items-center justify-center text-center sm:w-auto bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+        >
+          Set new password
+        </button>
+      </section>
+
+      <OkModal
+        title="Set new password"
+        open={passwordModalOpen}
+        onClose={closePasswordModal}
+        onOk={updatePassword}
+        okText={passwordSaving ? "Updating..." : "Update password"}
+      >
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-800">
+            Current password
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="current-password"
+            />
+          </label>
+          <label className="block text-sm text-gray-800">
+            New password
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="block text-sm text-gray-800">
+            Confirm new password
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          {passwordError && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
+        </div>
+      </OkModal>
     </div>
   );
 }

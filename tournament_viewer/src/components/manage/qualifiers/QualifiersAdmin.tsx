@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { faCamera } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Division } from "../../../models/Division";
 import { Phase } from "../../../models/Phase";
 import { Player } from "../../../models/Player";
+import OkModal from "../../layout/OkModal";
 
 const isSeedingPhase = (phase?: Phase) =>
   (phase?.ruleset?.name ?? "").trim().toLowerCase() === "seeding" ||
@@ -29,6 +32,28 @@ type AdminSubmission = {
   divisionIds: number[];
 };
 
+const normalizeStatus = (status?: string) =>
+  (status ?? "").trim().toLowerCase();
+
+const getStatusBadgeClass = (status?: string) => {
+  const normalized = normalizeStatus(status);
+  if (normalized === "approved") {
+    return "border-emerald-400/40 bg-emerald-500/15 text-emerald-200";
+  }
+  if (normalized === "rejected") {
+    return "border-amber-400/40 bg-amber-500/15 text-amber-200";
+  }
+  return "border-slate-400/40 bg-slate-500/15 text-slate-100";
+};
+
+const formatStatusLabel = (status?: string) => {
+  const normalized = normalizeStatus(status);
+  if (!normalized) {
+    return "Pending";
+  }
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const downloadCsv = (
   filename: string,
   rows: Array<Array<string | number>>,
@@ -37,7 +62,7 @@ const downloadCsv = (
     .map((row) =>
       row
         .map((cell) =>
-          `"${String(cell ?? "").replace(/\"/g, '""')}"`,
+          `"${String(cell ?? "").replace(/"/g, '""')}"`,
         )
         .join(","),
     )
@@ -87,6 +112,10 @@ export default function QualifiersAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
+  const [activeScreenshot, setActiveScreenshot] = useState<{
+    url: string;
+    playerName: string;
+  } | null>(null);
 
   const divisionNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -304,6 +333,20 @@ export default function QualifiersAdmin() {
   };
 
   const selectedCount = selectedIds.size;
+  const selectedSubmissions = useMemo(
+    () => submissions.filter((submission) => selectedIds.has(submission.id)),
+    [selectedIds, submissions],
+  );
+  const canApproveSelected =
+    selectedCount > 0 &&
+    selectedSubmissions.some(
+      (submission) => normalizeStatus(submission.status) !== "approved",
+    );
+  const canRejectSelected =
+    selectedCount > 0 &&
+    selectedSubmissions.some(
+      (submission) => normalizeStatus(submission.status) !== "rejected",
+    );
 
   return (
     <div className="flex flex-col gap-6">
@@ -366,7 +409,7 @@ export default function QualifiersAdmin() {
           <button
             type="button"
             onClick={() => updateStatus(Array.from(selectedIds), "approved")}
-            disabled={selectedCount === 0}
+            disabled={!canApproveSelected}
             className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
           >
             Approve selected
@@ -374,7 +417,7 @@ export default function QualifiersAdmin() {
           <button
             type="button"
             onClick={() => updateStatus(Array.from(selectedIds), "rejected")}
-            disabled={selectedCount === 0}
+            disabled={!canRejectSelected}
             className="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
           >
             Reject selected
@@ -445,7 +488,13 @@ export default function QualifiersAdmin() {
                     </div>
                   </td>
                   <td className="py-2 pr-2">{submission.percentage}</td>
-                  <td className="py-2 pr-2 capitalize">{submission.status}</td>
+                  <td className="py-2 pr-2">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStatusBadgeClass(submission.status)}`}
+                    >
+                      {formatStatusLabel(submission.status)}
+                    </span>
+                  </td>
                   <td className="py-2 pr-2">
                     {submission.divisionIds
                       .map((id) => divisionNameById.get(id) ?? id)
@@ -458,15 +507,36 @@ export default function QualifiersAdmin() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
+                        disabled={!submission.screenshotUrl}
+                        onClick={() =>
+                          setActiveScreenshot({
+                            url: submission.screenshotUrl,
+                            playerName:
+                              submission.player?.playerName ?? "player",
+                          })
+                        }
+                        className="rounded-md border border-sky-500 px-2 py-1 text-[10px] font-semibold text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={
+                          submission.screenshotUrl
+                            ? "View screenshot"
+                            : "No screenshot submitted"
+                        }
+                      >
+                        <FontAwesomeIcon icon={faCamera} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => updateStatus([submission.id], "approved")}
-                        className="rounded-md border border-emerald-500 px-2 py-1 text-[10px] font-semibold text-emerald-200"
+                        disabled={normalizeStatus(submission.status) === "approved"}
+                        className="rounded-md border border-emerald-500 px-2 py-1 text-[10px] font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Approve
                       </button>
                       <button
                         type="button"
                         onClick={() => updateStatus([submission.id], "rejected")}
-                        className="rounded-md border border-amber-500 px-2 py-1 text-[10px] font-semibold text-amber-200"
+                        disabled={normalizeStatus(submission.status) === "rejected"}
+                        className="rounded-md border border-amber-500 px-2 py-1 text-[10px] font-semibold text-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Reject
                       </button>
@@ -490,6 +560,31 @@ export default function QualifiersAdmin() {
           )}
         </div>
       </section>
+      <OkModal
+        title="Qualifier screenshot"
+        open={Boolean(activeScreenshot)}
+        onClose={() => setActiveScreenshot(null)}
+        onOk={() => setActiveScreenshot(null)}
+        okText="Close"
+      >
+        {activeScreenshot && (
+          <div className="space-y-3">
+            <img
+              src={activeScreenshot.url}
+              alt={`Qualifier screenshot for ${activeScreenshot.playerName}`}
+              className="max-h-[70vh] w-full rounded object-contain"
+            />
+            <a
+              href={activeScreenshot.url}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center text-xs font-semibold text-sky-700 hover:text-sky-600"
+            >
+              Open full image
+            </a>
+          </div>
+        )}
+      </OkModal>
     </div>
   );
 }

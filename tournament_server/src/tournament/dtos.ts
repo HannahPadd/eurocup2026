@@ -1,7 +1,7 @@
 import { CreateDivisionDto, UpdateDivisionDto } from './dtos/division.dto';
 import { CreateMatchDto, UpdateMatchDto } from './dtos/match.dto';
 import { CreatePhaseDto, UpdatePhaseDto } from './dtos/phase.dto';
-import { CreatePlayerDto, UpdatePlayerDto } from './dtos/player.dto';
+import { CreatePlayerDto, UpdatePlayerDto, UpdatePlayerPasswordDto } from './dtos/player.dto';
 import { CreateRoundDto, UpdateRoundDto } from './dtos/round.dto';
 import { CreateScoreDto, UpdateScoreDto } from './dtos/score.dto';
 import { CreateSongDto, UpdateSongDto } from './dtos/song.dto';
@@ -19,7 +19,7 @@ import { CommitPhaseProgressionDto } from './dtos/phase_progression.dto';
 export { CreateDivisionDto, UpdateDivisionDto };
 export { CreateMatchDto, UpdateMatchDto };
 export { CreatePhaseDto, UpdatePhaseDto };
-export { CreatePlayerDto, UpdatePlayerDto };
+export { CreatePlayerDto, UpdatePlayerDto, UpdatePlayerPasswordDto };
 export { CreateRoundDto, UpdateRoundDto };
 export { CreateScoreDto, UpdateScoreDto };
 export { CreateSongDto, UpdateSongDto };
