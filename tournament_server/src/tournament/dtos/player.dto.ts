@@ -424,3 +424,14 @@ export class UpdatePlayerDto {
   isAdmin: boolean;
   
 }
+
+export class UpdatePlayerPasswordDto {
+  @ApiProperty({
+    example: 'Password!',
+    description: 'New player password',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @Type(() => String)
+  newPassword: string;
+}

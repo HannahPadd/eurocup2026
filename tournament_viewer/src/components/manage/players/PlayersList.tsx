@@ -15,16 +15,56 @@ import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
 import { getPlayerDivisionIds } from "../../../utils/playerDivisions";
 import PlayerDivisionsModal from "../divisions/PlayerDivisionsModal";
+import OkModal from "../../layout/OkModal";
 
 const getPlayerDisplayName = (player: Player) =>
   (player.playerName ?? player.name ?? "").trim() || "Unnamed player";
 
+type PlayerQualifierSubmission = {
+  id: number;
+  percentage: number;
+  status: "pending" | "approved" | "rejected" | string;
+  updatedAt: string;
+  player: {
+    id: number;
+  };
+  song: {
+    title: string;
+    group: string;
+    difficulty: number;
+  };
+};
+
+const normalizeSubmissionStatus = (status?: string) =>
+  (status ?? "").trim().toLowerCase();
+
+const getSubmissionStatusClass = (status?: string) => {
+  const normalized = normalizeSubmissionStatus(status);
+  if (normalized === "approved") {
+    return "border-emerald-400/40 bg-emerald-500/15 text-emerald-200";
+  }
+  if (normalized === "rejected") {
+    return "border-amber-400/40 bg-amber-500/15 text-amber-200";
+  }
+  return "border-slate-400/40 bg-slate-500/15 text-slate-100";
+};
+
+const formatSubmissionStatus = (status?: string) => {
+  const normalized = normalizeSubmissionStatus(status);
+  if (!normalized) {
+    return "Pending";
+  }
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
 
 export default function PlayersList({ onImport }: { onImport?: () => void }) {
   const { auth, setAuth } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
+  const [qualifierSubmissions, setQualifierSubmissions] = useState<
+    PlayerQualifierSubmission[]
+  >([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -64,10 +104,16 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
       setLoading(true);
       setLoadError(null);
       try {
-        const [playersResponse, teamsResponse, divisionsResponse] = await Promise.all([
+        const [
+          playersResponse,
+          teamsResponse,
+          divisionsResponse,
+          qualifierSubmissionsResponse,
+        ] = await Promise.all([
           axios.get<Player[]>("players"),
           axios.get<Team[]>("teams"),
           axios.get<Division[]>("divisions"),
+          axios.get<PlayerQualifierSubmission[]>("qualifiers/admin/submissions"),
         ]);
         if (!isMounted) {
           return;
@@ -85,6 +131,7 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
             a.name.localeCompare(b.name),
           ),
         );
+        setQualifierSubmissions(qualifierSubmissionsResponse.data ?? []);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -370,6 +417,12 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                     toast.error("Unable to update player divisions");
                   }
                 }}
+                qualifierSubmissions={qualifierSubmissions
+                  .filter((submission) => submission.player?.id === selectedPlayerId)
+                  .sort(
+                    (a, b) =>
+                      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+                  )}
               />
             )}
           </div>
@@ -389,6 +442,7 @@ function PlayerItem({
   divisions,
   onUpdateFlags,
   onUpdateDivisions,
+  qualifierSubmissions,
 }: {
   player: Player;
   teams: Team[];
@@ -402,15 +456,59 @@ function PlayerItem({
     updates: { isAdmin?: boolean; hasRegistered?: boolean },
   ) => void;
   onUpdateDivisions: (playerId: number, divisionIds: number[]) => void;
+  qualifierSubmissions: PlayerQualifierSubmission[];
 }) {
   const selectedDivisionIds = getPlayerDivisionIds(player);
   const [divisionModalOpen, setDivisionModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const toggleDivision = (divisionId: number) => {
     const nextDivisionIds = selectedDivisionIds.includes(divisionId)
       ? selectedDivisionIds.filter((id) => id !== divisionId)
       : [...selectedDivisionIds, divisionId];
     onUpdateDivisions(player.id, nextDivisionIds);
+  };
+
+  const openPasswordModal = () => {
+    setPasswordError(null);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordModalOpen(true);
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setPasswordError(null);
+  };
+
+  const submitPasswordUpdate = async () => {
+    if (!newPassword.trim()) {
+      setPasswordError("Please enter a new password.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      await axios.patch(`players/${player.id}/password`, { newPassword });
+      toast.success("Password updated");
+      setPasswordModalOpen(false);
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error) &&
+        typeof error.response?.data?.message === "string"
+          ? error.response.data.message
+          : "Unable to update password.";
+      setPasswordError(message);
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   return (
@@ -437,6 +535,13 @@ function PlayerItem({
         className="w-fit rounded-md border border-white/20 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-100"
       >
         Manage division registration
+      </button>
+      <button
+        type="button"
+        onClick={openPasswordModal}
+        className="w-fit rounded-md border border-white/20 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-100"
+      >
+        Set player password
       </button>
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2">
@@ -497,6 +602,40 @@ function PlayerItem({
       </div>
       <h3 className="mt-3 theme-text">Player Scores</h3>
       <p>No scores on record for this player.</p>
+      <div className="mt-3">
+        <h3 className="theme-text text-sm uppercase tracking-wide">
+          Qualifier submissions
+        </h3>
+        {qualifierSubmissions.length === 0 ? (
+          <p className="mt-1 text-xs text-gray-300">No qualifier submissions yet.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-white/10">
+            {qualifierSubmissions.map((submission) => (
+              <li
+                key={submission.id}
+                className="flex items-center justify-between gap-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-white">{submission.song?.title}</p>
+                  <p className="text-[10px] text-gray-400">
+                    {submission.song?.group} · {submission.song?.difficulty}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-white">
+                    {submission.percentage}%
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getSubmissionStatusClass(submission.status)}`}
+                  >
+                    {formatSubmissionStatus(submission.status)}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <PlayerDivisionsModal
         open={divisionModalOpen}
         onClose={() => setDivisionModalOpen(false)}
@@ -505,6 +644,37 @@ function PlayerItem({
         selectedDivisionIds={selectedDivisionIds}
         onToggleDivision={toggleDivision}
       />
+      <OkModal
+        title={`Set password for ${getPlayerDisplayName(player)}`}
+        open={passwordModalOpen}
+        onClose={closePasswordModal}
+        onOk={submitPasswordUpdate}
+        okText={passwordSaving ? "Saving..." : "Save"}
+      >
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-800">
+            New password
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="block text-sm text-gray-800">
+            Confirm new password
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+        </div>
+      </OkModal>
     </div>
   );
 }

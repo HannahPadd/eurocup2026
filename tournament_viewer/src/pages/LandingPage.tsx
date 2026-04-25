@@ -9,6 +9,7 @@ import QualifierList, {
 } from "../components/qualifiers/QualifierList";
 import { formatPercentageDisplay, parsePercentage } from "../utils/formatting";
 import { buildRegistrationDivisionOptions } from "../utils/registrationDivisionOptions";
+import OkModal from "../components/layout/OkModal";
 
 type QualifierSubmission = {
   percentage: number;
@@ -81,6 +82,13 @@ export default function LandingPage() {
   );
   const [registrationLocked, setRegistrationLocked] = useState(false);
   const [countrySaving, setCountrySaving] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const loadPlayer = async () => {
@@ -395,6 +403,49 @@ export default function LandingPage() {
     }
   };
 
+  const openPasswordModal = () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordModalOpen(true);
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setPasswordError(null);
+  };
+
+  const updatePassword = async () => {
+    if (!currentPassword.trim() || !newPassword.trim()) {
+      setPasswordError("Please fill in both password fields.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      await axios.post("auth/password", {
+        currentPassword,
+        newPassword,
+      });
+      setPasswordSuccess("Password updated successfully.");
+      setPasswordModalOpen(false);
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error) &&
+        typeof error.response?.data?.message === "string"
+          ? error.response.data.message
+          : "Unable to update password.";
+      setPasswordError(message);
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const selectedDivisions = divisions.filter((division) =>
     selectedDivisionIds.includes(division.id),
   );
@@ -519,8 +570,18 @@ export default function LandingPage() {
           <h2 className="text-2xl font-semibold theme-text">
             Send in qualifiers
           </h2>
-          <p className="text-gray-300 mt-2">
-            Submit a score (e.g. 77.77). Screenshot URL is optional.
+          <p className="mt-2 text-sm text-gray-300">
+            Submit a score (e.g. 77.77) in ITG score timing window{" "}
+            <details className="relative inline-block align-middle">
+              <summary className="inline cursor-pointer list-none text-blue-200 hover:text-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70 rounded-sm">
+                (i)
+              </summary>
+              <div className="absolute left-0 z-20 mt-2 w-64 rounded-md border border-white/15 bg-slate-900/95 p-3 text-xs text-gray-100 shadow-lg">
+                Qualifications will be held in standard ITG timing window and
+                not EX score
+              </div>
+            </details>
+            . Screenshots are checked before the qualifications close.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-4">
             {qualifierLoading && (
@@ -727,6 +788,13 @@ export default function LandingPage() {
             <h2 className="text-2xl font-semibold theme-text">
               Register for tournament
             </h2>
+            <p className="mt-2 text-sm text-gray-300">No overlapping registrations allowed, check the timetable for when competitions are held
+              <a type="link"
+                 className="ml-2 link text-blue-400 hover:text-blue-300 transition"
+                 href="https://ddrexp.nl/eurocup-time-table/">
+                See Timetable
+              </a>
+            </p>
             {!registrationLocked && (
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {registrationLoading && (
@@ -830,6 +898,69 @@ export default function LandingPage() {
           Opens later
         </button>
       </section>
+
+      <section className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
+        <div>
+          <h3 className="text-xl font-semibold theme-text">Account security</h3>
+          <p className="text-gray-300 mt-1">
+            Set a new password for your account.
+          </p>
+          {passwordSuccess && (
+            <p className="mt-2 text-sm text-emerald-200">{passwordSuccess}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={openPasswordModal}
+          className="inline-flex w-full items-center justify-center text-center sm:w-auto bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+        >
+          Set new password
+        </button>
+      </section>
+
+      <OkModal
+        title="Set new password"
+        open={passwordModalOpen}
+        onClose={closePasswordModal}
+        onOk={updatePassword}
+        okText={passwordSaving ? "Updating..." : "Update password"}
+      >
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-800">
+            Current password
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="current-password"
+            />
+          </label>
+          <label className="block text-sm text-gray-800">
+            New password
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="block text-sm text-gray-800">
+            Confirm new password
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          {passwordError && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
+        </div>
+      </OkModal>
     </div>
   );
 }
