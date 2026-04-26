@@ -61,7 +61,7 @@ export class UserService {
         return value ? this.normalizeValue(value) === 'yes' : false;
     }
 
-    async getRegistrationPrefillByGamerTag(gamerTag: string): Promise<RegistrationPrefillResponse> {
+    private async loadRegistrationsPayload(): Promise<RegistrationRecord[]> {
         const response = await fetch(this.registrationSourceUrl);
         if (!response.ok) {
             throw new HttpException('Unable to load preregistration data', 502);
@@ -70,6 +70,17 @@ export class UserService {
         if (!Array.isArray(payload)) {
             throw new HttpException('Unexpected preregistration data format', 502);
         }
+        return payload.filter((item): item is RegistrationRecord => Boolean(item) && typeof item === 'object');
+    }
+
+    async checkForDuplicate(gamerTag: string): Promise<boolean> {
+        const exists = await this.accountRepo.findOneBy({username: gamerTag})
+        if (!exists) return false;
+        return true;
+    }
+
+    async getRegistrationPrefillByGamerTag(gamerTag: string): Promise<RegistrationPrefillResponse> {
+        const payload = await this.loadRegistrationsPayload();
 
         const normalizedTargetGamerTag = this.normalizeTag(gamerTag);
         const matchingRecord = payload.find((item: unknown) => {
@@ -103,6 +114,10 @@ export class UserService {
             registrationDate: this.getStringValue(matchingRecord, 'registartiondate') ?? this.getStringValue(matchingRecord, 'registrationdate'),
             preferredDivisions,
         };
+    }
+
+    async getRegistrations() {
+        return await this.loadRegistrationsPayload();
     }
 
     //TODO: Add user roles and authentication

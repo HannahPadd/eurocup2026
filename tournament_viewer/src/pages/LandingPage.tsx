@@ -8,6 +8,8 @@ import QualifierList, {
   QualifierListItem,
 } from "../components/qualifiers/QualifierList";
 import { formatPercentageDisplay, parsePercentage } from "../utils/formatting";
+import { buildRegistrationDivisionOptions } from "../utils/registrationDivisionOptions";
+import OkModal from "../components/layout/OkModal";
 
 type QualifierSubmission = {
   percentage: number;
@@ -44,6 +46,7 @@ type DivisionPhaseRulesetConfig = {
   minimumSubmissions?: number;
 };
 
+
 type PlayerProfile = {
   id: number;
   playerName?: string;
@@ -75,10 +78,17 @@ export default function LandingPage() {
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [registrationSaving, setRegistrationSaving] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(
-    null
+    null,
   );
   const [registrationLocked, setRegistrationLocked] = useState(false);
   const [countrySaving, setCountrySaving] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const loadPlayer = async () => {
@@ -94,7 +104,9 @@ export default function LandingPage() {
           playerName: string;
           country?: string;
         }[];
-        const player = players.find((item) => item.playerName === auth.username);
+        const player = players.find(
+          (item) => item.playerName === auth.username,
+        );
         if (!player) {
           setQualifierError("Player profile not found for this account.");
           setPlayerId(null);
@@ -142,8 +154,7 @@ export default function LandingPage() {
       try {
         const response = await axios.get<PlayerProfile>(`players/${playerId}`);
         const existing = response.data?.divisions ?? [];
-        const registered =
-          response.data?.hasRegistered ?? existing.length > 0;
+        const registered = response.data?.hasRegistered ?? existing.length > 0;
         setSelectedDivisionIds(existing.map((division) => division.id));
         setRegistrationLocked(registered);
         setPlayerProfile(response.data ?? null);
@@ -212,10 +223,10 @@ export default function LandingPage() {
             division,
             phase,
             song,
-          }))
-        )
+          })),
+        ),
       ),
-    [qualifiers]
+    [qualifiers],
   );
 
   const qualifierItems = useMemo<QualifierListItem[]>(
@@ -226,6 +237,7 @@ export default function LandingPage() {
         songId: song.song.id,
         songTitle: song.song.title,
         difficulty: song.song.difficulty,
+        hasSavedScreenshot: Boolean(song.submission?.screenshotUrl?.trim()),
       })),
     [qualifierSongs],
   );
@@ -233,7 +245,7 @@ export default function LandingPage() {
   const updateQualifierInput = (
     songId: number,
     field: "percentage" | "screenshotUrl",
-    value: string
+    value: string,
   ) => {
     setQualifierInputs((prev) => ({
       ...prev,
@@ -261,7 +273,7 @@ export default function LandingPage() {
       }[] = [];
       for (const { song } of qualifierSongs) {
         const entry = qualifierInputs[song.song.id];
-        if (!entry?.percentage || !entry?.screenshotUrl) {
+        if (!entry?.percentage) {
           continue;
         }
         const percentage = Number(entry.percentage);
@@ -273,9 +285,7 @@ export default function LandingPage() {
           return;
         }
         if (percentage < 0 || percentage > 100) {
-          setQualifierError(
-            "Qualifier scores must be between 0.00 and 100.",
-          );
+          setQualifierError("Qualifier scores must be between 0.00 and 100.");
           setQualifierSaving(false);
           return;
         }
@@ -286,20 +296,17 @@ export default function LandingPage() {
         submissions.push({
           songId: song.song.id,
           percentage: normalized,
-          screenshotUrl: entry.screenshotUrl,
+          screenshotUrl: entry.screenshotUrl?.trim() ?? "",
         });
       }
 
       await Promise.all(
         submissions.map((submission) =>
-          axios.post(
-            `qualifier/${playerId}/${submission.songId}`,
-            {
-              percentage: submission.percentage,
-              screenshotUrl: submission.screenshotUrl,
-            }
-          )
-        )
+          axios.post(`qualifier/${playerId}/${submission.songId}`, {
+            percentage: submission.percentage,
+            screenshotUrl: submission.screenshotUrl,
+          }),
+        ),
       );
 
       const refreshed = await axios.get<QualifierDivision[]>("qualifiers", {
@@ -315,14 +322,6 @@ export default function LandingPage() {
     } finally {
       setQualifierSaving(false);
     }
-  };
-
-  const toggleDivisionSelection = (divisionId: number) => {
-    setSelectedDivisionIds((prev) =>
-      prev.includes(divisionId)
-        ? prev.filter((id) => id !== divisionId)
-        : [...prev, divisionId]
-    );
   };
 
   const saveRegistration = async () => {
@@ -349,7 +348,9 @@ export default function LandingPage() {
 
   const requestRegistrationChange = async () => {
     if (!playerId) {
-      setRegistrationError("Player profile is required to update registration.");
+      setRegistrationError(
+        "Player profile is required to update registration.",
+      );
       return;
     }
     setRegistrationSaving(true);
@@ -402,9 +403,69 @@ export default function LandingPage() {
     }
   };
 
+  const openPasswordModal = () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordModalOpen(true);
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setPasswordError(null);
+  };
+
+  const updatePassword = async () => {
+    if (!currentPassword.trim() || !newPassword.trim()) {
+      setPasswordError("Please fill in both password fields.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      await axios.post("auth/password", {
+        currentPassword,
+        newPassword,
+      });
+      setPasswordSuccess("Password updated successfully.");
+      setPasswordModalOpen(false);
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error) &&
+        typeof error.response?.data?.message === "string"
+          ? error.response.data.message
+          : "Unable to update password.";
+      setPasswordError(message);
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const selectedDivisions = divisions.filter((division) =>
-    selectedDivisionIds.includes(division.id)
+    selectedDivisionIds.includes(division.id),
   );
+  const registrationDivisionOptions = useMemo(() => {
+    return buildRegistrationDivisionOptions(divisions);
+  }, [divisions]);
+
+  const toggleDivisionGroup = (divisionIds: number[]) => {
+    setSelectedDivisionIds((prev) => {
+      const allSelected = divisionIds.every((id) => prev.includes(id));
+      if (allSelected) {
+        return prev.filter((id) => !divisionIds.includes(id));
+      }
+      const next = new Set(prev);
+      for (const id of divisionIds) {
+        next.add(id);
+      }
+      return Array.from(next);
+    });
+  };
   const qualifierDivisionById = useMemo(() => {
     const map = new Map<number, QualifierDivision>();
     for (const division of qualifiers) {
@@ -418,7 +479,9 @@ export default function LandingPage() {
     for (const division of divisions) {
       for (const phase of division.phases ?? []) {
         const phaseName = (phase.name ?? "").toLowerCase();
-        const rulesetName = ((phase.ruleset as { name?: string } | undefined)?.name ?? "")
+        const rulesetName = (
+          (phase.ruleset as { name?: string } | undefined)?.name ?? ""
+        )
           .trim()
           .toLowerCase();
         const isQualifierPhase =
@@ -430,8 +493,9 @@ export default function LandingPage() {
           continue;
         }
 
-        const rawConfig = (phase.ruleset as { config?: Record<string, unknown> } | undefined)
-          ?.config;
+        const rawConfig = (
+          phase.ruleset as { config?: Record<string, unknown> } | undefined
+        )?.config;
         if (!rawConfig || typeof rawConfig !== "object") {
           continue;
         }
@@ -439,9 +503,12 @@ export default function LandingPage() {
         const rawThreshold = rawConfig.advanceMinPercentage;
         const rawMinimumSubmissions = rawConfig.minimumSubmissions;
         const advanceMinPercentage =
-          typeof rawThreshold === "number" ? Math.max(0, Math.min(100, rawThreshold)) : undefined;
+          typeof rawThreshold === "number"
+            ? Math.max(0, Math.min(100, rawThreshold))
+            : undefined;
         const minimumSubmissions =
-          typeof rawMinimumSubmissions === "number" && Number.isFinite(rawMinimumSubmissions)
+          typeof rawMinimumSubmissions === "number" &&
+          Number.isFinite(rawMinimumSubmissions)
             ? Math.max(0, Math.floor(rawMinimumSubmissions))
             : undefined;
 
@@ -452,27 +519,6 @@ export default function LandingPage() {
 
     return map;
   }, [divisions]);
-
-
-  const handleGenerateAPI = async () => {
-    try {
-      const response = await axios.post('auth/genapi',
-        {
-          'username' : auth?.username
-        },
-        {
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization' : `Bearer ${auth?.accessToken}`
-           },
-          withCredentials: true
-        });
-      console.log('Your new API Key:', response.data.rawKey);
-      alert(`Save this key, it won't be shown again: \n${response.data.rawKey}`);
-    } catch (error) {
-      console.error('Failed to generate API key', error);
-    }
-  };
 
   const countryLabel = playerProfile?.country?.trim() || UNKNOWN_COUNTRY_LABEL;
   const countryFlag = countryToFlagUrl(playerProfile?.country, 40);
@@ -524,8 +570,18 @@ export default function LandingPage() {
           <h2 className="text-2xl font-semibold theme-text">
             Send in qualifiers
           </h2>
-          <p className="text-gray-300 mt-2">
-            Submit a score (e.g. 77.77) and the URL of your screenshot.
+          <p className="mt-2 text-sm text-gray-300">
+            Submit a score (e.g. 77.77) in ITG score timing window{" "}
+            <details className="relative inline-block align-middle">
+              <summary className="inline cursor-pointer list-none text-blue-200 hover:text-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70 rounded-sm">
+                (i)
+              </summary>
+              <div className="absolute left-0 z-20 mt-2 w-64 rounded-md border border-white/15 bg-slate-900/95 p-3 text-xs text-gray-100 shadow-lg">
+                Qualifications will be held in standard ITG timing window and
+                not EX score
+              </div>
+            </details>
+            . Screenshots are checked before the qualifications close.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-4">
             {qualifierLoading && (
@@ -576,6 +632,11 @@ export default function LandingPage() {
                 Qualifiers saved
               </span>
             ) : null}
+            <a type="button"
+               className="bg-green-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-green-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+               href="https://drive.google.com/drive/folders/1U_SMAWewRgqoEy4Ra3yExsGgm1aSz6IO?usp=drive_link">
+              Download qualifiers
+            </a>
             <button
               type="button"
               className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
@@ -597,93 +658,121 @@ export default function LandingPage() {
             </p>
             {registrationLocked && selectedDivisions.length > 0 ? (
               <div className="mt-5 space-y-3">
-              {selectedDivisions.map((division) => (
-                (() => {
-                  const qualifierDivision = qualifierDivisionById.get(division.id);
-                  const qualifierPhases = qualifierDivision?.phases ?? [];
-                  const phaseThresholdFromQualifiers = qualifierPhases.find(
-                    (phase) => typeof phase.advanceMinPercentage === "number",
-                  )?.advanceMinPercentage;
-                  const minimumSubmissionsFromQualifiers =
-                    qualifierPhases.find(
-                      (phase) => typeof phase.minimumSubmissions === "number",
-                    )?.minimumSubmissions ?? 0;
-                  const fallbackRules = qualifierRulesByDivisionId.get(division.id);
-                  const phaseThreshold =
-                    phaseThresholdFromQualifiers ?? fallbackRules?.advanceMinPercentage;
-                  const minimumSubmissions =
-                    minimumSubmissionsFromQualifiers || fallbackRules?.minimumSubmissions || 0;
-                  const hasQualifierPhase =
-                    qualifierPhases.length > 0 ||
-                    phaseThreshold !== undefined ||
-                    minimumSubmissions > 0;
-                  const submittedPercentages = qualifierPhases.flatMap((phase) =>
-                    phase.songs
-                      .map((song) =>
-                        song.submission ? Number(song.submission.percentage ?? 0) : null,
-                      )
-                      .filter((value): value is number => value !== null),
-                  );
-                  const submittedCount = submittedPercentages.length;
-                  const averagePercentage =
-                    submittedCount > 0
-                      ? submittedPercentages.reduce((sum, value) => sum + value, 0) /
-                        submittedCount
-                      : 0;
-                  const hasRequiredSubmissions = submittedCount >= minimumSubmissions;
-                  const isQualifiedByThreshold =
-                    hasQualifierPhase &&
-                    typeof phaseThreshold === "number" &&
-                    hasRequiredSubmissions &&
-                    averagePercentage >= phaseThreshold;
-                  const statusText =
-                    !hasQualifierPhase
+                {selectedDivisions.map((division) =>
+                  (() => {
+                    const qualifierDivision = qualifierDivisionById.get(
+                      division.id,
+                    );
+                    const qualifierPhases = qualifierDivision?.phases ?? [];
+                    const phaseThresholdFromQualifiers = qualifierPhases.find(
+                      (phase) => typeof phase.advanceMinPercentage === "number",
+                    )?.advanceMinPercentage;
+                    const minimumSubmissionsFromQualifiers =
+                      qualifierPhases.find(
+                        (phase) => typeof phase.minimumSubmissions === "number",
+                      )?.minimumSubmissions ?? 0;
+                    const fallbackRules = qualifierRulesByDivisionId.get(
+                      division.id,
+                    );
+                    const phaseThreshold =
+                      phaseThresholdFromQualifiers ??
+                      fallbackRules?.advanceMinPercentage;
+                    const minimumSubmissions =
+                      minimumSubmissionsFromQualifiers ||
+                      fallbackRules?.minimumSubmissions ||
+                      0;
+                    const hasQualifierPhase =
+                      qualifierPhases.length > 0 ||
+                      phaseThreshold !== undefined ||
+                      minimumSubmissions > 0;
+                    const songSubmissionById = new Map<number, number | null>();
+                    for (const phase of qualifierPhases) {
+                      for (const song of phase.songs) {
+                        if (!songSubmissionById.has(song.song.id)) {
+                          songSubmissionById.set(
+                            song.song.id,
+                            song.submission
+                              ? Number(song.submission.percentage ?? 0)
+                              : null,
+                          );
+                        }
+                      }
+                    }
+                    const totalQualifierSongs = songSubmissionById.size;
+                    const submittedPercentages = Array.from(
+                      songSubmissionById.values(),
+                    ).filter((value): value is number => value !== null);
+                    const submittedCount = submittedPercentages.length;
+                    const hasRequiredSubmissions =
+                      submittedCount >= minimumSubmissions;
+                    const hasAllQualifierSongsSubmitted =
+                      totalQualifierSongs === 0 ||
+                      submittedCount >= totalQualifierSongs;
+                    const meetsPerSongThreshold =
+                      typeof phaseThreshold !== "number" ||
+                      Array.from(songSubmissionById.values()).every(
+                        (value) =>
+                          typeof value === "number" &&
+                          !Number.isNaN(value) &&
+                          value >= phaseThreshold,
+                      );
+                    const isQualifiedByThreshold =
+                      hasQualifierPhase &&
+                      typeof phaseThreshold === "number" &&
+                      hasRequiredSubmissions &&
+                      hasAllQualifierSongsSubmitted &&
+                      meetsPerSongThreshold;
+                    const statusText = !hasQualifierPhase
                       ? `Signed up for ${division.name}`
                       : typeof phaseThreshold === "number"
                         ? isQualifiedByThreshold
                           ? `Qualified for ${division.name}`
-                          : `score needs to be higher than ${phaseThreshold}% for ${division.name}`
+                          : `all qualifier songs must be ${phaseThreshold}% or higher for ${division.name}`
                         : `Signed up for ${division.name}`;
-                  const statusToneClass = isQualifiedByThreshold
-                    ? "bg-emerald-500/20 text-emerald-200"
-                    : hasQualifierPhase && typeof phaseThreshold === "number"
-                      ? "bg-amber-500/20 text-amber-100"
-                      : "bg-emerald-500/20 text-emerald-200";
+                    const statusToneClass = isQualifiedByThreshold
+                      ? "bg-emerald-500/20 text-emerald-200"
+                      : hasQualifierPhase && typeof phaseThreshold === "number"
+                        ? "bg-amber-500/20 text-amber-100"
+                        : "bg-emerald-500/20 text-emerald-200";
 
-                  return (
-                    <div
-                      key={division.id}
-                      className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
-                    >
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-full ${statusToneClass}`}>
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                          aria-hidden="true"
-                        >
-                          {isQualifiedByThreshold || !hasQualifierPhase ? (
-                            <polyline points="20 6 9 17 4 12" />
-                          ) : (
-                            <path d="M12 8v4m0 4h.01M10.29 3.86l-7.2 12.47A2 2 0 0 0 4.8 19.3h14.4a2 2 0 0 0 1.71-2.97l-7.2-12.47a2 2 0 0 0-3.42 0Z" />
-                          )}
-                        </svg>
-                      </span>
-                      <span className="flex-1">{statusText}</span>
-                      <button
-                        type="button"
-                        className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
+                    return (
+                      <div
+                        key={division.id}
+                        className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
                       >
-                        See rules
-                      </button>
-                    </div>
-                  );
-                })()
-              ))}
+                        <span
+                          className={`flex h-8 w-8 items-center justify-center rounded-full ${statusToneClass}`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
+                            {isQualifiedByThreshold || !hasQualifierPhase ? (
+                              <polyline points="20 6 9 17 4 12" />
+                            ) : (
+                              <path d="M12 8v4m0 4h.01M10.29 3.86l-7.2 12.47A2 2 0 0 0 4.8 19.3h14.4a2 2 0 0 0 1.71-2.97l-7.2-12.47a2 2 0 0 0-3.42 0Z" />
+                            )}
+                          </svg>
+                        </span>
+                        <span className="flex-1">{statusText}</span>
+                        <a
+                          type="button"
+                          href="https://ddrexp.nl/eurocup-rules/"
+                          target="_blank"
+                          className="rounded-md border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:border-white/60 hover:text-white"
+                        >
+                          See rules
+                        </a>
+                      </div>
+                    );
+                  })(),
+                )}
               </div>
             ) : (
               <div
@@ -699,81 +788,100 @@ export default function LandingPage() {
             <h2 className="text-2xl font-semibold theme-text">
               Register for tournament
             </h2>
-          {!registrationLocked && (
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {registrationLoading && (
-                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
-                  Loading divisions...
-                </div>
-              )}
-              {!registrationLoading && divisions.length === 0 && (
-                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
-                  No divisions available yet.
-                </div>
-              )}
-              {divisions.map((division) => (
-                <label
-                  key={division.id}
-                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition text-white"
+            <p className="mt-2 text-sm text-gray-300">No overlapping registrations allowed, check the timetable for when competitions are held
+              <a type="link"
+                 className="ml-2 link text-blue-400 hover:text-blue-300 transition"
+                 href="https://ddrexp.nl/eurocup-time-table/">
+                See Timetable
+              </a>
+            </p>
+            {!registrationLocked && (
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {registrationLoading && (
+                  <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                    Loading divisions...
+                  </div>
+                )}
+                {!registrationLoading && divisions.length === 0 && (
+                  <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300">
+                    No divisions available yet.
+                  </div>
+                )}
+                {registrationDivisionOptions.map((option) => (
+                  <label
+                    key={option.key}
+                    className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      disabled={registrationLoading}
+                      checked={option.divisionIds.every((id) =>
+                        selectedDivisionIds.includes(id),
+                      )}
+                      onChange={() => toggleDivisionGroup(option.divisionIds)}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {registrationError && (
+              <p className="mt-3 text-sm text-red-200">{registrationError}</p>
+            )}
+            {registrationLocked ? (
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p
+                  className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100"
+                  role="alert"
                 >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    disabled={registrationLoading}
-                    checked={selectedDivisionIds.includes(division.id)}
-                    onChange={() => toggleDivisionSelection(division.id)}
-                  />
-                  <span>{division.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          {registrationError && (
-            <p className="mt-3 text-sm text-red-200">{registrationError}</p>
-          )}
-          {registrationLocked ? (
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p
-                className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100"
-                role="alert"
-              >
-                You are registered.
-              </p>
-              <button
-                type="button"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
-                onClick={requestRegistrationChange}
-                disabled={
-                  registrationSaving ||
-                  registrationLoading
-                }
-              >
-                {registrationSaving ? "Updating..." : "Request register change"}
-              </button>
-            </div>
-          ) : (
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p
-                className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
-                role="alert"
-              >
-                Registration after submit can only be edited on request.
-              </p>
-              <button
-                type="button"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
-                onClick={saveRegistration}
-                disabled={
-                  registrationSaving || registrationLoading
-                }
-              >
-                {registrationSaving ? "Submitting..." : "Submit"}
-              </button>
-            </div>
-          )}
+                  You are registered.
+                </p>
+                <button
+                  type="button"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={requestRegistrationChange}
+                  disabled={registrationSaving || registrationLoading}
+                >
+                  {registrationSaving
+                    ? "Updating..."
+                    : "Request register change"}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p
+                  className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
+                  role="alert"
+                >
+                  Registration after submit can only be edited on request.
+                </p>
+                <button
+                  type="button"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={saveRegistration}
+                  disabled={registrationSaving || registrationLoading}
+                >
+                  {registrationSaving ? "Submitting..." : "Submit"}
+                </button>
+              </div>
+            )}
           </section>
         </div>
       </div>
+
+      <section className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
+        <div>
+          <h3 className="text-xl font-semibold theme-text">Registrations</h3>
+          <p className="text-gray-300 mt-1">See all current Eurocup registrations.</p>
+        </div>
+        <Link
+          to="/contestainst"
+          className="inline-flex w-full items-center justify-center text-center sm:w-auto bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+        >
+          Go to registrations
+        </Link>
+      </section>
 
       <section className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
         <div>
@@ -782,23 +890,77 @@ export default function LandingPage() {
             Check live standings and matches.
           </p>
         </div>
-        <Link
-          to="/tournament"
-          className="bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+        <button
+          type="button"
+          disabled
+          className="bg-white/60 text-black/70 px-4 py-2 rounded-md font-semibold cursor-not-allowed"
         >
-          Go to tournament
-        </Link>
+          Opens later
+        </button>
       </section>
 
-      <section>
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
-            onClick={handleGenerateAPI}>
-            Generate API Token
-          </button>
+      <section className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-6">
+        <div>
+          <h3 className="text-xl font-semibold theme-text">Account security</h3>
+          <p className="text-gray-300 mt-1">
+            Set a new password for your account.
+          </p>
+          {passwordSuccess && (
+            <p className="mt-2 text-sm text-emerald-200">{passwordSuccess}</p>
+          )}
         </div>
+        <button
+          type="button"
+          onClick={openPasswordModal}
+          className="inline-flex w-full items-center justify-center text-center sm:w-auto bg-white text-black px-4 py-2 rounded-md font-semibold hover:bg-gray-200 transition"
+        >
+          Set new password
+        </button>
       </section>
+
+      <OkModal
+        title="Set new password"
+        open={passwordModalOpen}
+        onClose={closePasswordModal}
+        onOk={updatePassword}
+        okText={passwordSaving ? "Updating..." : "Update password"}
+      >
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-800">
+            Current password
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="current-password"
+            />
+          </label>
+          <label className="block text-sm text-gray-800">
+            New password
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="block text-sm text-gray-800">
+            Confirm new password
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              autoComplete="new-password"
+            />
+          </label>
+          {passwordError && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
+        </div>
+      </OkModal>
     </div>
   );
 }

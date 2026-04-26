@@ -4,16 +4,12 @@ import SongsList from "../components/manage/songs/SongsList";
 import TournamentSettings from "../components/manage/tournament/TournamentSettings";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import {
-  faCheckCircle,
-  faTimesCircle,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import SetupsManager from "../components/manage/setups/SetupsManager";
 import ImportModal from "../components/manage/import/ImportModal";
 import QualifiersAdmin from "../components/manage/qualifiers/QualifiersAdmin";
 import CabOrganizationView from "../components/manage/development/Development.tsx";
 import RulesetsManager from "../components/manage/rulesets/RulesetsManager";
+import useAuth from "../hooks/useAuth";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function classNames(...classes: string[]) {
@@ -25,6 +21,8 @@ export default function ManagePage() {
   const [importMode, setImportMode] = useState<"songs" | "players" | null>(
     null,
   );
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0);
+  const { auth } = useAuth();
 
   useEffect(() => {
     setApiKey(localStorage.getItem("apiKey") || "");
@@ -34,50 +32,56 @@ export default function ManagePage() {
     axios.defaults.headers.common["Authorization"] = `${apiKey}`;
   }, [apiKey]);
 
+  useEffect(() => {
+    const openRulesetsTab = () => setSelectedTabIndex(4);
+    window.addEventListener("open-rulesets-tab", openRulesetsTab);
+    return () => {
+      window.removeEventListener("open-rulesets-tab", openRulesetsTab);
+    };
+  }, []);
+
+  const handleGenerateAPI = async () => {
+    try {
+      const response = await axios.post(
+        "auth/genapi",
+        {
+          username: auth?.username,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth?.accessToken}`,
+          },
+          withCredentials: true,
+        },
+      );
+      console.log("Your new API Key:", response.data.rawKey);
+      alert(
+        `Save this key, it won't be shown again: \n${response.data.rawKey}`,
+      );
+    } catch (error) {
+      console.error("Failed to generate API key", error);
+    }
+  };
   return (
     <div>
-      <h1 className="text-3xl text-center theme-text">
-        Tournament settings
-      </h1>
-      <div className="flex flex-row flex-wrap justify-center items-center gap-3">
-        {apiKey.length === 0 ? (
-          <div
-            className="flex flex-row gap-2 items-center rounded-md border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
-            role="alert"
-          >
-            <FontAwesomeIcon icon={faTimesCircle} />
-            <span>
-              No API key set. Please add it to allow tournament editing.
-            </span>
-          </div>
-        ) : (
-          <div className="text-green-500 flex flex-row gap-3 items-center font-bold">
-            <FontAwesomeIcon icon={faCheckCircle} />
-            <span>API key set. You are ready to go!</span>
-          </div>
-        )}
-        <button
-          onClick={() => {
-            const ak = prompt(
-              "Enter your API key",
-              apiKey,
-            )?.toLocaleLowerCase();
-            if (ak) {
-              setApiKey(ak);
-              localStorage.setItem("apiKey", ak);
-            }
-          }}
-          className="bg-lighter text-white p-2 rounded-lg"
-        >
-          Set API Key
-        </button>
+      <h1 className="text-3xl text-center theme-text">Tournament settings</h1>
+      <div className="flex flex-row flex-wrap justify-center items-center p-5 gap-3">
+        <section>
+            <button
+              className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-500 transition disabled:cursor-not-allowed disabled:opacity-70"
+              onClick={handleGenerateAPI}
+            >
+              Generate API Token
+            </button>
+        </section>
       </div>
       <ImportModal
         mode={importMode}
         open={importMode !== null}
         onClose={() => setImportMode(null)}
       />
-      <Tab.Group>
+      <Tab.Group selectedIndex={selectedTabIndex} onChange={setSelectedTabIndex}>
         <Tab.List className="flex flex-row gap-10 border-b mt-5">
           <Tab
             className={({ selected }) =>
@@ -151,16 +155,16 @@ export default function ManagePage() {
           >
             Setups
           </Tab>
-            <Tab
+          <Tab
             className={({ selected }) =>
-                classNames(
+              classNames(
                 "py-2 px-4 text-lg",
                 selected
-                    ? "border-b-2 border-rossoTesto font-bold theme-text"
-                    : "text-gray-500",
-                )
+                  ? "border-b-2 border-rossoTesto font-bold theme-text"
+                  : "text-gray-500",
+              )
             }
-            >
+          >
             Organization
           </Tab>
         </Tab.List>

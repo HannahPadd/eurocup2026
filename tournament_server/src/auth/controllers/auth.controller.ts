@@ -8,7 +8,7 @@ import {
     UseGuards } from '@nestjs/common';
 
 import { AuthService } from '../services';
-import { AuthRefreshTokenDto } from '../dtos';
+import { AuthChangePasswordDto, AuthRefreshTokenDto } from '../dtos';
 import { Roles } from '../decorators';
 
 import { UserService } from '@user/services';
@@ -62,5 +62,18 @@ export class AuthController {
     @Get('refresh')
     async getRefreshToken(@Body(new ValidationPipe()) refreshToken: AuthRefreshTokenDto) {
         return await this.authService.getRefreshToken(refreshToken);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('password')
+    async changePassword(
+        @Request() req,
+        @Body(new ValidationPipe()) dto: AuthChangePasswordDto,
+    ) {
+        return await this.authService.changePassword(
+            req.user.username,
+            dto.currentPassword,
+            dto.newPassword,
+        );
     }
 }

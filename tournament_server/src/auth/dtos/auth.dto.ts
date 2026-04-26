@@ -33,3 +33,15 @@ export class AuthRefreshTokenDto {
     @IsString()
     accessToken: string;
 }
+
+export class AuthChangePasswordDto {
+    @ApiProperty({})
+    @IsNotEmpty()
+    @IsString()
+    currentPassword: string;
+
+    @ApiProperty({})
+    @IsNotEmpty()
+    @IsString()
+    newPassword: string;
+}

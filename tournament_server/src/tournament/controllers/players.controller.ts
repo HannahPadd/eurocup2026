@@ -1,6 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Request, UseGuards, ValidationPipe } from '@nestjs/common';
 import { PlayerService } from '../services';
-import { CreatePlayerDto, UpdatePlayerDto } from '../dtos';
+import { CreatePlayerDto, UpdatePlayerDto, UpdatePlayerPasswordDto } from '../dtos';
 import { Player } from '@persistence/entities'
 import { JwtAuthGuard } from '@auth/guards';
 import { Public } from '@auth/public.decorator';
@@ -29,6 +29,20 @@ export class PlayersController {
     @Patch(':id')
     update(@Param('id') id: number, @Body(new ValidationPipe()) dto: UpdatePlayerDto): Promise<Player> {
         return this.service.update(id, dto);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/password')
+    async updatePassword(
+        @Param('id') id: number,
+        @Body(new ValidationPipe()) dto: UpdatePlayerPasswordDto,
+        @Request() req,
+    ) {
+        const isAdmin = req.user?.isAdmin || await this.service.isAdminByUsername(req.user?.username);
+        if (!isAdmin) {
+            throw new ForbiddenException('Only admins can update player passwords');
+        }
+        return await this.service.updatePassword(id, dto.newPassword);
     }
 
     @Delete(':id')

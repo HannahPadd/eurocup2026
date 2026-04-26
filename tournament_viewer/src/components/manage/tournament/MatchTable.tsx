@@ -131,10 +131,12 @@ export default function MatchTable({
         onGetActiveMatch();
       },
     });
-    scoreConn.onopen = () => {
-      console.log("Now listening to match changes.");
-      toast.info("Now listening to match changes.");
-    };
+    if (scoreConn) {
+      scoreConn.onopen = () => {
+        console.log("Now listening to match changes.");
+        toast.info("Now listening to match changes.");
+      };
+    }
 
     let errorConn: WebSocket | null = null;
 
@@ -164,14 +166,16 @@ export default function MatchTable({
         info: (payload) => onLog(String(payload), null),
       });
 
-      errorConn.onopen = () => {
-        console.log("Now listening to log changes.");
-        toast.info("Now listening to log changes.");
-      };
+      if (errorConn) {
+        errorConn.onopen = () => {
+          console.log("Now listening to log changes.");
+          toast.info("Now listening to log changes.");
+        };
+      }
     }
 
     return () => {
-      scoreConn.close();
+      scoreConn?.close();
       if (errorConn) {
         errorConn.close();
       }

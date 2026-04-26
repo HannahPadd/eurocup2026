@@ -47,29 +47,6 @@ export default function FaqPage() {
       </section>
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <h2 className="text-xl font-semibold theme-text">How To Use /tournament</h2>
-        <div className="mt-2 space-y-2 text-sm text-gray-200">
-          <p>
-            Open <span className="font-semibold text-white">/tournament</span>{" "}
-            for live event data or use this direct route:
-            {" "}
-            <Link to="/tournament" className="underline text-white">
-              /tournament
-            </Link>
-            .
-          </p>
-          <p>
-            Tabs show live match state, rankings, qualifier rankings, and
-            history.
-          </p>
-          <p>
-            This page is read-focused for spectators and competitors following
-            the event.
-          </p>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h2 className="text-xl font-semibold theme-text">Event Info (Eurocup 2026)</h2>
         <div className="mt-2 space-y-2 text-sm text-gray-200">
           <p>

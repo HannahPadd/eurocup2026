@@ -3,6 +3,7 @@ import { CreatePlayerDto, UpdatePlayerDto } from '../dtos';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Account, Division, Player, Team } from '@persistence/entities'
+import { genSalt, hash } from 'bcrypt';
 
 @Injectable()
 export class PlayerService {
@@ -140,5 +141,27 @@ export class PlayerService {
 
   async remove(id: number) {
     await this.playersRepo.delete(id);
+  }
+
+  async updatePassword(id: number, newPassword: string) {
+    const account = await this.accountRepo.findOne({
+      where: { player: { id } },
+      relations: ['player'],
+    });
+
+    if (!account) {
+      throw new NotFoundException(`Account for player with id ${id} not found`);
+    }
+
+    const salt = await genSalt(10);
+    account.password = await hash(newPassword, salt);
+    await this.accountRepo.save(account);
+
+    return { message: 'Password updated successfully' };
+  }
+
+  async isAdminByUsername(username: string): Promise<boolean> {
+    const account = await this.accountRepo.findOneBy({ username });
+    return Boolean(account?.isAdmin);
   }
 }

@@ -1,7 +1,6 @@
 import {
   faPenToSquare,
   faGaugeHigh,
-  faLayerGroup,
   faPlus,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
@@ -30,43 +29,37 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
   }, []);
 
   const addNewSongInGroup = () => {
+    if (!selectedGroupName) {
+      alert("Select a group first.");
+      return;
+    }
+
     const title = prompt("Enter song title");
 
     if (!title) return;
 
     const difficulty = prompt("Enter song difficulty");
+    if (!difficulty) return;
 
     if (title && difficulty) {
       axios
         .post<Song>("songs", { title, difficulty, group: selectedGroupName })
         .then((response) => {
-          setSongs([...songs, response.data]);
+          setSongs((prev) => [...prev, response.data]);
         });
     }
   };
 
-  const addNewSongInNewGroup = () => {
-    const title = prompt("Enter song title");
-
-    if (!title) return;
-
-    const difficulty = prompt("Enter song difficulty");
-
-    if (!difficulty) return;
-
-    const group = prompt("Enter group name");
-
-    if (group && groups.includes(group)) return alert("Group already exists");
-
-    if (title && difficulty && group) {
-      axios
-        .post<Song>("songs", { title, difficulty, group })
-        .then((response) => {
-          setSongs([...songs, response.data]);
-          setGroups([...groups, group]);
-          setSelectedGroupName(group);
-        });
+  const addGroup = () => {
+    const group = prompt("Enter group name")?.trim();
+    if (!group) return;
+    if (groups.includes(group)) {
+      alert("Group already exists");
+      setSelectedGroupName(group);
+      return;
     }
+    setGroups((prev) => [...prev, group]);
+    setSelectedGroupName(group);
   };
 
   const deleteSong = (id: number) => {
@@ -127,23 +120,23 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
           <button
             title={
               !selectedGroupName
-                ? "plz select group"
-                : "Add song in selected group"
+                ? "Select a group first"
+                : "Add song to selected group"
             }
             disabled={!selectedGroupName}
             onClick={addNewSongInGroup}
             className="disabled:opacity-50 inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
           >
             <FontAwesomeIcon icon={faPlus} />
-            <span>Add song</span>
+            <span>Add to current group</span>
           </button>
           <button
-            title={"Add song in new group"}
-            onClick={addNewSongInNewGroup}
-            className="disabled:opacity-50 inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
+            title="Add group"
+            onClick={addGroup}
+            className="inline-flex items-center gap-2 rounded-md border border-blue-500 px-2 py-1 text-xs font-semibold text-blue-400"
           >
-            <FontAwesomeIcon icon={faLayerGroup} />
-            <span>New group</span>
+            <FontAwesomeIcon icon={faPlus} />
+            <span>Add group</span>
           </button>
         </div>
         <Select
@@ -151,7 +144,7 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
             return { value: g, label: g };
           })}
           placeholder="Select group..."
-          className="w-full md:w-[300px]"
+          className="w-full md:w-[300px] text-black"
           value={
             selectedGroupName
               ? { value: selectedGroupName, label: selectedGroupName }
@@ -240,9 +233,7 @@ export default function SongsList({ onImport }: { onImport?: () => void }) {
               songs.filter((s) =>
                 s.title.toLowerCase().includes(search.toLowerCase()),
               ).length === 0 && (
-                <div className="text-center py-2 theme-text">
-                  No song found
-                </div>
+                <div className="text-center py-2 theme-text">No song found</div>
               )}
           </div>
           <div className="flex-1 min-w-0">
@@ -286,7 +277,9 @@ function SongItem({ song }: { song: Song }) {
         <span className="text-lg font-semibold">{song.title}</span>
       </div>
       <div className="mt-4">
-        <h3 className="theme-text text-sm uppercase tracking-wide">Difficulty</h3>
+        <h3 className="theme-text text-sm uppercase tracking-wide">
+          Difficulty
+        </h3>
         <div className="flex flex-row items-center ml-1 gap-1">
           {[...Array(levelCount)].map((_, i) => (
             <span
@@ -302,7 +295,9 @@ function SongItem({ song }: { song: Song }) {
       </div>
       <div className="mt-4">
         <h3 className="theme-text">Player Scores</h3>
-        <p className="text-sm text-gray-300">No scores on record for this song.</p>
+        <p className="text-sm text-gray-300">
+          No scores on record for this song.
+        </p>
       </div>
     </div>
   );
