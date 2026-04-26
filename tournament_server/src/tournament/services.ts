@@ -15,6 +15,7 @@ import { UserService } from '../user/services/user.service';
 import { QualifiersService } from './services/qualifiers.service';
 import { RulesetsService } from './services/rulesets.service';
 import { PhaseProgressionService } from './services/phase_progression.service';
+import { ScoreListenerService } from './services/score_listener.service';
 
 export { DivisionsService }
 export { MatchesService }
@@ -33,6 +34,7 @@ export { UserService as AccountService }
 export { QualifiersService }
 export { RulesetsService }
 export { PhaseProgressionService }
+export { ScoreListenerService }
 
 export const Services = [
     DivisionsService,
@@ -51,5 +53,5 @@ export const Services = [
     UserService,
     QualifiersService,
     RulesetsService,
-    PhaseProgressionService,
+    PhaseProgressionService
   ]
