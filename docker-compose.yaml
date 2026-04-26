@@ -27,7 +27,7 @@ services:
       context: ./tournament_server
       dockerfile: DockerfileDev
     restart: always
-    volumes:
+    volumes: 
         - ./tournament_server/src:/app/src
     ports: 
       - 127.0.0.1:8402:8402
@@ -43,4 +43,4 @@ services:
         PORT: 8402
         JWT_SECRET: example_secret
         CORS_ORIGIN: http://127.0.0.1:8401,http://localhost:8401
-        ITG_ONLINE_URL: ws://localhost:1337/
+        ITG_ONLINE_URL: wss://online.itgeurocup.com:443/

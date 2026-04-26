@@ -41,9 +41,10 @@ const normalizePlayerIdentity = (value?: string): string =>
   (value ?? "").trim().toLowerCase();
 
 type LobbyPlayer = {
-  name: string;
+  profileName: string;
   playerId: string;
   score: number;
+  exScore: number;
   health: number;
   failed: boolean;
   diffLevel?: number;
@@ -111,7 +112,7 @@ export default function LiveScores({
           if (!judgments) {
             return {
               score: {
-                playerName: player.name,
+                playerName: player.profileName,
                 song: typedPayload.songInfo?.songPath ?? "",
                 formattedScore: "0.00",
                 life: 0,
@@ -146,7 +147,7 @@ export default function LiveScores({
 
           return {
             score: {
-              playerName: player.name,
+              playerName: player.profileName,
               song: typedPayload.songInfo?.songPath ?? "",
               formattedScore: formattedScore.toFixed(2),
               life: lifePercent,
