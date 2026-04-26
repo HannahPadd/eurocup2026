@@ -9,7 +9,7 @@ export function buildWebSocketUrl(path: string): string {
   const apiBase =
     import.meta.env.VITE_ITGONLINE_URL
   const url = new URL(path, apiBase);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+//   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
 }
 

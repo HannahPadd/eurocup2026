@@ -15,6 +15,7 @@ RUN npm ci
 COPY ./ ./
 
 ARG VITE_API_BASE_URL
+ARG VITE_ITGONLINE_URL
 
 # Build the app using either a build arg or an optional secret.
 # Secrets are only available during this RUN.
