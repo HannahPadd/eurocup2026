@@ -58,9 +58,9 @@ type PhaseRulesetConfig = {
   rules?: PhaseRule[];
   steps?: {
     name?: string;
-    sourceMatchId?: number;
+    sourceMatchId?: number | string;
     tiePolicy?: TiePolicy;
-    rules: PhaseRule[];
+    rules?: PhaseRule[];
   }[];
 };
 
@@ -253,7 +253,7 @@ export class PhaseProgressionService {
     if (!phase.ruleset) {
       throw new BadRequestException(`Phase ${phaseId} has no ruleset assigned`);
     }
-    const config = this.getPhaseConfig(phase.ruleset.config);
+    const config = this.getPhaseConfig(phase.ruleset.config, phaseId);
     let activeRanking = ranking;
     let rules = config.rules ?? [];
     let tiePolicy = config.tiePolicy ?? 'MANUAL_EXTRA_SONG';
@@ -262,7 +262,11 @@ export class PhaseProgressionService {
     let resolvedStepName: string | undefined;
 
     if (config.steps && config.steps.length > 0) {
-      const selectedStepIndex = stepIndex ?? 0;
+      const selectedStepIndex = this.resolveStepIndexForEvaluation(
+        config.steps,
+        stepIndex,
+        matchId,
+      );
       const step = config.steps[selectedStepIndex];
       if (!step) {
         throw new BadRequestException(
@@ -270,7 +274,14 @@ export class PhaseProgressionService {
         );
       }
 
-      const sourceMatchId = step.sourceMatchId ?? matchId;
+      const rawSourceMatchId =
+        typeof step.sourceMatchId === 'number'
+          ? step.sourceMatchId
+          : Number(step.sourceMatchId);
+      const sourceMatchId =
+        Number.isFinite(rawSourceMatchId) && rawSourceMatchId > 0
+          ? rawSourceMatchId
+          : matchId;
       if (!sourceMatchId) {
         throw new BadRequestException(
           `Ruleset step ${selectedStepIndex} has no sourceMatchId`,
@@ -316,6 +327,53 @@ export class PhaseProgressionService {
       actions,
       unresolvedTies,
     };
+  }
+
+  private resolveStepIndexForEvaluation(
+    steps: PhaseRulesetConfig['steps'],
+    requestedStepIndex: number | undefined,
+    matchId: number | undefined,
+  ): number {
+    if (!steps || steps.length === 0) {
+      return 0;
+    }
+    if (requestedStepIndex !== undefined) {
+      return requestedStepIndex;
+    }
+    if (!matchId) {
+      return 0;
+    }
+
+    const matchesBySourceId = steps
+      .map((step, index) => ({
+        index,
+        sourceMatchId: this.parsePositiveInteger(step?.sourceMatchId),
+      }))
+      .filter(
+        (item): item is { index: number; sourceMatchId: number } =>
+          item.sourceMatchId !== undefined,
+      )
+      .filter((item) => item.sourceMatchId === matchId);
+
+    const hasAnySourceMapping = steps.some(
+      (step) => this.parsePositiveInteger(step?.sourceMatchId) !== undefined,
+    );
+    if (!hasAnySourceMapping) {
+      return 0;
+    }
+
+    if (matchesBySourceId.length === 1) {
+      return matchesBySourceId[0].index;
+    }
+    if (matchesBySourceId.length > 1) {
+      throw new BadRequestException(
+        `Multiple ruleset steps map to match ${matchId}; provide stepIndex explicitly`,
+      );
+    }
+
+    throw new BadRequestException(
+      `No ruleset step maps to match ${matchId}; provide stepIndex explicitly`,
+    );
   }
 
   private buildMatchRanking(match: Match): RankingEntry[] {
@@ -774,15 +832,177 @@ export class PhaseProgressionService {
     );
   }
 
-  private getPhaseConfig(rawConfig: Record<string, unknown>): PhaseRulesetConfig {
+  private parsePositiveInteger(value: unknown): number | undefined {
+    const parsed =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : Number.NaN;
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private parseNonNegativeInteger(value: unknown): number | undefined {
+    const parsed =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : Number.NaN;
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private parseNonNegativeNumber(value: unknown): number | undefined {
+    const parsed =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : Number.NaN;
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private ensureMoveRuleHasTarget(
+    rule: Record<string, unknown>,
+    context: string,
+  ) {
+    const targetPhaseId = this.parsePositiveInteger(rule.targetPhaseId);
+    const targetMatchId = this.parsePositiveInteger(rule.targetMatchId);
+    if (!targetPhaseId && !targetMatchId) {
+      throw new BadRequestException(
+        `${context} must include targetPhaseId or targetMatchId`,
+      );
+    }
+  }
+
+  private validateRule(rule: unknown, context: string) {
+    if (!rule || typeof rule !== 'object') {
+      throw new BadRequestException(`${context} must be an object`);
+    }
+
+    const typedRule = rule as Record<string, unknown>;
+    const type = typedRule.type;
+    if (typeof type !== 'string') {
+      throw new BadRequestException(`${context}.type must be a string`);
+    }
+
+    if (type === 'ADVANCE_TOP_N') {
+      if (this.parseNonNegativeInteger(typedRule.count) === undefined) {
+        throw new BadRequestException(`${context}.count must be >= 0`);
+      }
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'ADVANCE_TOP_PERCENT') {
+      const percent = this.parseNonNegativeNumber(typedRule.percent);
+      if (percent === undefined || percent > 100) {
+        throw new BadRequestException(`${context}.percent must be between 0 and 100`);
+      }
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'SEND_RANK_RANGE_TO_PHASE') {
+      const fromRank = this.parsePositiveInteger(typedRule.fromRank);
+      const toRank = this.parsePositiveInteger(typedRule.toRank);
+      if (!fromRank || !toRank || fromRank > toRank) {
+        throw new BadRequestException(
+          `${context} requires valid fromRank/toRank values`,
+        );
+      }
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'SEND_REMAINING_TO_PHASE') {
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'ELIMINATE_BOTTOM_N') {
+      if (this.parseNonNegativeInteger(typedRule.count) === undefined) {
+        throw new BadRequestException(`${context}.count must be >= 0`);
+      }
+      return;
+    }
+
+    if (type === 'ELIMINATE_BOTTOM_PERCENT') {
+      const percent = this.parseNonNegativeNumber(typedRule.percent);
+      if (percent === undefined || percent > 100) {
+        throw new BadRequestException(`${context}.percent must be between 0 and 100`);
+      }
+      return;
+    }
+
+    throw new BadRequestException(`${context}.type is not supported`);
+  }
+
+  private getPhaseConfig(rawConfig: unknown, phaseId: number): PhaseRulesetConfig {
     if (!rawConfig || typeof rawConfig !== 'object') {
       throw new BadRequestException('Ruleset config must be an object');
     }
 
     const config = rawConfig as PhaseRulesetConfig;
-    if (config.rules && !Array.isArray(config.rules)) {
+    if (config.rules !== undefined && !Array.isArray(config.rules)) {
       throw new BadRequestException('ruleset.config.rules must be an array');
     }
+    if (config.steps !== undefined && !Array.isArray(config.steps)) {
+      throw new BadRequestException('ruleset.config.steps must be an array');
+    }
+
+    const hasRules = Array.isArray(config.rules) && config.rules.length > 0;
+    const hasSteps = Array.isArray(config.steps) && config.steps.length > 0;
+    if (!hasRules && !hasSteps) {
+      throw new BadRequestException(
+        `Phase ${phaseId} ruleset has no progression rules configured`,
+      );
+    }
+
+    if (Array.isArray(config.rules)) {
+      config.rules.forEach((rule, index) => {
+        this.validateRule(rule, `ruleset.config.rules[${index}]`);
+      });
+    }
+
+    if (Array.isArray(config.steps)) {
+      config.steps.forEach((step, stepIndex) => {
+        if (!step || typeof step !== 'object') {
+          throw new BadRequestException(
+            `ruleset.config.steps[${stepIndex}] must be an object`,
+          );
+        }
+        if (
+          step.sourceMatchId !== undefined &&
+          !this.parsePositiveInteger(step.sourceMatchId)
+        ) {
+          throw new BadRequestException(
+            `ruleset.config.steps[${stepIndex}].sourceMatchId must be > 0`,
+          );
+        }
+        if (!Array.isArray(step.rules) || step.rules.length === 0) {
+          throw new BadRequestException(
+            `ruleset.config.steps[${stepIndex}].rules must be a non-empty array`,
+          );
+        }
+        step.rules.forEach((rule, ruleIndex) => {
+          this.validateRule(
+            rule,
+            `ruleset.config.steps[${stepIndex}].rules[${ruleIndex}]`,
+          );
+        });
+      });
+    }
+
     return config;
   }
 
@@ -901,7 +1121,7 @@ export class PhaseProgressionService {
 
     for (const round of match.rounds ?? []) {
       for (const assignment of round.matchAssignments ?? []) {
-        const setupId = assignment.setup?.id;
+        const setupId = assignment.setup?.id ?? assignment.setupId;
         if (setupId) {
           setupIds.add(setupId);
         }

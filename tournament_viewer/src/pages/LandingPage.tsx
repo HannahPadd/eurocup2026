@@ -570,7 +570,7 @@ export default function LandingPage() {
           <h2 className="text-2xl font-semibold theme-text">
             Send in qualifiers
           </h2>
-          <p className="mt-2 text-sm text-gray-300">
+          <div className="mt-2 text-sm text-gray-300">
             Submit a score (e.g. 77.77) in ITG score timing window{" "}
             <details className="relative inline-block align-middle">
               <summary className="inline cursor-pointer list-none text-blue-200 hover:text-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70 rounded-sm">
@@ -582,7 +582,7 @@ export default function LandingPage() {
               </div>
             </details>
             . Screenshots are checked before the qualifications close.
-          </p>
+          </div>
           <div className="mt-6 grid grid-cols-1 gap-4">
             {qualifierLoading && (
               <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-gray-300">

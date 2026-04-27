@@ -166,10 +166,34 @@ export default function PhaseList({
     }
   };
 
+  const phaseSelectStyles = {
+    singleValue: (base: Record<string, unknown>) => ({
+      ...base,
+      color: "#000000",
+    }),
+    input: (base: Record<string, unknown>) => ({
+      ...base,
+      color: "#000000",
+    }),
+    option: (
+      base: Record<string, unknown>,
+      state: { isFocused: boolean; isSelected: boolean },
+    ) => ({
+      ...base,
+      color: "#000000",
+      backgroundColor: state.isSelected
+        ? "#dbeafe"
+        : state.isFocused
+          ? "#eff6ff"
+          : "#ffffff",
+    }),
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <Select
         className="min-w-[300px]"
+        styles={phaseSelectStyles}
         placeholder="Select phase"
         options={phases.map((p) => ({ value: p.id, label: p.name }))}
         onChange={(e) => {

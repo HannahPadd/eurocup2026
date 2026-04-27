@@ -4,6 +4,7 @@ import { CommitPhaseProgressionDto, CreateMatchDto, UpdateMatchDto } from '../dt
 import { Match } from '@persistence/entities';
 import { PhaseProgressionService } from '../services/phase_progression.service';
 import { Public } from '@auth/public.decorator';
+import { MatchCompletionStatus } from '../services/match.service';
 
 @Controller('matches')
 export class MatchesController {
@@ -21,6 +22,13 @@ export class MatchesController {
     @Get()
     async findAll(): Promise<Match[]> {
         return await this.service.findAll();
+    }
+
+    @Get(':id/completion-status')
+    async completionStatus(
+        @Param('id', ParseIntPipe) id: number,
+    ): Promise<MatchCompletionStatus> {
+        return await this.service.getCompletionStatus(id);
     }
 
     @Public()

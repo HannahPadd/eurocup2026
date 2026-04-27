@@ -20,8 +20,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </BrowserRouter>,
 );
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js');
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker
+      .register("/service-worker.js", { updateViaCache: "none" })
+      .then((registration) => {
+        void registration.update();
+      });
   });
 }

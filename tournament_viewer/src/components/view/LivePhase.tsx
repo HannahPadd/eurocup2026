@@ -41,7 +41,7 @@ export default function LivePhase() {
 
     const conn = connectJsonWebSocket("/matchupdatehub", {
       OnMatchUpdate: () => fetchData(),
-    });
+    }, { target: "api" });
     if (conn) {
       conn.onopen = () => {
         console.log("Now listening to match changes.");

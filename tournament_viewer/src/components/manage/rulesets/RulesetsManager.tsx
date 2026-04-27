@@ -57,6 +57,22 @@ type PreviewResponse = {
   unresolvedTies: { playerIds: number[]; reason: string }[];
 };
 
+type MatchCompletionStatus = {
+  matchId: number;
+  matchName: string;
+  ready: boolean;
+  totalRounds: number;
+  completedRounds: number;
+  missingRounds: {
+    roundId: number;
+    songId: number;
+    songTitle: string;
+    requiredPlayers: number;
+    submittedPlayers: number;
+    missingPlayers: { id: number; playerName: string }[];
+  }[];
+};
+
 const qualifiersTemplate = {
   sortBy: "AVERAGE_PERCENTAGE",
   approvedOnly: false,
@@ -247,6 +263,10 @@ export default function RulesetsManager() {
 
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
   const [selectedStepIndex, setSelectedStepIndex] = useState(0);
+  const [completionStatus, setCompletionStatus] = useState<MatchCompletionStatus | null>(null);
+  const [completionStatusLoading, setCompletionStatusLoading] = useState(false);
+  const [completionStatusError, setCompletionStatusError] = useState<string | null>(null);
+  const [allowCommitWhenNotReady, setAllowCommitWhenNotReady] = useState(false);
 
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [autoAssignOnCommit, setAutoAssignOnCommit] = useState(true);
@@ -307,6 +327,17 @@ export default function RulesetsManager() {
     setSelectedStepIndex(0);
     setPreview(null);
     setCommitResult(null);
+    setCompletionStatus(null);
+    setCompletionStatusError(null);
+    setAllowCommitWhenNotReady(false);
+  }, [selectedMatchId]);
+
+  useEffect(() => {
+    if (!selectedMatchId) {
+      return;
+    }
+
+    void loadCompletionStatus(selectedMatchId);
   }, [selectedMatchId]);
 
   useEffect(() => {
@@ -487,12 +518,44 @@ export default function RulesetsManager() {
     }
   }
 
+  async function loadCompletionStatus(matchId: number) {
+    setCompletionStatusLoading(true);
+    setCompletionStatusError(null);
+    try {
+      const response = await axios.get<MatchCompletionStatus>(
+        `matches/${matchId}/completion-status`,
+      );
+      setCompletionStatus(response.data);
+    } catch {
+      setCompletionStatus(null);
+      setCompletionStatusError("Failed to load match completion status.");
+    } finally {
+      setCompletionStatusLoading(false);
+    }
+  }
+
   async function commitProgression() {
     setError(null);
     setMessage(null);
     if (!selectedMatchId) {
       setError("Select a match before commit.");
       return;
+    }
+    if (!completionStatus) {
+      setError("Completion status is unavailable. Refresh status before commit.");
+      return;
+    }
+    if (completionStatus && !completionStatus.ready && !allowCommitWhenNotReady) {
+      setError("Match is not complete yet. Use override to commit anyway.");
+      return;
+    }
+    if (completionStatus && !completionStatus.ready && allowCommitWhenNotReady) {
+      const accepted = window.confirm(
+        "This match is not complete. Commit progression anyway?",
+      );
+      if (!accepted) {
+        return;
+      }
     }
 
     try {
@@ -512,6 +575,7 @@ export default function RulesetsManager() {
       });
       setPreview(response.data.preview);
       setMessage("Progression committed.");
+      await loadCompletionStatus(selectedMatchId);
     } catch {
       setError("Failed to commit progression.");
     }
@@ -797,11 +861,78 @@ export default function RulesetsManager() {
           </button>
           <button
             onClick={commitProgression}
-            className="rounded-md bg-amber-600 px-3 py-2 text-sm text-white"
+            disabled={
+              !selectedMatchId ||
+              completionStatusLoading ||
+              !completionStatus ||
+              (completionStatus?.ready === false && !allowCommitWhenNotReady)
+            }
+            className="rounded-md bg-amber-600 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             Commit
           </button>
         </div>
+        {selectedMatchId ? (
+          <div className="mt-3 rounded border border-white/10 bg-white/5 p-3 text-sm">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="font-medium text-white">Completion status</span>
+              {completionStatusLoading ? (
+                <span className="text-gray-300">Checking...</span>
+              ) : completionStatus ? (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs ${
+                    completionStatus.ready
+                      ? "bg-emerald-500/20 text-emerald-200"
+                      : "bg-amber-500/20 text-amber-200"
+                  }`}
+                >
+                  {completionStatus.ready ? "Ready" : "Not ready"}
+                </span>
+              ) : null}
+              <button
+                onClick={() => void loadCompletionStatus(selectedMatchId)}
+                className="rounded border border-white/20 px-2 py-0.5 text-xs text-white"
+              >
+                Refresh status
+              </button>
+            </div>
+            {completionStatusError ? (
+              <div className="text-red-300">{completionStatusError}</div>
+            ) : null}
+            {completionStatus ? (
+              <div className="space-y-2 text-gray-200">
+                <div>
+                  rounds complete: {completionStatus.completedRounds}/{completionStatus.totalRounds}
+                </div>
+                {completionStatus.ready ? (
+                  <div className="text-emerald-200">
+                    All required players submitted for all rounds.
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {completionStatus.missingRounds.map((round) => (
+                      <div key={round.roundId} className="rounded border border-white/10 px-2 py-1">
+                        round {round.roundId} - {round.songTitle || `song ${round.songId}`} | submitted{" "}
+                        {round.submittedPlayers}/{round.requiredPlayers} | missing:{" "}
+                        {round.missingPlayers.map((player) => player.playerName || `#${player.id}`).join(", ")}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!completionStatus.ready ? (
+                  <label className="flex items-center gap-2 text-amber-100">
+                    <input
+                      type="checkbox"
+                      checked={allowCommitWhenNotReady}
+                      onChange={(event) => setAllowCommitWhenNotReady(event.target.checked)}
+                    />
+                    Allow commit even when match is not ready
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {commitResult ? (
           <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-100">

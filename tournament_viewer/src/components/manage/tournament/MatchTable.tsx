@@ -21,6 +21,8 @@ import { Tab } from "@headlessui/react";
 import { classNames } from "../../../pages/ManagePage";
 import { connectJsonWebSocket } from "../../../services/websocket/jsonWebSocket";
 
+const LOG_HUB_ENABLED = false;
+
 type MatchTableProps = {
   division: Division;
   phase: Phase;
@@ -130,7 +132,7 @@ export default function MatchTable({
       OnMatchUpdate: () => {
         onGetActiveMatch();
       },
-    });
+    }, { target: "api" });
     if (scoreConn) {
       scoreConn.onopen = () => {
         console.log("Now listening to match changes.");
@@ -140,7 +142,7 @@ export default function MatchTable({
 
     let errorConn: WebSocket | null = null;
 
-    if (controls) {
+    if (controls && LOG_HUB_ENABLED) {
       const onLog = (message: string, error?: string | null) => {
         console.log(message, error);
 
@@ -164,7 +166,7 @@ export default function MatchTable({
         error: (payload) => onLog(String(payload), "error"),
         warning: (payload) => onLog(String(payload), "warning"),
         info: (payload) => onLog(String(payload), null),
-      });
+      }, { target: "api" });
 
       if (errorConn) {
         errorConn.onopen = () => {

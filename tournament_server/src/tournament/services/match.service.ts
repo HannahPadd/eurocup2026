@@ -4,6 +4,27 @@ import { Repository } from 'typeorm';
 import { CreateMatchDto, UpdateMatchDto } from '../dtos';
 import { Phase, Player, Match } from '@persistence/entities';
 
+export type MatchCompletionMissingRound = {
+    roundId: number;
+    songId: number;
+    songTitle: string;
+    requiredPlayers: number;
+    submittedPlayers: number;
+    missingPlayers: {
+        id: number;
+        playerName: string;
+    }[];
+};
+
+export type MatchCompletionStatus = {
+    matchId: number;
+    matchName: string;
+    ready: boolean;
+    totalRounds: number;
+    completedRounds: number;
+    missingRounds: MatchCompletionMissingRound[];
+};
+
 @Injectable()
 export class MatchesService{
     constructor(
@@ -58,6 +79,62 @@ export class MatchesService{
 
     async findOne(id: number) {
         return await this.matchRepository.findOneBy({ id });
+    }
+
+    async getCompletionStatus(id: number): Promise<MatchCompletionStatus> {
+        const match = await this.findOne(id);
+
+        if (!match) {
+            throw new NotFoundException(`Match with ID ${id} not found`);
+        }
+
+        const missingRounds: MatchCompletionMissingRound[] = [];
+
+        for (const round of match.rounds ?? []) {
+            const disabledPlayerIds = new Set(round.disabledPlayerIds ?? []);
+            const requiredPlayers = (match.players ?? []).filter(
+                (player) => !disabledPlayerIds.has(player.id),
+            );
+
+            const latestStandingByPlayerId = new Map<number, number>();
+            for (const standing of round.standings ?? []) {
+                const playerId = standing.score?.player?.id;
+                if (!playerId || disabledPlayerIds.has(playerId)) {
+                    continue;
+                }
+                const previousStandingId = latestStandingByPlayerId.get(playerId) ?? 0;
+                if (standing.id > previousStandingId) {
+                    latestStandingByPlayerId.set(playerId, standing.id);
+                }
+            }
+
+            const missingPlayers = requiredPlayers
+                .filter((player) => !latestStandingByPlayerId.has(player.id))
+                .map((player) => ({
+                    id: player.id,
+                    playerName: player.playerName ?? '',
+                }));
+
+            if (missingPlayers.length > 0) {
+                missingRounds.push({
+                    roundId: round.id,
+                    songId: round.song?.id ?? 0,
+                    songTitle: round.song?.title ?? '',
+                    requiredPlayers: requiredPlayers.length,
+                    submittedPlayers: requiredPlayers.length - missingPlayers.length,
+                    missingPlayers,
+                });
+            }
+        }
+
+        return {
+            matchId: match.id,
+            matchName: match.name,
+            ready: missingRounds.length === 0,
+            totalRounds: match.rounds?.length ?? 0,
+            completedRounds: (match.rounds?.length ?? 0) - missingRounds.length,
+            missingRounds,
+        };
     }
 
     async update(id: number, dto: UpdateMatchDto) {

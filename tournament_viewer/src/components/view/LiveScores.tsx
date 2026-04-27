@@ -11,8 +11,7 @@ import { getLiveLobbyCode, getLiveLobbyPassword } from "../../utils/liveLobbyCod
 
 const normalizePercent = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
-  const scaled = value <= 1 ? value * 100 : value;
-  return Math.max(0, Math.min(100, scaled));
+  return Math.max(0, Math.min(100, value));
 };
 
 const normalizeDifficultyType = (diffType?: string): string => {
@@ -72,11 +71,97 @@ type LobbyStatePayload = {
   };
 };
 
+type SendScoreResultPayload = {
+  player?: LobbyPlayer;
+  songInfo?: {
+    songPath?: string;
+    title?: string;
+  };
+};
+
 type LiveScoresProps = {
   divisionName?: string;
   phaseName?: string;
   matchName?: string;
   roundLabel?: string;
+};
+
+const toRawScore = (
+  player: LobbyPlayer,
+  songPath: string,
+): RawScore => {
+  const judgments = player.judgments;
+  if (!judgments) {
+    return {
+      score: {
+        playerName: player.profileName,
+        song: songPath,
+        formattedScore: "0.00",
+        life: 0,
+        isFailed: Boolean(player.failed),
+        actualDancePoints: 0,
+        currentPossibleDancePoints: 0,
+        possibleDancePoints: 0,
+        totalHoldsCount: 0,
+        playerNumber: parseInt(String(player.playerId ?? "").replace("P", ""), 10),
+        id: player.playerId,
+        holdNote: { held: 0, letGo: 0, missed: 0, none: 0 },
+        tapNote: {
+          W0: 0,
+          W1: 0,
+          W2: 0,
+          W3: 0,
+          W4: 0,
+          W5: 0,
+          miss: 0,
+          avoidMine: 0,
+          checkpointHit: 0,
+          checkpointMiss: 0,
+          hitMine: 0,
+          none: 0,
+        },
+      },
+    };
+  }
+
+  const formattedScore = normalizePercent(Number(player.score));
+  const lifePercent = normalizePercent(Number(player.health));
+
+  return {
+    score: {
+      playerName: player.profileName,
+      song: songPath,
+      formattedScore: formattedScore.toFixed(2),
+      life: lifePercent,
+      isFailed: Boolean(player.failed),
+      actualDancePoints: 0,
+      currentPossibleDancePoints: 0,
+      possibleDancePoints: 0,
+      totalHoldsCount: judgments.totalHolds,
+      playerNumber: parseInt(String(player.playerId ?? "").replace("P", ""), 10),
+      id: player.playerId,
+      holdNote: {
+        held: judgments.holdsHeld,
+        letGo: 0,
+        missed: 0,
+        none: 0,
+      },
+      tapNote: {
+        W0: judgments.fantasticPlus,
+        W1: judgments.fantastics,
+        W2: judgments.excellents,
+        W3: judgments.greats,
+        W4: judgments.decents,
+        W5: judgments.wayOffs,
+        miss: judgments.misses,
+        avoidMine: 0,
+        checkpointHit: 0,
+        checkpointMiss: 0,
+        hitMine: judgments.minesHit,
+        none: 0,
+      },
+    },
+  };
 };
 
 export default function LiveScores({
@@ -106,81 +191,10 @@ export default function LiveScores({
           console.log("Skip", oldScores);
           return;
         }
-
-        const newScores: RawScore[] = oldScores.map((player) => {
-          const judgments = player.judgments;
-          if (!judgments) {
-            return {
-              score: {
-                playerName: player.profileName,
-                song: typedPayload.songInfo?.songPath ?? "",
-                formattedScore: "0.00",
-                life: 0,
-                isFailed: Boolean(player.failed),
-                actualDancePoints: 0,
-                currentPossibleDancePoints: 0,
-                possibleDancePoints: 0,
-                totalHoldsCount: 0,
-                playerNumber: parseInt(player.playerId.replace("P", ""), 10),
-                id: player.playerId,
-                holdNote: { held: 0, letGo: 0, missed: 0, none: 0 },
-                tapNote: {
-                  W0: 0,
-                  W1: 0,
-                  W2: 0,
-                  W3: 0,
-                  W4: 0,
-                  W5: 0,
-                  miss: 0,
-                  avoidMine: 0,
-                  checkpointHit: 0,
-                  checkpointMiss: 0,
-                  hitMine: 0,
-                  none: 0,
-                },
-              },
-            };
-          }
-
-          const formattedScore = normalizePercent(Number(player.score));
-          const lifePercent = normalizePercent(Number(player.health));
-
-          return {
-            score: {
-              playerName: player.profileName,
-              song: typedPayload.songInfo?.songPath ?? "",
-              formattedScore: formattedScore.toFixed(2),
-              life: lifePercent,
-              isFailed: Boolean(player.failed),
-              actualDancePoints: 0,
-              currentPossibleDancePoints: 0,
-              possibleDancePoints: 0,
-              totalHoldsCount: judgments.totalHolds,
-              playerNumber: parseInt(player.playerId.replace("P", ""), 10),
-              id: player.playerId,
-              holdNote: {
-                held: judgments.holdsHeld,
-                letGo: 0,
-                missed: 0,
-                none: 0,
-              },
-              tapNote: {
-                W0: judgments.fantasticPlus,
-                W1: judgments.fantastics,
-                W2: judgments.excellents,
-                W3: judgments.greats,
-                W4: judgments.decents,
-                W5: judgments.wayOffs,
-                miss: judgments.misses,
-                avoidMine: 0,
-                checkpointHit: 0,
-                checkpointMiss: 0,
-                hitMine: judgments.minesHit,
-                none: 0,
-              },
-            },
-          };
-        });
+        const songPath = typedPayload.songInfo?.songPath ?? "";
+        const newScores: RawScore[] = oldScores.map((player) =>
+          toRawScore(player, songPath),
+        );
 
         setScores(() => {
           return newScores;
@@ -205,8 +219,33 @@ export default function LiveScores({
         //   );
         //   return [...newScores, msg];
         // });
-      }
-    });
+      },
+      sendScoreResult: (payload: unknown) => {
+        const typedPayload = payload as SendScoreResultPayload;
+        const finalPlayer = typedPayload?.player;
+        if (!finalPlayer) {
+          return;
+        }
+
+        const songPath = typedPayload.songInfo?.songPath ?? "";
+        const nextScore = toRawScore(finalPlayer, songPath);
+
+        setScores((prev) => {
+          const filtered = prev.filter(
+            (item) => item.score.playerName !== nextScore.score.playerName,
+          );
+          return [...filtered, nextScore];
+        });
+
+        setSongTitle(
+          typedPayload.songInfo?.title ??
+            typedPayload.songInfo?.songPath?.split("/")?.[1] ??
+            "",
+        );
+        setSongDiffType(finalPlayer.diffType);
+        setSongDiffLevel(finalPlayer.diffLevel);
+      },
+    }, { target: "itgonline" });
 
     if (conn) {
       conn.onopen = () => {

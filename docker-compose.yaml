@@ -8,15 +8,17 @@ services:
       dockerfile: DockerfileDev
       args:
         - VITE_API_BASE_URL=http://127.0.0.1:8402
-        - VITE_ITGONLINE_URL=ws://online.itgeurocup.com/
+        - VITE_ITGONLINE_URL=wss://online.itgeurocup.com:443
+        - VITE_PUBLIC_ENABLE_LIVE_SCORES=true
 
     environment:
       PORT: 8401
       VITE_API_BASE_URL: http://127.0.0.1:8402
-      VITE_ITGONLINE_URL: ws://online.itgeurocup.com/
+      VITE_ITGONLINE_URL: wss://online.itgeurocup.com:443
+      VITE_PUBLIC_ENABLE_LIVE_SCORES: true
     restart: always
     volumes:
-        - ./tournament_viewer/src:/app/src
+      - ./tournament_viewer/src:/app/src
     ports:
       - 127.0.0.1:8401:8401
     depends_on:
@@ -27,20 +29,20 @@ services:
       context: ./tournament_server
       dockerfile: DockerfileDev
     restart: always
-    volumes: 
-        - ./tournament_server/src:/app/src
-    ports: 
+    volumes:
+      - ./tournament_server/src:/app/src
+    ports:
       - 127.0.0.1:8402:8402
     depends_on:
       - mariadb
     environment:
-        MARIADB_DATABASE: tournament
-        DATABASE_HOST: mariadb
-        DATABASE_NAME: tournament
-        DATABASE_USER: root
-        DATABASE_PASSWORD: example
-        DATABASE_PORT: 3306
-        PORT: 8402
-        JWT_SECRET: example_secret
-        CORS_ORIGIN: http://127.0.0.1:8401,http://localhost:8401
-        ITG_ONLINE_URL: wss://online.itgeurocup.com:443/
+      MARIADB_DATABASE: tournament
+      DATABASE_HOST: mariadb
+      DATABASE_NAME: tournament
+      DATABASE_USER: root
+      DATABASE_PASSWORD: example
+      DATABASE_PORT: 3306
+      PORT: 8402
+      JWT_SECRET: example_secret
+      CORS_ORIGIN: http://127.0.0.1:8401,http://localhost:8401
+      ITG_ONLINE_URL: wss://online.itgeurocup.com:443/

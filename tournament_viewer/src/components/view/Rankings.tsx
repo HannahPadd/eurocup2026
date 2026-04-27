@@ -32,7 +32,7 @@ export default function Rankings() {
           setPlayers(response.data);
         });
       },
-    });
+    }, { target: "api" });
 
     if (conn) {
       conn.onopen = () => {

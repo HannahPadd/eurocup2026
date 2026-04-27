@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { PlayerService, SongService, StandingsService, ScoresService } from '../../tournament/services';
 import { LiveScore } from "../gateways/live.score.gateway"
-import { CreateScoreDto, CreateStandingDto, UpdateStandingDto } from '../../tournament/dtos';
+import { CreateScoreDto, CreateStandingDto, UpdateScoreDto, UpdateStandingDto } from '../../tournament/dtos';
 import { TournamentCache } from "./tournament.cache";
 import { Standing, Player, Round, Match } from '@persistence/entities';
 import { MatchGateway } from '../gateways/match.gateway';
@@ -28,9 +28,6 @@ export class StandingManager {
     ) { }
 
     async AddScore(score: CreateScoreDto) : Promise<Match> {
-
-        const actualScoreEntity = await this.scoresService.create(score)
-
         const activeMatch = await this.tournamentCache.GetActiveMatch();
         
         if(!activeMatch) {
@@ -44,16 +41,35 @@ export class StandingManager {
             //TODO: Log socre added but no round found in active match
             return;
         }
-        
-        const newStanding = new CreateStandingDto();
-        
-        newStanding.roundId = round.id;
-        newStanding.scoreId = actualScoreEntity.id;
-        newStanding.points = 0;
-        
-        const standing = await this.standingService.create(newStanding);
 
-        round.standings.push(standing);
+        if (!round.standings) {
+            round.standings = [];
+        }
+
+        const existingStanding = round.standings.find(
+            (standing) => standing.score.player.id == score.playerId && standing.score.song.id == score.songId,
+        );
+
+        if (existingStanding) {
+            // Repeated final-result messages are expected; update in place instead of creating duplicates.
+            const updateScore = new UpdateScoreDto();
+            updateScore.percentage = score.percentage;
+            updateScore.isFailed = score.isFailed;
+            await this.scoresService.update(existingStanding.score.id, updateScore);
+            existingStanding.score.percentage = score.percentage;
+            existingStanding.score.isFailed = score.isFailed;
+            existingStanding.points = 0;
+        } else {
+            const actualScoreEntity = await this.scoresService.create(score);
+            const newStanding = new CreateStandingDto();
+            
+            newStanding.roundId = round.id;
+            newStanding.scoreId = actualScoreEntity.id;
+            newStanding.points = 0;
+            
+            const standing = await this.standingService.create(newStanding);
+            round.standings.push(standing);
+        }
 
         const activePlayers = this.GetActivePlayers(activeMatch.players, round);
         const standings = this.GetStandingsOfActivePlayers(activePlayers, round);
@@ -93,11 +109,11 @@ export class StandingManager {
     }
     
     async recalc(standings: Standing[]) {
-        standings.forEach(async standing => {
+        await Promise.all(standings.map(async (standing) => {
             const dto = new UpdateStandingDto();
             dto.points = standing.points;
             await this.standingService.update(standing.id, dto);   
-        });
+        }));
     }
 
     async RemoveStanding(playerId: number, songId: number) : Promise<Match> {
@@ -157,6 +173,20 @@ export class StandingManager {
     }
 
     GetStandingsOfActivePlayers(players: Player[], round: Round) {
-        return round.standings.filter(standing => players.some(player => standing.score.player.id == player.id));
+        const activePlayerIds = new Set(players.map((player) => player.id));
+        const latestStandingByPlayer = new Map<number, Standing>();
+
+        for (const standing of round.standings ?? []) {
+            const playerId = standing.score?.player?.id;
+            if (!playerId || !activePlayerIds.has(playerId)) {
+                continue;
+            }
+            const previous = latestStandingByPlayer.get(playerId);
+            if (!previous || standing.id > previous.id) {
+                latestStandingByPlayer.set(playerId, standing);
+            }
+        }
+
+        return Array.from(latestStandingByPlayer.values());
     }
 }
