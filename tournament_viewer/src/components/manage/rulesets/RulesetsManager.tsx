@@ -73,6 +73,27 @@ type MatchCompletionStatus = {
   }[];
 };
 
+type RoutingRuleType =
+  | "ADVANCE_TOP_N"
+  | "ADVANCE_TOP_PERCENT"
+  | "SEND_RANK_RANGE_TO_PHASE"
+  | "SEND_REMAINING_TO_PHASE";
+
+type RoutingRuleEditorRow = {
+  ruleIndex: number;
+  type: RoutingRuleType;
+  lane?: "LOSERS" | "WINNERS";
+  targetMatchId: number | "";
+  targetPhaseId: number | "";
+};
+
+type RoutingStepEditorRow = {
+  stepIndex: number;
+  stepName: string;
+  sourceMatchId: number | "";
+  routingRules: RoutingRuleEditorRow[];
+};
+
 const qualifiersTemplate = {
   sortBy: "AVERAGE_PERCENTAGE",
   approvedOnly: false,
@@ -260,6 +281,9 @@ export default function RulesetsManager() {
   const [rulesetConfigText, setRulesetConfigText] = useState(
     JSON.stringify(adaptiveWaterfall10To5Template, null, 2),
   );
+  const [helperSourceMatchId, setHelperSourceMatchId] = useState<number | "">("");
+  const [helperTargetMatchId, setHelperTargetMatchId] = useState<number | "">("");
+  const [helperTargetPhaseId, setHelperTargetPhaseId] = useState<number | "">("");
 
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
   const [selectedStepIndex, setSelectedStepIndex] = useState(0);
@@ -297,6 +321,135 @@ export default function RulesetsManager() {
       })),
     );
   }, [allPhases]);
+  const allMatchIdSet = useMemo(
+    () => new Set(allMatches.map((match) => match.id)),
+    [allMatches],
+  );
+  const allPhaseIdSet = useMemo(
+    () => new Set(allPhases.map((phase) => phase.id)),
+    [allPhases],
+  );
+  const allMatchesById = useMemo(
+    () => new Map(allMatches.map((match) => [match.id, match])),
+    [allMatches],
+  );
+  const allPhasesById = useMemo(
+    () => new Map(allPhases.map((phase) => [phase.id, phase])),
+    [allPhases],
+  );
+
+  const parsedRulesetConfig = useMemo(() => {
+    try {
+      const parsed = JSON.parse(rulesetConfigText) as Record<string, unknown>;
+      return { config: parsed, error: null as string | null };
+    } catch {
+      return {
+        config: null,
+        error: "Ruleset config is invalid JSON. Fix it to use the routing editor.",
+      };
+    }
+  }, [rulesetConfigText]);
+
+  const routingStepRows = useMemo<RoutingStepEditorRow[]>(() => {
+    if (!parsedRulesetConfig.config) {
+      return [];
+    }
+    const rawSteps = parsedRulesetConfig.config.steps;
+    if (!Array.isArray(rawSteps)) {
+      return [];
+    }
+
+    const supportsRoutingType = (type: unknown): type is RoutingRuleType =>
+      type === "ADVANCE_TOP_N" ||
+      type === "ADVANCE_TOP_PERCENT" ||
+      type === "SEND_RANK_RANGE_TO_PHASE" ||
+      type === "SEND_REMAINING_TO_PHASE";
+
+    return rawSteps.flatMap((rawStep, stepIndex) => {
+      if (!rawStep || typeof rawStep !== "object") {
+        return [];
+      }
+      const step = rawStep as Record<string, unknown>;
+      const rawSourceMatchId = step.sourceMatchId;
+      const sourceMatchId =
+        typeof rawSourceMatchId === "number" && rawSourceMatchId > 0
+          ? rawSourceMatchId
+          : "";
+      const stepName =
+        typeof step.name === "string" && step.name.trim().length > 0
+          ? step.name
+          : `Step ${stepIndex + 1}`;
+      const rawRules = Array.isArray(step.rules) ? step.rules : [];
+      const routingRules = rawRules.flatMap((rawRule, ruleIndex) => {
+        if (!rawRule || typeof rawRule !== "object") {
+          return [];
+        }
+        const rule = rawRule as Record<string, unknown>;
+        if (!supportsRoutingType(rule.type)) {
+          return [];
+        }
+        const targetMatchId: number | "" =
+          typeof rule.targetMatchId === "number" && rule.targetMatchId > 0
+            ? rule.targetMatchId
+            : ("" as const);
+        const targetPhaseId: number | "" =
+          typeof rule.targetPhaseId === "number" && rule.targetPhaseId > 0
+            ? rule.targetPhaseId
+            : ("" as const);
+        const lane: "LOSERS" | "WINNERS" | undefined =
+          rule.lane === "LOSERS" || rule.lane === "WINNERS"
+            ? rule.lane
+            : undefined;
+        return [
+          {
+            ruleIndex,
+            type: rule.type,
+            lane,
+            targetMatchId,
+            targetPhaseId,
+          },
+        ];
+      });
+      return [
+        {
+          stepIndex,
+          stepName,
+          sourceMatchId,
+          routingRules,
+        },
+      ];
+    });
+  }, [parsedRulesetConfig.config]);
+
+  const routingReferenceWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    for (const stepRow of routingStepRows) {
+      if (stepRow.sourceMatchId !== "" && !allMatchIdSet.has(stepRow.sourceMatchId)) {
+        warnings.push(
+          `${stepRow.stepName}: sourceMatchId ${stepRow.sourceMatchId} does not exist.`,
+        );
+      }
+      for (const ruleRow of stepRow.routingRules) {
+        if (
+          ruleRow.targetMatchId !== "" &&
+          !allMatchIdSet.has(ruleRow.targetMatchId)
+        ) {
+          warnings.push(
+            `${stepRow.stepName} rule ${ruleRow.ruleIndex + 1}: targetMatchId ${ruleRow.targetMatchId} does not exist.`,
+          );
+        }
+        if (
+          ruleRow.targetPhaseId !== "" &&
+          !allPhaseIdSet.has(ruleRow.targetPhaseId)
+        ) {
+          warnings.push(
+            `${stepRow.stepName} rule ${ruleRow.ruleIndex + 1}: targetPhaseId ${ruleRow.targetPhaseId} does not exist.`,
+          );
+        }
+      }
+    }
+    return warnings;
+  }, [allMatchIdSet, allPhaseIdSet, routingStepRows]);
 
   const selectedMatch = useMemo(
     () => allMatches.find((match) => match.id === selectedMatchId),
@@ -495,6 +648,196 @@ export default function RulesetsManager() {
       return "QUALIFIER";
     }
     return "PHASE";
+  }
+
+  function applyRoutingHelper() {
+    setError(null);
+    setMessage(null);
+
+    let parsedConfig: Record<string, unknown>;
+    try {
+      parsedConfig = JSON.parse(rulesetConfigText);
+    } catch {
+      setError("Ruleset config must be valid JSON before applying helper.");
+      return;
+    }
+
+    const sourceMatchId =
+      helperSourceMatchId === "" ? undefined : Number(helperSourceMatchId);
+    const targetMatchId =
+      helperTargetMatchId === "" ? undefined : Number(helperTargetMatchId);
+    const targetPhaseId =
+      helperTargetPhaseId === "" ? undefined : Number(helperTargetPhaseId);
+
+    if (!sourceMatchId && !targetMatchId && !targetPhaseId) {
+      setError("Pick at least one helper value to apply.");
+      return;
+    }
+
+    const nextConfig = JSON.parse(
+      JSON.stringify(parsedConfig),
+    ) as Record<string, unknown>;
+
+    const applyTargetsToRules = (rules: unknown[]) => {
+      rules.forEach((rule) => {
+        if (!rule || typeof rule !== "object") {
+          return;
+        }
+        const typedRule = rule as Record<string, unknown>;
+        const type = String(typedRule.type ?? "");
+        const canRoute =
+          type === "ADVANCE_TOP_N" ||
+          type === "ADVANCE_TOP_PERCENT" ||
+          type === "SEND_RANK_RANGE_TO_PHASE" ||
+          type === "SEND_REMAINING_TO_PHASE";
+        if (!canRoute) {
+          return;
+        }
+        if (targetMatchId) {
+          typedRule.targetMatchId = targetMatchId;
+        }
+        if (targetPhaseId) {
+          typedRule.targetPhaseId = targetPhaseId;
+        }
+      });
+    };
+
+    const steps = nextConfig.steps;
+    if (Array.isArray(steps) && steps.length > 0) {
+      const safeStepIndex = Math.min(
+        Math.max(selectedStepIndex, 0),
+        steps.length - 1,
+      );
+      const step = steps[safeStepIndex];
+      if (step && typeof step === "object") {
+        const typedStep = step as Record<string, unknown>;
+        if (sourceMatchId) {
+          typedStep.sourceMatchId = sourceMatchId;
+        }
+        if (Array.isArray(typedStep.rules)) {
+          applyTargetsToRules(typedStep.rules);
+        }
+      }
+    } else if (Array.isArray(nextConfig.rules)) {
+      applyTargetsToRules(nextConfig.rules);
+    } else {
+      setError(
+        "This config has no rules/steps to apply routing values to.",
+      );
+      return;
+    }
+
+    setRulesetConfigText(JSON.stringify(nextConfig, null, 2));
+    setMessage("Routing helper applied to current config.");
+  }
+
+  function updateRoutingConfig(
+    mutator: (config: Record<string, unknown>) => boolean,
+    successMessage: string,
+  ) {
+    setError(null);
+    setMessage(null);
+
+    if (!parsedRulesetConfig.config) {
+      setError("Ruleset config must be valid JSON.");
+      return;
+    }
+
+    const nextConfig = JSON.parse(
+      JSON.stringify(parsedRulesetConfig.config),
+    ) as Record<string, unknown>;
+    const changed = mutator(nextConfig);
+    if (!changed) {
+      setError("Routing update could not be applied to this ruleset config.");
+      return;
+    }
+
+    setRulesetConfigText(JSON.stringify(nextConfig, null, 2));
+    setMessage(successMessage);
+  }
+
+  function updateStepSourceMatchId(stepIndex: number, nextValue: number | "") {
+    updateRoutingConfig((config) => {
+      const steps = config.steps;
+      if (!Array.isArray(steps)) {
+        return false;
+      }
+      const step = steps[stepIndex];
+      if (!step || typeof step !== "object") {
+        return false;
+      }
+      const typedStep = step as Record<string, unknown>;
+      if (nextValue === "") {
+        delete typedStep.sourceMatchId;
+      } else {
+        typedStep.sourceMatchId = nextValue;
+      }
+      return true;
+    }, "Step source match updated.");
+  }
+
+  function updateStepRuleTargetMatchId(
+    stepIndex: number,
+    ruleIndex: number,
+    nextValue: number | "",
+  ) {
+    updateRoutingConfig((config) => {
+      const steps = config.steps;
+      if (!Array.isArray(steps)) {
+        return false;
+      }
+      const step = steps[stepIndex];
+      if (!step || typeof step !== "object") {
+        return false;
+      }
+      const rules = (step as { rules?: unknown[] }).rules;
+      if (!Array.isArray(rules)) {
+        return false;
+      }
+      const rule = rules[ruleIndex];
+      if (!rule || typeof rule !== "object") {
+        return false;
+      }
+      const typedRule = rule as Record<string, unknown>;
+      if (nextValue === "") {
+        delete typedRule.targetMatchId;
+      } else {
+        typedRule.targetMatchId = nextValue;
+      }
+      return true;
+    }, "Rule target match updated.");
+  }
+
+  function updateStepRuleTargetPhaseId(
+    stepIndex: number,
+    ruleIndex: number,
+    nextValue: number | "",
+  ) {
+    updateRoutingConfig((config) => {
+      const steps = config.steps;
+      if (!Array.isArray(steps)) {
+        return false;
+      }
+      const step = steps[stepIndex];
+      if (!step || typeof step !== "object") {
+        return false;
+      }
+      const rules = (step as { rules?: unknown[] }).rules;
+      if (!Array.isArray(rules)) {
+        return false;
+      }
+      const rule = rules[ruleIndex];
+      if (!rule || typeof rule !== "object") {
+        return false;
+      }
+      const typedRule = rule as Record<string, unknown>;
+      if (nextValue === "") {
+        delete typedRule.targetPhaseId;
+      } else {
+        typedRule.targetPhaseId = nextValue;
+      }
+      return true;
+    }, "Rule target phase updated.");
   }
 
   async function previewProgression() {
@@ -785,6 +1128,213 @@ export default function RulesetsManager() {
               real <code>sourceMatchId</code> values and target routing (<code>targetMatchId</code> or <code>targetPhaseId</code>);
               qualifier/seeding templates may only need thresholds/sorting.
             </p>
+            <div className="mt-3 rounded-md border border-white/15 bg-white/5 p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-300">
+                Routing helper
+              </div>
+              <p className="mb-2 text-xs text-gray-400">
+                Fill IDs from dropdowns and apply to the selected step (or root rules if no steps exist).
+              </p>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <select
+                  value={helperSourceMatchId}
+                  onChange={(event) =>
+                    setHelperSourceMatchId(
+                      event.target.value ? Number(event.target.value) : "",
+                    )
+                  }
+                  className="rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs text-white"
+                >
+                  <option value="">Source match (optional)</option>
+                  {allMatches.map((match) => (
+                    <option key={`helper-source-${match.id}`} value={match.id}>
+                      {match.divisionName} / {match.phaseName} / {match.name} ({match.id})
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={helperTargetMatchId}
+                  onChange={(event) =>
+                    setHelperTargetMatchId(
+                      event.target.value ? Number(event.target.value) : "",
+                    )
+                  }
+                  className="rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs text-white"
+                >
+                  <option value="">Target match (optional)</option>
+                  {allMatches.map((match) => (
+                    <option key={`helper-target-match-${match.id}`} value={match.id}>
+                      {match.divisionName} / {match.phaseName} / {match.name} ({match.id})
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={helperTargetPhaseId}
+                  onChange={(event) =>
+                    setHelperTargetPhaseId(
+                      event.target.value ? Number(event.target.value) : "",
+                    )
+                  }
+                  className="rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs text-white"
+                >
+                  <option value="">Target phase (optional)</option>
+                  {allPhases.map((phase) => (
+                    <option key={`helper-target-phase-${phase.id}`} value={phase.id}>
+                      {phase.divisionName} / {phase.name} ({phase.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={applyRoutingHelper}
+                className="mt-2 rounded-md border border-amber-400/60 px-3 py-1 text-xs text-amber-100"
+              >
+                Apply helper to config
+              </button>
+            </div>
+            <div className="mt-3 rounded-md border border-white/15 bg-white/5 p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-300">
+                Step routing editor
+              </div>
+              <p className="mb-2 text-xs text-gray-400">
+                Configure <code>sourceMatchId</code>, <code>targetMatchId</code>, and{" "}
+                <code>targetPhaseId</code> with pickers. Changes update JSON immediately.
+              </p>
+              {parsedRulesetConfig.error ? (
+                <div className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs text-red-200">
+                  {parsedRulesetConfig.error}
+                </div>
+              ) : null}
+              {!parsedRulesetConfig.error && routingStepRows.length === 0 ? (
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-100">
+                  No <code>steps[]</code> found in this config. Use a Waterfall template or add steps first.
+                </div>
+              ) : null}
+              {routingReferenceWarnings.length > 0 ? (
+                <div className="mt-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-xs text-amber-100">
+                  <div className="font-semibold">Routing warnings</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {routingReferenceWarnings.map((warning, index) => (
+                      <li key={`${warning}-${index}`}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="mt-2 space-y-2">
+                {routingStepRows.map((stepRow) => (
+                  <div
+                    key={`routing-step-${stepRow.stepIndex}`}
+                    className="rounded border border-white/10 bg-black/20 p-2"
+                  >
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-100">
+                        {stepRow.stepName} (step {stepRow.stepIndex + 1})
+                      </span>
+                      <select
+                        value={stepRow.sourceMatchId}
+                        onChange={(event) =>
+                          updateStepSourceMatchId(
+                            stepRow.stepIndex,
+                            event.target.value ? Number(event.target.value) : "",
+                          )
+                        }
+                        className="rounded border border-white/20 bg-transparent px-2 py-1 text-xs text-white"
+                      >
+                        <option value="">Source match</option>
+                        {allMatches.map((match) => (
+                          <option key={`routing-source-${stepRow.stepIndex}-${match.id}`} value={match.id}>
+                            {match.divisionName} / {match.phaseName} / {match.name} ({match.id})
+                          </option>
+                        ))}
+                      </select>
+                      {stepRow.sourceMatchId !== "" ? (
+                        <span className="text-[11px] text-gray-400">
+                          Current:{" "}
+                          {allMatchesById.get(stepRow.sourceMatchId)?.name
+                            ? `${allMatchesById.get(stepRow.sourceMatchId)?.name} (#${stepRow.sourceMatchId})`
+                            : `#${stepRow.sourceMatchId}`}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      {stepRow.routingRules.length === 0 ? (
+                        <div className="text-xs text-gray-400">
+                          No routing rules in this step.
+                        </div>
+                      ) : (
+                        stepRow.routingRules.map((ruleRow) => (
+                          <div
+                            key={`routing-step-${stepRow.stepIndex}-rule-${ruleRow.ruleIndex}`}
+                            className="grid grid-cols-1 gap-2 rounded border border-white/10 bg-white/5 p-2 md:grid-cols-3"
+                          >
+                            <div className="text-xs text-gray-200">
+                              Rule {ruleRow.ruleIndex + 1}: {ruleRow.type}
+                              {ruleRow.lane ? ` (${ruleRow.lane})` : ""}
+                            </div>
+                            <select
+                              value={ruleRow.targetMatchId}
+                              onChange={(event) =>
+                                updateStepRuleTargetMatchId(
+                                  stepRow.stepIndex,
+                                  ruleRow.ruleIndex,
+                                  event.target.value ? Number(event.target.value) : "",
+                                )
+                              }
+                              className="rounded border border-white/20 bg-transparent px-2 py-1 text-xs text-white"
+                            >
+                              <option value="">Target match (optional)</option>
+                              {allMatches.map((match) => (
+                                <option
+                                  key={`routing-target-match-${stepRow.stepIndex}-${ruleRow.ruleIndex}-${match.id}`}
+                                  value={match.id}
+                                >
+                                  {match.divisionName} / {match.phaseName} / {match.name} ({match.id})
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={ruleRow.targetPhaseId}
+                              onChange={(event) =>
+                                updateStepRuleTargetPhaseId(
+                                  stepRow.stepIndex,
+                                  ruleRow.ruleIndex,
+                                  event.target.value ? Number(event.target.value) : "",
+                                )
+                              }
+                              className="rounded border border-white/20 bg-transparent px-2 py-1 text-xs text-white"
+                            >
+                              <option value="">Target phase (optional)</option>
+                              {allPhases.map((phase) => (
+                                <option
+                                  key={`routing-target-phase-${stepRow.stepIndex}-${ruleRow.ruleIndex}-${phase.id}`}
+                                  value={phase.id}
+                                >
+                                  {phase.divisionName} / {phase.name} ({phase.id})
+                                </option>
+                              ))}
+                            </select>
+                            <div className="md:col-span-3 text-[11px] text-gray-400">
+                              Target match:{" "}
+                              {ruleRow.targetMatchId !== ""
+                                ? allMatchesById.get(ruleRow.targetMatchId)?.name
+                                  ? `${allMatchesById.get(ruleRow.targetMatchId)?.name} (#${ruleRow.targetMatchId})`
+                                  : `#${ruleRow.targetMatchId}`
+                                : "none"}{" "}
+                              | Target phase:{" "}
+                              {ruleRow.targetPhaseId !== ""
+                                ? allPhasesById.get(ruleRow.targetPhaseId)?.name
+                                  ? `${allPhasesById.get(ruleRow.targetPhaseId)?.name} (#${ruleRow.targetPhaseId})`
+                                  : `#${ruleRow.targetPhaseId}`
+                                : "none"}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
         </div>

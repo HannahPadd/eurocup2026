@@ -201,7 +201,7 @@ export default function TournamentSettings({
     }
     try {
       const [matchesResponse, activeMatchResponse] = await Promise.all([
-        axios.get<Match[]>(`tournament/expandphase/${selectedPhase.id}`),
+        axios.get<Match[]>(`matches/phase/${selectedPhase.id}`),
         axios.get<Match | null>("tournament/activeMatch"),
       ]);
       setMatches(matchesResponse.data ?? []);

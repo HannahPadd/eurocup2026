@@ -12,7 +12,13 @@ import { CreateMatchAssignmentDto, UpdateMatchAssignmentDto } from './dtos/match
 import { CreateSetupDto, UpdateSetupDto } from './dtos/setup.dto';
 import { CreateAccountDto, UpdateAcountDto  } from './dtos/acount.dto'
 import { CreateAccountPlayerDto, UpdateAccountPlayerDto } from './dtos/accountplayer.dto';
-import { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto } from './dtos/qualifier.dto';
+import {
+  CommitQualifierProgressionDto,
+  CreateQualifierSubmissionDto,
+  PreviewQualifierProgressionDto,
+  QualifierProgressionPlacementDto,
+  UpdateQualifierSubmissionStatusDto,
+} from './dtos/qualifier.dto';
 import { CreateRulesetDto, UpdateRulesetDto } from './dtos/ruleset.dto';
 import { CommitPhaseProgressionDto } from './dtos/phase_progression.dto';
 
@@ -31,5 +37,10 @@ export { CreateSetupDto, UpdateSetupDto };
 export { CreateAccountDto, UpdateAcountDto };
 export { CreateAccountPlayerDto, UpdateAccountPlayerDto };
 export { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto };
+export {
+  QualifierProgressionPlacementDto,
+  PreviewQualifierProgressionDto,
+  CommitQualifierProgressionDto,
+};
 export { CreateRulesetDto, UpdateRulesetDto };
 export { CommitPhaseProgressionDto };

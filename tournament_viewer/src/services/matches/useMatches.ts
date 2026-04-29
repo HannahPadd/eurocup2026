@@ -68,11 +68,12 @@ export function useMatches(phaseId: number) {
     matchId: number,
   ) {
     try {
-      await MatchesApi.setActiveMatch({ divisionId, phaseId, matchId });
-      dispatch({
-        type: "onSetActiveMatch",
-        payload: state.matches.find((m) => m.id === matchId)!,
+      const activeMatch = await MatchesApi.setActiveMatch({
+        divisionId,
+        phaseId,
+        matchId,
       });
+      dispatch({ type: "onSetActiveMatch", payload: activeMatch });
     } catch (error) {
       toast.error("Error setting active match.");
       console.error("Error setting active match:", error);

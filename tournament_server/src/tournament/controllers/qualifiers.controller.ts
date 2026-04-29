@@ -1,6 +1,11 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, ValidationPipe } from '@nestjs/common';
 import { QualifiersService } from '../services/qualifiers.service';
-import { CreateQualifierSubmissionDto, UpdateQualifierSubmissionStatusDto } from '../dtos';
+import {
+  CommitQualifierProgressionDto,
+  CreateQualifierSubmissionDto,
+  PreviewQualifierProgressionDto,
+  UpdateQualifierSubmissionStatusDto,
+} from '../dtos';
 import { Public } from '@auth/public.decorator';
 
 @Controller()
@@ -48,5 +53,19 @@ export class QualifiersController {
     @Body(new ValidationPipe()) dto: CreateQualifierSubmissionDto
   ) {
     return await this.service.upsert(playerId, songId, dto);
+  }
+
+  @Post('qualifiers/progression/preview')
+  async previewProgression(
+    @Body(new ValidationPipe({ transform: true })) dto: PreviewQualifierProgressionDto,
+  ) {
+    return await this.service.previewProgression(dto);
+  }
+
+  @Post('qualifiers/progression/commit')
+  async commitProgression(
+    @Body(new ValidationPipe({ transform: true })) dto: CommitQualifierProgressionDto,
+  ) {
+    return await this.service.commitProgression(dto);
   }
 }

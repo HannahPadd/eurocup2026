@@ -19,6 +19,7 @@ export class RulesetsService {
       description: dto.description,
       config: dto.config,
       isActive: dto.isActive ?? true,
+      scope: dto.scope ?? 'PHASE',
     });
 
     return await this.rulesetRepo.save(ruleset);

@@ -19,13 +19,24 @@ export default function LivePhase() {
     MatchesApi.getActiveMatch()
       .then((match) => {
         setActiveMatch(match);
+        if (!match) {
+          setPhase(null);
+          setDivision(null);
+          return null;
+        }
         return axios.get("/phases/" + match.phaseId);
       })
       .then((response) => {
+        if (!response) {
+          return null;
+        }
         setPhase(response.data);
         return axios.get("/divisions/" + response.data.divisionId);
       })
       .then((response) => {
+        if (!response) {
+          return;
+        }
         setDivision(response.data);
       })
       .catch(() => {

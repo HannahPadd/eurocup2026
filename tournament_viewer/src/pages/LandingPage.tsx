@@ -10,6 +10,7 @@ import QualifierList, {
 import { formatPercentageDisplay, parsePercentage } from "../utils/formatting";
 import { buildRegistrationDivisionOptions } from "../utils/registrationDivisionOptions";
 import OkModal from "../components/layout/OkModal";
+import { isQualifierPhase } from "../utils/qualifierPhase";
 
 type QualifierSubmission = {
   percentage: number;
@@ -478,18 +479,7 @@ export default function LandingPage() {
 
     for (const division of divisions) {
       for (const phase of division.phases ?? []) {
-        const phaseName = (phase.name ?? "").toLowerCase();
-        const rulesetName = (
-          (phase.ruleset as { name?: string } | undefined)?.name ?? ""
-        )
-          .trim()
-          .toLowerCase();
-        const isQualifierPhase =
-          phaseName.includes("seeding") ||
-          phaseName.includes("qualifier") ||
-          rulesetName.includes("seeding") ||
-          rulesetName.includes("qualifier");
-        if (!isQualifierPhase) {
+        if (!isQualifierPhase(phase)) {
           continue;
         }
 

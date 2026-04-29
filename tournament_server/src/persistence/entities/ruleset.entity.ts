@@ -22,6 +22,9 @@ export class Ruleset {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'varchar', default: 'PHASE' })
+  scope: 'PHASE' | 'QUALIFIER';
+
   @Column({ type: 'simple-json' })
   config: Record<string, unknown>;
 

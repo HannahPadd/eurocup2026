@@ -73,7 +73,7 @@ export default function PhaseList({
     setQualifierError(null);
     try {
       const response = await axios.get<Match[]>(
-        `tournament/expandphase/${selectedPhase.id}`,
+        `matches/phase/${selectedPhase.id}`,
       );
       setQualifierMatches(response.data);
       if (response.data.length > 0) {
@@ -103,17 +103,12 @@ export default function PhaseList({
     }
     setQualifierError(null);
     try {
-      const response = await axios.post<Match>(`tournament/addMatch`, {
-        divisionId,
+      const response = await axios.post<Match>(`matches`, {
         phaseId: selectedPhase.id,
-        matchName: "Qualifier",
+        name: "Qualifier",
         subtitle: "Seeding",
-        multiplier: 1,
-        group: "",
         scoringSystem: "EurocupScoreCalculator",
-        isManualMatch: true,
-        levels: "",
-        songIds: [],
+        notes: "",
         playerIds: [],
       });
       const createdMatch = response.data;
