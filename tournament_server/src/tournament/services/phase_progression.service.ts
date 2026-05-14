@@ -156,6 +156,7 @@ export class PhaseProgressionService {
         runId,
         phase,
         preview.actions,
+        preview.matchId,
       );
 
       if (records.length > 0) {
@@ -237,6 +238,7 @@ export class PhaseProgressionService {
         runId,
         phase,
         preview.actions,
+        preview.matchId,
       );
 
       if (records.length > 0) {
@@ -264,6 +266,7 @@ export class PhaseProgressionService {
     runId: string,
     phase: Phase,
     actions: PlannedAction[],
+    sourceMatchId?: number,
   ): PhaseProgressionResult[] {
     return actions.map((action) => {
       const entity = new PhaseProgressionResult();
@@ -273,6 +276,7 @@ export class PhaseProgressionService {
       entity.action = action.action;
       entity.targetPhaseId = action.targetPhaseId;
       entity.targetMatchId = action.targetMatchId;
+      entity.sourceMatchId = sourceMatchId;
       entity.rankingPosition = action.rank;
       entity.tiedAtBoundary = action.tiedAtBoundary;
       entity.reason = action.reason;
