@@ -105,7 +105,7 @@ export default function LandingPage() {
           country?: string;
         }[];
         const player = players.find(
-          (item) => item.playerName === auth.username,
+          (item) => item.playerName?.trim().toLowerCase() === auth.username.trim().toLowerCase(),
         );
         if (!player) {
           setQualifierError("Player profile not found for this account.");
