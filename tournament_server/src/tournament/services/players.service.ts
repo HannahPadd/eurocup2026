@@ -140,7 +140,28 @@ export class PlayerService {
   }
 
   async remove(id: number) {
-    await this.playersRepo.delete(id);
+    const player = await this.playersRepo.findOne({
+      where: { id },
+      relations: ['matches', 'divisions'],
+    });
+
+    if (!player) {
+      throw new NotFoundException(`Player with id ${id} not found`);
+    }
+
+    // Explicitly clear relation rows to avoid FK violations on strict schemas.
+    player.matches = [];
+    player.divisions = [];
+    await this.playersRepo.save(player);
+
+    await this.accountRepo
+      .createQueryBuilder()
+      .delete()
+      .from(Account)
+      .where('playerId = :id', { id })
+      .execute();
+
+    await this.playersRepo.remove(player);
   }
 
   async updatePassword(id: number, newPassword: string) {
