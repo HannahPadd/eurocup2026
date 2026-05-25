@@ -205,6 +205,14 @@ export class QualifiersService {
     const allSubmissions = await this.qualifierRepo.find({
       where: { song: { id: In(allSongIds) } },
     });
+    const rulesetConfigByDivisionId = new Map<number, QualifierRulesetConfig>();
+
+    for (const division of divisions) {
+      rulesetConfigByDivisionId.set(
+        division.id,
+        this.getQualifierRulesetConfigForDivision(division),
+      );
+    }
 
     const rankingsByDivision = new Map<
       number,
@@ -230,6 +238,14 @@ export class QualifiersService {
       const percentage = Number(submission.percentage ?? 0);
 
       for (const divisionId of divisionIds) {
+        const rulesetConfig = rulesetConfigByDivisionId.get(divisionId) ?? {};
+        if (
+          rulesetConfig.approvedOnly &&
+          submission.status?.toLowerCase() !== 'approved'
+        ) {
+          continue;
+        }
+
         const divisionMap = rankingsByDivision.get(divisionId) ?? new Map();
         const entry = divisionMap.get(playerId) ?? {
           playerId,
@@ -250,15 +266,8 @@ export class QualifiersService {
       }
     }
 
-    return divisions.map((division) => {
-      const qualifierPhaseRuleset = (division.phases || [])
-        .filter((phase) => this.isQualifierPhase(phase))
-        .map((phase) => phase.ruleset)
-        .find((ruleset) => !!ruleset);
-      const rulesetConfig = this.getQualifierRulesetConfig(
-        qualifierPhaseRuleset?.config,
-      );
-      const approvedOnly = rulesetConfig.approvedOnly ?? false;
+    const divisionRankings = divisions.map((division) => {
+      const rulesetConfig = rulesetConfigByDivisionId.get(division.id) ?? {};
       const minimumSubmissions = rulesetConfig.minimumSubmissions ?? 0;
 
       const totalSongs = divisionSongIds.get(division.id)?.size ?? 0;
@@ -277,26 +286,6 @@ export class QualifiersService {
         submittedCount: entry.submittedCount,
         songPercentages: entry.songPercentages,
       }));
-
-      if (approvedOnly) {
-        const approvedPlayerIds = new Set(
-          allSubmissions
-            .filter((submission) => {
-              const divisionIds =
-                songToDivisionIds.get(submission.song.id) ?? [];
-              return (
-                divisionIds.includes(division.id) &&
-                submission.status?.toLowerCase() === 'approved'
-              );
-            })
-            .map((submission) => submission.player?.id)
-            .filter((playerId): playerId is number => !!playerId),
-        );
-
-        entries = entries.filter((entry) =>
-          approvedPlayerIds.has(entry.playerId),
-        );
-      }
 
       if (minimumSubmissions > 0) {
         entries = entries.filter(
@@ -338,14 +327,21 @@ export class QualifiersService {
           ? recommendedEntries
           : undefined;
 
+      const stripSongPercentages = ({
+        songPercentages,
+        ...entry
+      }: (typeof entries)[number]): QualifierRankingEntry => entry;
+
       return {
         divisionId: division.id,
         divisionName: division.name,
         totalSongs,
-        rankings: entries.map(({ songPercentages, ...entry }) => entry),
-        recommendedAdvances,
+        rankings: entries.map(stripSongPercentages),
+        recommendedAdvances: recommendedAdvances?.map(stripSongPercentages),
       };
     });
+
+    return this.applyExclusiveQualifierPlacement(divisionRankings);
   }
 
   async listAdminSubmissions(): Promise<QualifierAdminSubmission[]> {
@@ -773,6 +769,16 @@ export class QualifiersService {
     return config as QualifierRulesetConfig;
   }
 
+  private getQualifierRulesetConfigForDivision(
+    division: Division,
+  ): QualifierRulesetConfig {
+    const qualifierPhaseRuleset = (division.phases || [])
+      .filter((phase) => this.isQualifierPhase(phase))
+      .map((phase) => phase.ruleset)
+      .find((ruleset) => !!ruleset);
+    return this.getQualifierRulesetConfig(qualifierPhaseRuleset?.config);
+  }
+
   private getQualifierPhaseRulesetConfig(
     config: Record<string, unknown> | undefined,
   ): Pick<QualifierPhase, 'advanceMinPercentage' | 'minimumSubmissions'> {
@@ -847,6 +853,67 @@ export class QualifiersService {
     }
 
     return divisionRanking.rankings.map((entry) => ({ ...entry }));
+  }
+
+  private applyExclusiveQualifierPlacement(
+    divisionRankings: QualifierDivisionRanking[],
+  ): QualifierDivisionRanking[] {
+    const divisionByPlayerId = new Map<
+      number,
+      { divisionId: number; strength: number }
+    >();
+
+    divisionRankings.forEach((divisionRanking) => {
+      const strength = this.getDivisionStrength(divisionRanking.divisionName);
+      if (strength === 0) {
+        return;
+      }
+
+      for (const entry of divisionRanking.recommendedAdvances ?? []) {
+        const existing = divisionByPlayerId.get(entry.playerId);
+        if (
+          existing &&
+          (existing.strength > strength || existing.strength === strength)
+        ) {
+          continue;
+        }
+
+        divisionByPlayerId.set(entry.playerId, {
+          divisionId: divisionRanking.divisionId,
+          strength,
+        });
+      }
+    });
+
+    return divisionRankings.map((divisionRanking) => ({
+      ...divisionRanking,
+      rankings: divisionRanking.rankings.filter((entry) => {
+        const targetDivision = divisionByPlayerId.get(entry.playerId);
+        return (
+          !targetDivision ||
+          targetDivision.divisionId === divisionRanking.divisionId
+        );
+      }),
+      recommendedAdvances: divisionRanking.recommendedAdvances?.filter(
+        (entry) =>
+          divisionByPlayerId.get(entry.playerId)?.divisionId ===
+          divisionRanking.divisionId,
+      ),
+    }));
+  }
+
+  private getDivisionStrength(divisionName: string): number {
+    const normalizedName = divisionName.trim().toUpperCase();
+    if (/\bHIGH\b/.test(normalizedName)) {
+      return 3;
+    }
+    if (/\bMID\b/.test(normalizedName)) {
+      return 2;
+    }
+    if (/\bLOW\b/.test(normalizedName)) {
+      return 1;
+    }
+    return 0;
   }
 
   private validatePlacementRanges(dto: PreviewQualifierProgressionDto) {
