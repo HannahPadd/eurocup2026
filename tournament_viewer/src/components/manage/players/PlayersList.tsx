@@ -169,12 +169,18 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
     }
   };
 
-  const deletePlayer = (id: number) => {
-    if (window.confirm("Are you sure you want to delete this player?")) {
-      axios.delete(`players/${id}`).then(() => {
-        setPlayers(players.filter((p) => p.id !== id));
-        setSelectedPlayerId(-1);
-      });
+  const deletePlayer = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this player?")) {
+      return;
+    }
+
+    try {
+      await axios.delete(`players/${id}`);
+      setPlayers((prev) => prev.filter((p) => p.id !== id));
+      setSelectedPlayerId(-1);
+      toast.success("Player deleted");
+    } catch (error) {
+      toast.error("Unable to delete player");
     }
   };
 
