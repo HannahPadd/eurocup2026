@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Player } from "../../../models/Player";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -6,14 +6,19 @@ import {
   faMinus,
   faPenToSquare,
   faPlus,
+  faTableList,
   faTrash,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { Team } from "../../../models/Team.ts";
 import { Division } from "../../../models/Division.ts";
 import Select from "react-select";
 import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
-import { getPlayerDivisionIds } from "../../../utils/playerDivisions";
+import {
+  getPlayerDivisionIds,
+  isPlayerInDivision,
+} from "../../../utils/playerDivisions";
 import PlayerDivisionsModal from "../divisions/PlayerDivisionsModal";
 import OkModal from "../../layout/OkModal";
 
@@ -57,6 +62,8 @@ const formatSubmissionStatus = (status?: string) => {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
+type PlayersViewMode = "details" | "registrations";
+
 export default function PlayersList({ onImport }: { onImport?: () => void }) {
   const { auth, setAuth } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -69,6 +76,8 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<number>(-1);
+  const [viewMode, setViewMode] = useState<PlayersViewMode>("details");
+  const [selectedDivisionId, setSelectedDivisionId] = useState<number>(-1);
 
   const [search, setSearch] = useState<string>("");
 
@@ -156,6 +165,30 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
   const getSelectedPlayer = () => {
     return players.find((p) => p.id === selectedPlayerId);
   };
+
+  useEffect(() => {
+    if (selectedDivisionId >= 0 || divisions.length === 0) {
+      return;
+    }
+    setSelectedDivisionId(divisions[0].id);
+  }, [divisions, selectedDivisionId]);
+
+  const selectedDivision = useMemo(
+    () => divisions.find((division) => division.id === selectedDivisionId),
+    [divisions, selectedDivisionId],
+  );
+
+  const registeredPlayersForDivision = useMemo(
+    () =>
+      selectedDivision
+        ? players
+            .filter((player) => isPlayerInDivision(player, selectedDivision.id))
+            .sort((a, b) =>
+              getPlayerDisplayName(a).localeCompare(getPlayerDisplayName(b)),
+            )
+        : [],
+    [players, selectedDivision],
+  );
 
   const createPlayer = () => {
     const name = prompt("Enter player name");
@@ -259,114 +292,170 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
   return (
     <div>
       <div className="flex flex-col justify-start gap-3 ">
-        <div className="flex flex-row gap-3 items-center ">
-          <h2 className="theme-text">Players List</h2>
-          {onImport && (
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="inline-flex w-fit overflow-hidden rounded-md border border-white/20 bg-white/5 text-xs font-semibold">
             <button
               type="button"
-              onClick={onImport}
-              className="rounded-md border border-slate-500/40 bg-slate-600/20 px-2 py-1 text-xs font-semibold text-slate-100"
+              onClick={() => setViewMode("details")}
+              className={`inline-flex items-center gap-2 px-3 py-2 ${
+                viewMode === "details"
+                  ? "bg-rossoTag text-white"
+                  : "theme-text hover:bg-white/10"
+              }`}
             >
-              Import players
+              <FontAwesomeIcon icon={faUser} />
+              Player details
             </button>
-          )}
-          <button
-            onClick={createPlayer}
-            title="Add new player"
-            className="inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
-          >
-            <FontAwesomeIcon icon={faPlus} />
-            <span>Add player</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("registrations")}
+              className={`inline-flex items-center gap-2 border-l border-white/20 px-3 py-2 ${
+                viewMode === "registrations"
+                  ? "bg-rossoTag text-white"
+                  : "theme-text hover:bg-white/10"
+              }`}
+            >
+              <FontAwesomeIcon icon={faTableList} />
+              Division table
+            </button>
+          </div>
         </div>
         <div className="flex flex-col gap-5 md:flex-row">
-          <div
-            className={`bg-gray-100 text-gray-900 w-full md:w-[260px] h-[400px] overflow-auto ${
-              selectedPlayerId >= 0 ? "hidden md:block" : ""
-            }`}
-          >
-            <input
-              className="p-1 w-full border-blu border outline-none"
-              type="search"
-              placeholder="Search player..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {loading && (
-              <div className="text-center py-2 text-gray-500">
-                Loading players...
+          {viewMode === "details" && (
+            <div className={selectedPlayerId >= 0 ? "hidden md:block" : ""}>
+              <div className="mb-2 flex flex-row flex-wrap items-center gap-3">
+                <h2 className="theme-text">Players List</h2>
+                {onImport && (
+                  <button
+                    type="button"
+                    onClick={onImport}
+                    className="rounded-md border border-slate-500/40 bg-slate-600/20 px-2 py-1 text-xs font-semibold text-slate-100"
+                  >
+                    Import players
+                  </button>
+                )}
+                <button
+                  onClick={createPlayer}
+                  title="Add new player"
+                  className="inline-flex items-center gap-2 rounded-md border border-emerald-600 px-2 py-1 text-xs font-semibold text-emerald-700"
+                >
+                  <FontAwesomeIcon icon={faPlus} />
+                  <span>Add player</span>
+                </button>
               </div>
-            )}
-            {!loading && loadError && (
-              <div className="text-center py-2 theme-text">{loadError}</div>
-            )}
-            {!loading &&
-              !loadError &&
-              players
-                .filter((p) =>
-                  search.length === 0
-                    ? true
-                    : getPlayerDisplayName(p)
-                        .toLowerCase()
-                        .includes(search.toLowerCase()),
-                )
-                .map((player) => {
-                  const displayName = getPlayerDisplayName(player);
-                  return (
-                    <div
-                      key={player.id}
-                      role="button"
-                      onClick={() => setSelectedPlayerId(player.id)}
-                      className={`${
-                        selectedPlayerId === player.id
-                          ? "bg-rossoTag text-white"
-                          : "hover:bg-red-700 hover:text-white"
-                      } cursor-pointer py-2 px-3 flex justify-between items-center gap-3 `}
-                    >
-                      <span>{displayName}</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            editPlayerName(player);
-                          }}
-                          className="text-sm"
-                          title="Edit player name"
+              <div className="h-[400px] w-full overflow-auto bg-gray-100 text-gray-900 md:w-[260px]">
+                <input
+                  className="p-1 w-full border-blu border outline-none"
+                  type="search"
+                  placeholder="Search player..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                {loading && (
+                  <div className="text-center py-2 text-gray-500">
+                    Loading players...
+                  </div>
+                )}
+                {!loading && loadError && (
+                  <div className="text-center py-2 theme-text">{loadError}</div>
+                )}
+                {!loading &&
+                  !loadError &&
+                  players
+                    .filter((p) =>
+                      search.length === 0
+                        ? true
+                        : getPlayerDisplayName(p)
+                            .toLowerCase()
+                            .includes(search.toLowerCase()),
+                    )
+                    .map((player) => {
+                      const displayName = getPlayerDisplayName(player);
+                      return (
+                        <div
+                          key={player.id}
+                          role="button"
+                          onClick={() => setSelectedPlayerId(player.id)}
+                          className={`${
+                            selectedPlayerId === player.id
+                              ? "bg-rossoTag text-white"
+                              : "hover:bg-red-700 hover:text-white"
+                          } cursor-pointer py-2 px-3 flex justify-between items-center gap-3 `}
                         >
-                          <FontAwesomeIcon icon={faPenToSquare} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deletePlayer(player.id);
-                          }}
-                          className="text-sm"
-                          title="Delete player"
-                        >
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button>
-                      </div>
+                          <span>{displayName}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                editPlayerName(player);
+                              }}
+                              className="text-sm"
+                              title="Edit player name"
+                            >
+                              <FontAwesomeIcon icon={faPenToSquare} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deletePlayer(player.id);
+                              }}
+                              className="text-sm"
+                              title="Delete player"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                {search.length > 0 &&
+                  players.filter((p) =>
+                    getPlayerDisplayName(p)
+                      .toLowerCase()
+                      .includes(search.toLowerCase()),
+                  ).length === 0 && (
+                    <div className="text-center py-2 theme-text">
+                      No player found
                     </div>
-                  );
-                })}
-            {search.length > 0 &&
-              players.filter((p) =>
-                getPlayerDisplayName(p)
-                  .toLowerCase()
-                  .includes(search.toLowerCase()),
-              ).length === 0 && (
-                <div className="text-center py-2 theme-text">
-                  No player found
-                </div>
-              )}
-            {!loading && !loadError && players.length === 0 && (
-              <div className="text-center py-2 text-gray-500">
-                No players yet.
+                  )}
+                {!loading && !loadError && players.length === 0 && (
+                  <div className="text-center py-2 text-gray-500">
+                    No players yet.
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          {viewMode === "registrations" && (
+            <div className="w-full md:w-[260px]">
+              <div className="mb-2 flex flex-row flex-wrap items-center gap-3">
+                <h2 className="theme-text">Divisions</h2>
+              </div>
+              <div className="h-[400px] w-full overflow-auto bg-gray-100 text-gray-900">
+                {divisions.map((division) => (
+                  <div
+                    key={division.id}
+                    role="button"
+                    onClick={() => setSelectedDivisionId(division.id)}
+                    className={`${
+                      selectedDivisionId === division.id
+                        ? "bg-rossoTag text-white"
+                        : "hover:bg-red-700 hover:text-white"
+                    } cursor-pointer py-2 px-3`}
+                  >
+                    {division.name}
+                  </div>
+                ))}
+                {divisions.length === 0 && (
+                  <div className="text-center py-2 text-gray-500">
+                    No divisions available.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            {selectedPlayerId >= 0 && (
+            {viewMode === "details" && selectedPlayerId >= 0 && (
               <button
                 className="mb-2 inline-flex items-center rounded-md border border-blue-200/60 bg-blue-50 px-3 py-1 text-sm text-blue-700 md:hidden"
                 onClick={() => setSelectedPlayerId(-1)}
@@ -374,10 +463,12 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                 Select other player
               </button>
             )}
-            {selectedPlayerId < 0 && (
-              <div className={"theme-text"}>Select a player from the list to view informations.</div>
+            {viewMode === "details" && selectedPlayerId < 0 && (
+              <div className={"theme-text"}>
+                Select a player from the list to view information.
+              </div>
             )}
-            {selectedPlayerId >= 0 && (
+            {viewMode === "details" && selectedPlayerId >= 0 && (
               <PlayerItem
                 teams={teams}
                 player={getSelectedPlayer() as Player}
@@ -431,8 +522,122 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                   )}
               />
             )}
+            {viewMode === "registrations" && (
+              <DivisionRegistrationsTable
+                players={registeredPlayersForDivision}
+                division={selectedDivision}
+                totalPlayers={players.length}
+                loading={loading}
+                loadError={loadError}
+              />
+            )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DivisionRegistrationsTable({
+  players,
+  division,
+  totalPlayers,
+  loading,
+  loadError,
+}: {
+  players: Player[];
+  division?: Division;
+  totalPlayers: number;
+  loading: boolean;
+  loadError: string | null;
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 theme-text">
+        Loading registrations...
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 theme-text">
+        {loadError}
+      </div>
+    );
+  }
+
+  if (!division) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 theme-text">
+        Create a division to view registered players.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4 theme-text">
+      <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h3 className="text-xl font-semibold text-white">
+            Registered players
+          </h3>
+          <p className="text-sm text-gray-300">
+            {division.name} - {players.length} of {totalPlayers} players
+          </p>
+        </div>
+      </div>
+      <div className="overflow-x-auto rounded-md border border-white/10">
+        <table className="min-w-full divide-y divide-white/10 text-left text-sm">
+          <thead className="bg-white/10 text-xs uppercase tracking-wide text-gray-300">
+            <tr>
+              <th scope="col" className="px-3 py-2 font-semibold">
+                Player
+              </th>
+              <th scope="col" className="px-3 py-2 font-semibold">
+                Country
+              </th>
+              <th scope="col" className="px-3 py-2 font-semibold">
+                Registered divisions
+              </th>
+              <th scope="col" className="px-3 py-2 font-semibold">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/10">
+            {players.map((player) => (
+              <tr key={player.id} className="bg-black/10">
+                <td className="px-3 py-2 font-semibold text-white">
+                  {getPlayerDisplayName(player)}
+                </td>
+                <td className="px-3 py-2 text-gray-200">
+                  {player.country?.trim() || "-"}
+                </td>
+                <td className="px-3 py-2 text-gray-200">
+                  {player.divisions && player.divisions.length > 0
+                    ? player.divisions.map((item) => item.name).join(", ")
+                    : "-"}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200">
+                    Registered
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {players.length === 0 && (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="px-3 py-6 text-center text-sm text-gray-300"
+                >
+                  No players selected this division on their profile yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
