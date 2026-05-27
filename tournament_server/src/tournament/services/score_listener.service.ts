@@ -1,17 +1,17 @@
 import WS from "ws";
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { NotFoundException, OnModuleInit, Injectable, Inject } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Score, Song, Player, Round, Standing } from '@persistence/entities';
-import { StandingManager } from 'src/match-manager/services/standing.manager';
 import { TournamentCache } from "../../match-manager/services/tournament.cache";
 import * as path from 'path';
 
+@Injectable()
 export class ScoreListenerService implements OnModuleInit {
 	constructor(
-		private readonly moduleRef: ModuleRef,
+		@Inject()
+		private readonly tournamentCache: TournamentCache
 	) { }
 
 	@InjectRepository(Score)
@@ -28,14 +28,6 @@ export class ScoreListenerService implements OnModuleInit {
     private itgOnlineUrl: string
 	private ws: ReconnectingWebSocket
 	private initialized = false;
-
-	private getTournamentCache(): TournamentCache | null {
-		try {
-			return this.moduleRef.get(TournamentCache, { strict: false });
-		} catch {
-			return null;
-		}
-	}
 
 	private parsePlayerName(data: any): string {
 		const candidates = [
@@ -141,14 +133,12 @@ export class ScoreListenerService implements OnModuleInit {
 			newScore.player = player;
 
 			if(!song) // No songId available
-				return;
+				throw new Error("Song not found")
 
 			// Write score row to the database
 			await this.scoreRepository.save(newScore);
 
-			const tournamentCache = this.getTournamentCache()
-
-			const activeMatch = await tournamentCache.GetActiveMatch();
+			const activeMatch = await this.tournamentCache.GetActiveMatch();
 			if(!activeMatch)
 				return;
 
@@ -158,7 +148,7 @@ export class ScoreListenerService implements OnModuleInit {
 			});
 
 			if(!round) // Could not find match round by song
-				return;
+				throw new Error("Round not found")
 			
 			// Write score to match (Standing)
 			const standing = this.standingRepository.create({

@@ -5,7 +5,7 @@ import { RoundsService } from '../tournament/services';
 import { TournamentModule } from 'src/tournament/tournament.module';
 import { Services } from './services';
 import { Gateways } from './gateways';
-import { Services as TournamentModuleServices } from '../tournament/services';
+import { Services as TournamentModuleServices, ScoreListenerService } from '../tournament/services';
 import { MatchAssignmentService } from '../tournament/services';
 import { DivisionsService } from '../tournament/services';
 
@@ -18,6 +18,7 @@ import { DivisionsService } from '../tournament/services';
         ...TournamentModuleServices,
         ...Gateways,
         ...Services,
+        ScoreListenerService,
     ],
     controllers: [
 
