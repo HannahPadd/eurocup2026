@@ -6,12 +6,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Score, Song, Player, Round, Standing } from '@persistence/entities';
 import { StandingManager } from 'src/match-manager/services/standing.manager';
-import { CreateScoreDto } from '../dtos';
-import { TournamentCache } from "./tournament.cache";
+import { TournamentCache } from "../../match-manager/services/tournament.cache";
 import * as path from 'path';
 
 export class ScoreListenerService implements OnModuleInit {
-	constructor(private readonly moduleRef: ModuleRef) {}
+	constructor(
+		private readonly moduleRef: ModuleRef,
+	) { }
 
 	@InjectRepository(Score)
 	private scoreRepository: Repository<Score>
@@ -21,18 +22,16 @@ export class ScoreListenerService implements OnModuleInit {
 	private playerRepository: Repository<Player>
 	@InjectRepository(Round)
 	private roundRepository: Repository<Round>
-	@InjectRepository
+	@InjectRepository(Standing)
 	private standingRepository: Repository<Standing>
-	@Inject()
-	private readonly tournamentCache: TournamentCache
 
     private itgOnlineUrl: string
 	private ws: ReconnectingWebSocket
 	private initialized = false;
 
-	private getStandingManager(): StandingManager | null {
+	private getTournamentCache(): TournamentCache | null {
 		try {
-			return this.moduleRef.get(StandingManager, { strict: false });
+			return this.moduleRef.get(TournamentCache, { strict: false });
 		} catch {
 			return null;
 		}
@@ -147,13 +146,15 @@ export class ScoreListenerService implements OnModuleInit {
 			// Write score row to the database
 			await this.scoreRepository.save(newScore);
 
-			const activeMatch = await this.tournamentCache.GetActiveMatch();
+			const tournamentCache = this.getTournamentCache()
+
+			const activeMatch = await tournamentCache.GetActiveMatch();
 			if(!activeMatch)
 				return;
 
 			const round = await this.roundRepository.findOneBy({
-				matchId: activeMatch.id,
-				songId: song.id
+				match: activeMatch,
+				song: song
 			});
 
 			if(!round) // Could not find match round by song
@@ -161,8 +162,8 @@ export class ScoreListenerService implements OnModuleInit {
 			
 			// Write score to match (Standing)
 			const standing = this.standingRepository.create({
-				scoreId: newScore.id,
-				roundId: round.id,
+				score: newScore,
+				round: round,
 				points: 0
 			})
 
