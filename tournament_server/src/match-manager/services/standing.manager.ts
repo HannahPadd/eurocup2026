@@ -25,7 +25,9 @@ export class StandingManager {
         private readonly matchHub: MatchGateway,
         @Inject()
         private readonly scoringSystemProvider: ScoringSystemProvider
-    ) { }
+    ) { 
+        console.log("Standing manager here");
+    }
 
     async AddScore(score: CreateScoreDto) : Promise<Match> {
         const activeMatch = await this.tournamentCache.GetActiveMatch();

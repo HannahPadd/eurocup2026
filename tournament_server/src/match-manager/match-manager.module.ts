@@ -20,6 +20,10 @@ import { DivisionsService } from '../tournament/services';
         ...Services,
         ScoreListenerService,
     ],
+    exports: [
+        ...Services,
+        ...Gateways,
+    ],
     controllers: [
 
     ]
