@@ -119,8 +119,7 @@ export class ScoreListenerService implements OnModuleInit {
 				throw new NotFoundException(`Player with playerName ${playerName} not found`);
 			}
 
-			const rawPercentage = Number(message?.data?.player?.exScore ?? message?.data?.player?.score ?? 0);
-			const percentage = Number.isFinite(rawPercentage) ? rawPercentage : 0;
+			const percentage = message?.data?.player?.exScore ?? message?.data?.player?.score ?? 0;
 			const isFailed = Boolean(message?.data?.player?.failed ?? false);
 
 			const standing = this.standingManger.AddScore({
