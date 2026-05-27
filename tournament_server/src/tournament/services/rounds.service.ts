@@ -51,6 +51,10 @@ export class RoundsService {
     return await this.roundsRepo.findOneBy({ id });
   }
 
+  async findOneBy(filter: object) {
+    return await this.roundsRepo.findOneBy(filter);
+  }
+
   async update(id: number, dto: UpdateRoundDto) {
     const round = await this.roundsRepo.findOneBy({ id });
 

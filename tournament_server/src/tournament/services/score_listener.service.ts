@@ -1,12 +1,13 @@
 import WS from "ws";
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import { NotFoundException, OnModuleInit } from '@nestjs/common';
+import { NotFoundException, OnModuleInit, Injectable, Inject } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Score, Song, Player } from '@persistence/entities';
+import { Score, Song, Player, Round, Standing } from '@persistence/entities';
 import { StandingManager } from 'src/match-manager/services/standing.manager';
 import { CreateScoreDto } from '../dtos';
+import { TournamentCache } from "./tournament.cache";
 import * as path from 'path';
 
 export class ScoreListenerService implements OnModuleInit {
@@ -18,6 +19,12 @@ export class ScoreListenerService implements OnModuleInit {
 	private songRepository: Repository<Song>
 	@InjectRepository(Player)
 	private playerRepository: Repository<Player>
+	@InjectRepository(Round)
+	private roundRepository: Repository<Round>
+	@InjectRepository
+	private standingRepository: Repository<Standing>
+	@Inject()
+	private readonly tournamentCache: TournamentCache
 
     private itgOnlineUrl: string
 	private ws: ReconnectingWebSocket
@@ -128,31 +135,39 @@ export class ScoreListenerService implements OnModuleInit {
 			const percentage = Number.isFinite(rawPercentage) ? rawPercentage : 0;
 			const isFailed = Boolean(message?.data?.player?.failed ?? false);
 
-			const standingManager = this.getStandingManager();
-			if (standingManager) {
-				const dto = new CreateScoreDto();
-				dto.songId = song.id;
-				dto.playerId = player.id;
-				dto.percentage = percentage;
-				dto.isFailed = isFailed;
-
-				const match = await standingManager.AddScore(dto);
-				if (match) {
-					return;
-				}
-
-				console.warn(
-					`sendScoreResult fallback to score-only save; no active match/round for songId=${song.id}, playerId=${player.id}`,
-				);
-			}
-
 			const newScore = new Score();
 			newScore.percentage = percentage;
 			newScore.isFailed = isFailed;
 			newScore.song = song;
 			newScore.player = player;
 
+			if(!song) // No songId available
+				return;
+
+			// Write score row to the database
 			await this.scoreRepository.save(newScore);
+
+			const activeMatch = await this.tournamentCache.GetActiveMatch();
+			if(!activeMatch)
+				return;
+
+			const round = await this.roundRepository.findOneBy({
+				matchId: activeMatch.id,
+				songId: song.id
+			});
+
+			if(!round) // Could not find match round by song
+				return;
+			
+			// Write score to match (Standing)
+			const standing = this.standingRepository.create({
+				scoreId: newScore.id,
+				roundId: round.id,
+				points: 0
+			})
+
+			if(!standing)
+				throw new Error("Failed saving standing")
 		}
     }
 }
