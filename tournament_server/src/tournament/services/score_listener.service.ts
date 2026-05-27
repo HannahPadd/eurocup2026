@@ -4,15 +4,12 @@ import { NotFoundException, OnModuleInit, Injectable, Inject } from '@nestjs/com
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Score, Song, Player, Round, Standing } from '@persistence/entities';
-import { TournamentCache } from "../../match-manager/services/tournament.cache";
+import { StandingManager } from 'src/match-manager/services/standing.manager';
 import * as path from 'path';
 
 @Injectable()
 export class ScoreListenerService implements OnModuleInit {
-	constructor(
-		@Inject()
-		private readonly tournamentCache: TournamentCache
-	) { }
+	constructor(private readonly standingManger: StandingManager) { }
 
 	@InjectRepository(Score)
 	private scoreRepository: Repository<Score>
@@ -126,35 +123,11 @@ export class ScoreListenerService implements OnModuleInit {
 			const percentage = Number.isFinite(rawPercentage) ? rawPercentage : 0;
 			const isFailed = Boolean(message?.data?.player?.failed ?? false);
 
-			const newScore = new Score();
-			newScore.percentage = percentage;
-			newScore.isFailed = isFailed;
-			newScore.song = song;
-			newScore.player = player;
-
-			if(!song) // No songId available
-				throw new Error("Song not found")
-
-			// Write score row to the database
-			await this.scoreRepository.save(newScore);
-
-			const activeMatch = await this.tournamentCache.GetActiveMatch();
-			if(!activeMatch)
-				return;
-
-			const round = await this.roundRepository.findOneBy({
-				match: activeMatch,
-				song: song
-			});
-
-			if(!round) // Could not find match round by song
-				throw new Error("Round not found")
-			
-			// Write score to match (Standing)
-			const standing = this.standingRepository.create({
-				score: newScore,
-				round: round,
-				points: 0
+			const standing = this.standingManger.AddScore({
+				percentage,
+				isFailed,
+				songId: song.id,
+				playerId: player.id
 			})
 
 			if(!standing)

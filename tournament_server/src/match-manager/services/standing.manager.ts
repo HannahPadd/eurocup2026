@@ -32,6 +32,8 @@ export class StandingManager {
         
         if(!activeMatch) {
             //TODO: Log score added but no active match found
+            console.log("No active match");
+            const dumpScore = await this.scoresService.create(score);
             return;
         }
 
@@ -39,6 +41,8 @@ export class StandingManager {
 
         if(!round) {
             //TODO: Log socre added but no round found in active match
+            console.log("No active round");
+            const dumpScore = await this.scoresService.create(score);
             return;
         }
 
