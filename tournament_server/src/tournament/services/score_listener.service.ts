@@ -120,7 +120,10 @@ export class ScoreListenerService implements OnModuleInit {
 			}
 
 			const percentage = message?.data?.player?.exScore ?? message?.data?.player?.score ?? 0;
-			const isFailed = Boolean(message?.data?.player?.failed ?? false);
+			const playerHealth = Number(message?.data?.player?.health ?? 100);
+			const isFailedByFlag = Boolean(message?.data?.player?.failed ?? false);
+			const isFailedByHealth = Number.isFinite(playerHealth) && playerHealth <= 0;
+			const isFailed = isFailedByFlag || isFailedByHealth;
 
 			const standing = this.standingManger.AddScore({
 				percentage,
