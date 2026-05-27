@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Phase } from "../../../models/Phase";
 import { Division } from "../../../models/Division";
 import { Match } from "../../../models/Match";
@@ -31,8 +31,10 @@ export default function PhaseList({
   const [qualifierMatchModalOpen, setQualifierMatchModalOpen] = useState(false);
   const [qualifierSongModalOpen, setQualifierSongModalOpen] = useState(false);
   const [qualifierError, setQualifierError] = useState<string | null>(null);
+  const hasPrefilledRef = useRef(false);
 
   useEffect(() => {
+    hasPrefilledRef.current = false;
     axios.get<Division>(`divisions/${divisionId}`).then((response) => {
       const phases = response.data.phases;
       setPhases(phases);
@@ -49,6 +51,37 @@ export default function PhaseList({
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [divisionId]);
+
+  useEffect(() => {
+    if (hasPrefilledRef.current || phases.length === 0) {
+      return;
+    }
+    hasPrefilledRef.current = true;
+    const prefillPhaseFromActiveMatch = async () => {
+      try {
+        const activeMatchResponse = await axios.get<Match | null>(
+          "tournament/activeMatch",
+        );
+        const activeMatchId = activeMatchResponse.data?.id;
+        if (!activeMatchId) {
+          return;
+        }
+        for (const phase of phases) {
+          const matchesResponse = await axios.get<Match[]>(
+            `matches/phase/${phase.id}`,
+          );
+          if ((matchesResponse.data ?? []).some((match) => match.id === activeMatchId)) {
+            setSelectedPhaseId(phase.id);
+            onPhaseSelect(phase);
+            return;
+          }
+        }
+      } catch {
+        // keep manual/default selection if prefill fails
+      }
+    };
+    void prefillPhaseFromActiveMatch();
+  }, [onPhaseSelect, phases]);
 
   const selectedPhase = useMemo(
     () => phases.find((phase) => phase.id === selectedPhaseId) ?? null,
