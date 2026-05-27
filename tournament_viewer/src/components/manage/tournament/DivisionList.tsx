@@ -1,8 +1,9 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Division } from "../../../models/Division";
+import { Match } from "../../../models/Match";
 import { faPlus, faTrash, faUsers } from "@fortawesome/free-solid-svg-icons";
 import Select from "react-select";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 type DivisionListProps = {
@@ -18,12 +19,51 @@ export default function DivisionList({
 }: DivisionListProps) {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [selectedDivisionId, setSelectedDivisionId] = useState<number>(-1);
+  const hasPrefilledRef = useRef(false);
 
   useEffect(() => {
     axios.get<Division[]>("divisions").then((response) => {
       setDivisions(response.data);
     });
   }, []);
+
+  useEffect(() => {
+    if (hasPrefilledRef.current || divisions.length === 0) {
+      return;
+    }
+    hasPrefilledRef.current = true;
+    const prefillFromActiveMatch = async () => {
+      try {
+        const activeMatchResponse = await axios.get<Match | null>(
+          "tournament/activeMatch",
+        );
+        const activeMatchId = activeMatchResponse.data?.id;
+        if (!activeMatchId) {
+          return;
+        }
+
+        for (const division of divisions) {
+          const detailResponse = await axios.get<Division>(
+            `divisions/${division.id}`,
+          );
+          const phases = detailResponse.data.phases ?? [];
+          for (const phase of phases) {
+            const matchesResponse = await axios.get<Match[]>(
+              `matches/phase/${phase.id}`,
+            );
+            if ((matchesResponse.data ?? []).some((match) => match.id === activeMatchId)) {
+              setSelectedDivisionId(detailResponse.data.id);
+              onDivisionSelect(detailResponse.data);
+              return;
+            }
+          }
+        }
+      } catch {
+        // keep manual selection if prefill cannot be resolved
+      }
+    };
+    void prefillFromActiveMatch();
+  }, [divisions, onDivisionSelect]);
 
   // Division functions
   const createDivision = () => {
