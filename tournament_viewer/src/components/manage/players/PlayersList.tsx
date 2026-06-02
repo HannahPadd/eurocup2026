@@ -19,6 +19,7 @@ import {
   getPlayerDivisionIds,
   isPlayerInDivision,
 } from "../../../utils/playerDivisions";
+import { isQualifierPhase } from "../../../utils/qualifierPhase";
 import PlayerDivisionsModal from "../divisions/PlayerDivisionsModal";
 import OkModal from "../../layout/OkModal";
 
@@ -38,6 +39,22 @@ type PlayerQualifierSubmission = {
     group: string;
     difficulty: number;
   };
+};
+
+type QualifierRankingEntry = {
+  playerId: number;
+  playerName: string;
+  playerCountry?: string;
+  averagePercentage: number;
+  submittedCount: number;
+};
+
+type QualifierDivisionRanking = {
+  divisionId: number;
+  divisionName: string;
+  totalSongs: number;
+  rankings: QualifierRankingEntry[];
+  recommendedAdvances?: QualifierRankingEntry[];
 };
 
 const normalizeSubmissionStatus = (status?: string) =>
@@ -64,13 +81,84 @@ const formatSubmissionStatus = (status?: string) => {
 
 type PlayersViewMode = "details" | "registrations";
 
-export default function PlayersList({ onImport }: { onImport?: () => void }) {
+const baseRegistrationStatusClass =
+  "inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold";
+
+const registrationStatusClasses = {
+  registered: "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
+  qualified: "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
+  notQualified: "border-red-400/50 bg-red-500/15 text-red-200",
+};
+
+const getDivisionRegistrationStatus = (
+  player: Player,
+  division: Division,
+  qualifierRankings: QualifierDivisionRanking[],
+) => {
+  const qualifierRanking = qualifierRankings.find(
+    (ranking) => ranking.divisionId === division.id,
+  );
+  const qualifierRequired =
+    (qualifierRanking?.totalSongs ?? 0) > 0 ||
+    (division.phases ?? []).some((phase) => isQualifierPhase(phase));
+
+  if (!qualifierRequired) {
+    return {
+      label: "Registered",
+      className: registrationStatusClasses.registered,
+    };
+  }
+
+  const qualifiedPlayerIds = new Set(
+    (qualifierRanking?.recommendedAdvances ??
+      qualifierRanking?.rankings ??
+      []).map((entry) => entry.playerId),
+  );
+
+  if (qualifiedPlayerIds.has(player.id)) {
+    return {
+      label: "Qualified",
+      className: registrationStatusClasses.qualified,
+    };
+  }
+
+  return {
+    label: "Not qualified",
+    className: registrationStatusClasses.notQualified,
+  };
+};
+
+const getDivisionQualifierRanking = (
+  division: Division | undefined,
+  qualifierRankings: QualifierDivisionRanking[],
+) =>
+  division
+    ? qualifierRankings.find((ranking) => ranking.divisionId === division.id)
+    : undefined;
+
+const isQualifierRequiredForDivision = (
+  division: Division | undefined,
+  qualifierRanking?: QualifierDivisionRanking,
+) =>
+  Boolean(
+    division &&
+      ((qualifierRanking?.totalSongs ?? 0) > 0 ||
+        (division.phases ?? []).some((phase) => isQualifierPhase(phase))),
+  );
+
+const isTechPlacementDivision = (division: Division | undefined) =>
+  Boolean(division?.name.trim().toUpperCase().match(/\b(LOW|MID|HIGH)\b/));
+
+export default function PlayersList() {
   const { auth, setAuth } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [qualifierSubmissions, setQualifierSubmissions] = useState<
     PlayerQualifierSubmission[]
+  >([]);
+  const [qualifierRankings, setQualifierRankings] = useState<
+    QualifierDivisionRanking[]
   >([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -118,11 +206,13 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
           teamsResponse,
           divisionsResponse,
           qualifierSubmissionsResponse,
+          qualifierRankingsResponse,
         ] = await Promise.all([
           axios.get<Player[]>("players"),
           axios.get<Team[]>("teams"),
           axios.get<Division[]>("divisions"),
           axios.get<PlayerQualifierSubmission[]>("qualifiers/admin/submissions"),
+          axios.get<QualifierDivisionRanking[]>("qualifiers/rankings"),
         ]);
         if (!isMounted) {
           return;
@@ -141,6 +231,7 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
           ),
         );
         setQualifierSubmissions(qualifierSubmissionsResponse.data ?? []);
+        setQualifierRankings(qualifierRankingsResponse.data ?? []);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -178,17 +269,48 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
     [divisions, selectedDivisionId],
   );
 
-  const registeredPlayersForDivision = useMemo(
-    () =>
-      selectedDivision
-        ? players
-            .filter((player) => isPlayerInDivision(player, selectedDivision.id))
-            .sort((a, b) =>
-              getPlayerDisplayName(a).localeCompare(getPlayerDisplayName(b)),
-            )
-        : [],
-    [players, selectedDivision],
-  );
+  const registeredPlayersForDivision = useMemo(() => {
+    if (!selectedDivision) {
+      return [];
+    }
+
+    const registeredPlayers = players.filter((player) =>
+      isPlayerInDivision(player, selectedDivision.id),
+    );
+    const qualifierRanking = getDivisionQualifierRanking(
+      selectedDivision,
+      qualifierRankings,
+    );
+
+    if (
+      isQualifierRequiredForDivision(selectedDivision, qualifierRanking) &&
+      isTechPlacementDivision(selectedDivision)
+    ) {
+      const placedPlayerIds = new Set(
+        (qualifierRanking?.rankings ?? []).map((entry) => entry.playerId),
+      );
+      return registeredPlayers
+        .filter((player) => placedPlayerIds.has(player.id))
+        .sort((a, b) => {
+          const aIndex = qualifierRanking?.rankings.findIndex(
+            (entry) => entry.playerId === a.id,
+          ) ?? -1;
+          const bIndex = qualifierRanking?.rankings.findIndex(
+            (entry) => entry.playerId === b.id,
+          ) ?? -1;
+          return aIndex - bIndex;
+        });
+    }
+
+    return registeredPlayers.sort((a, b) =>
+      getPlayerDisplayName(a).localeCompare(getPlayerDisplayName(b)),
+    );
+  }, [players, qualifierRankings, selectedDivision]);
+
+  const openPlayerDetails = (playerId: number) => {
+    setSelectedPlayerId(playerId);
+    setViewMode("details");
+  };
 
   const createPlayer = () => {
     const name = prompt("Enter player name");
@@ -325,15 +447,6 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
             <div className={selectedPlayerId >= 0 ? "hidden md:block" : ""}>
               <div className="mb-2 flex flex-row flex-wrap items-center gap-3">
                 <h2 className="theme-text">Players List</h2>
-                {onImport && (
-                  <button
-                    type="button"
-                    onClick={onImport}
-                    className="rounded-md border border-slate-500/40 bg-slate-600/20 px-2 py-1 text-xs font-semibold text-slate-100"
-                  >
-                    Import players
-                  </button>
-                )}
                 <button
                   onClick={createPlayer}
                   title="Add new player"
@@ -520,6 +633,7 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                     (a, b) =>
                       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
                   )}
+                qualifierRankings={qualifierRankings}
               />
             )}
             {viewMode === "registrations" && (
@@ -529,6 +643,8 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                 totalPlayers={players.length}
                 loading={loading}
                 loadError={loadError}
+                qualifierRankings={qualifierRankings}
+                onOpenPlayer={openPlayerDetails}
               />
             )}
           </div>
@@ -544,12 +660,16 @@ function DivisionRegistrationsTable({
   totalPlayers,
   loading,
   loadError,
+  qualifierRankings,
+  onOpenPlayer,
 }: {
   players: Player[];
   division?: Division;
   totalPlayers: number;
   loading: boolean;
   loadError: string | null;
+  qualifierRankings: QualifierDivisionRanking[];
+  onOpenPlayer: (playerId: number) => void;
 }) {
   if (loading) {
     return (
@@ -598,7 +718,7 @@ function DivisionRegistrationsTable({
                 Country
               </th>
               <th scope="col" className="px-3 py-2 font-semibold">
-                Registered divisions
+                Details
               </th>
               <th scope="col" className="px-3 py-2 font-semibold">
                 Status
@@ -606,26 +726,40 @@ function DivisionRegistrationsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
-            {players.map((player) => (
-              <tr key={player.id} className="bg-black/10">
-                <td className="px-3 py-2 font-semibold text-white">
-                  {getPlayerDisplayName(player)}
-                </td>
-                <td className="px-3 py-2 text-gray-200">
-                  {player.country?.trim() || "-"}
-                </td>
-                <td className="px-3 py-2 text-gray-200">
-                  {player.divisions && player.divisions.length > 0
-                    ? player.divisions.map((item) => item.name).join(", ")
-                    : "-"}
-                </td>
-                <td className="px-3 py-2">
-                  <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200">
-                    Registered
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {players.map((player) => {
+              const status = getDivisionRegistrationStatus(
+                player,
+                division,
+                qualifierRankings,
+              );
+
+              return (
+                <tr key={player.id} className="bg-black/10">
+                  <td className="px-3 py-2 font-semibold text-white">
+                    {getPlayerDisplayName(player)}
+                  </td>
+                  <td className="px-3 py-2 text-gray-200">
+                    {player.country?.trim() || "-"}
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenPlayer(player.id)}
+                      className="text-sm font-semibold text-blue-200 underline-offset-2 hover:text-blue-100 hover:underline"
+                    >
+                      View details
+                    </button>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`${baseRegistrationStatusClass} ${status.className}`}
+                    >
+                      {status.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
             {players.length === 0 && (
               <tr>
                 <td
@@ -654,6 +788,7 @@ function PlayerItem({
   onUpdateFlags,
   onUpdateDivisions,
   qualifierSubmissions,
+  qualifierRankings,
 }: {
   player: Player;
   teams: Team[];
@@ -668,6 +803,7 @@ function PlayerItem({
   ) => void;
   onUpdateDivisions: (playerId: number, divisionIds: number[]) => void;
   qualifierSubmissions: PlayerQualifierSubmission[];
+  qualifierRankings: QualifierDivisionRanking[];
 }) {
   const selectedDivisionIds = getPlayerDivisionIds(player);
   const [divisionModalOpen, setDivisionModalOpen] = useState(false);
@@ -732,14 +868,6 @@ function PlayerItem({
         </span>
       </div>
 
-      <div>
-        <h3 className="theme-text text-sm uppercase tracking-wide">Divisions</h3>
-        <span className="text-white">
-          {player.divisions && player.divisions.length > 0
-            ? player.divisions.map((division) => division.name).join(", ")
-            : "None"}
-        </span>
-      </div>
       <button
         type="button"
         onClick={() => setDivisionModalOpen(true)}
@@ -779,40 +907,74 @@ function PlayerItem({
         </label>
       </div>
       <div className={"flex flex-wrap gap-2 items-center"}>
-        <span>Team: </span>
+          <span>Team: </span>
 
-        <Select
-          onChange={(v) => {
-            if (v?.value) {
-              addToTeam(player.id, v.value);
+          <Select
+            onChange={(v) => {
+              if (v?.value) {
+                addToTeam(player.id, v.value);
+              }
+            }}
+            value={
+              player.teamId
+                ? {
+                    label: teams.find((t) => t.id === player.teamId)?.name,
+                    value: player.teamId,
+                  }
+                : null
             }
-          }}
-          value={
-            player.teamId
-              ? {
-                  label: teams.find((t) => t.id === player.teamId)?.name,
-                  value: player.teamId,
-                }
-              : null
-          }
-          className={"w-full md:w-56"}
-          options={teams.map((t) => ({
-            label: t.name,
-            value: t.id,
-          }))}
-        />
-        <button onClick={createTeam}>
-          <FontAwesomeIcon icon={faPlus} />
-        </button>
-        <button onClick={() => removeFromTeam(player.id)}>
-          <FontAwesomeIcon icon={faMinus} />
-        </button>
-        <button onClick={() => deleteTeam(player.teamId as number)}>
-          <FontAwesomeIcon icon={faTrash} />
-        </button>
+            className={"w-full md:w-56"}
+            options={teams.map((t) => ({
+              label: t.name,
+              value: t.id,
+            }))}
+          />
+          <button onClick={createTeam}>
+            <FontAwesomeIcon icon={faPlus} />
+          </button>
+          <button onClick={() => removeFromTeam(player.id)}>
+            <FontAwesomeIcon icon={faMinus} />
+          </button>
+          <button onClick={() => deleteTeam(player.teamId as number)}>
+            <FontAwesomeIcon icon={faTrash} />
+          </button>
       </div>
-      <h3 className="mt-3 theme-text">Player Scores</h3>
-      <p>No scores on record for this player.</p>
+      <div className="w-full">
+        <h3 className="theme-text text-sm uppercase tracking-wide">
+          Divisions & qualifications
+        </h3>
+        {player.divisions && player.divisions.length > 0 ? (
+          <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
+            {player.divisions.map((division) => {
+              const status = getDivisionRegistrationStatus(
+                player,
+                division,
+                qualifierRankings,
+              );
+
+              return (
+                <div
+                  key={division.id}
+                  className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-white/10 bg-black/10 px-2 py-1.5"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                    {division.name}
+                  </span>
+                  <span
+                    className={`${baseRegistrationStatusClass} shrink-0 ${status.className}`}
+                  >
+                    {status.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-1 text-xs text-gray-300">
+            No registered divisions yet.
+          </p>
+        )}
+      </div>
       <div className="mt-3">
         <h3 className="theme-text text-sm uppercase tracking-wide">
           Qualifier submissions
