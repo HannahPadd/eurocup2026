@@ -1,23 +1,24 @@
-const CACHE_NAME = 'tournament-viewer-cache-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.svg',
-  '/icon.png'
-];
-
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-  );
+self.addEventListener("install", () => {
+    void self.skipWaiting();
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
-  );
-});
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
+        (async () => {
+            const cacheNames = await caches.keys();
+            await Promise.all(
+                cacheNames
+                    .filter(
+                        (cacheName) =>
+                            cacheName === "tournament-viewer-cache-v2" ||
+                            cacheName.startsWith("workbox-"),
+                    )
+                    .map((cacheName) => caches.delete(cacheName)),
+            );
 
+            await self.clients.claim();
+
+            await self.registration.unregister();
+        })(),
+    );
+});

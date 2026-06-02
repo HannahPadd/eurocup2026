@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import axios from "axios";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import "./api/authHelper.ts";
+import { registerSW } from "virtual:pwa-register";
 
 
 axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
@@ -20,8 +21,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </BrowserRouter>,
 );
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js');
-  });
-}
+registerSW({
+  immediate: true,
+  onRegisteredSW(_swScriptUrl, registration) {
+    void registration?.update();
+  },
+});

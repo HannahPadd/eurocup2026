@@ -1,21 +1,32 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { VitePWA } from 'vite-plugin-pwa';
-import manifest from './public/manifest.json';
-import 'dotenv/config';
+import { VitePWA } from "vite-plugin-pwa";
+import "dotenv/config";
 
 const serverPort = process.env.PORT ?? 5173;
 
 // https://vitejs.dev/config/
 export default defineConfig({
   base: "/",
-  plugins: [react(), VitePWA({
-    registerType: 'autoUpdate',
-    manifest,
-    devOptions: {
-      enabled: true
-    }
-  })],
+  plugins: [
+    react(),
+    VitePWA({
+      injectRegister: false,
+      registerType: "autoUpdate",
+      manifest: false,
+      includeAssets: ["manifest.json", "icon.svg", "icon.png"],
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        globIgnores: ["**/service-worker.js"],
+        navigateFallback: "/index.html",
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
+  ],
   preview: {
     host: true,
     port: 5174
