@@ -38,6 +38,7 @@ export class ScoresService {
     newScore.isFailed = dto.isFailed;
     newScore.song = song;
     newScore.player = player;
+    newScore.data = dto.data;
 
     await this.scoreRepository.save(newScore);
 

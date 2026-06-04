@@ -24,4 +24,7 @@ export class Score {
 
   @ManyToOne(() => Player, (player) => player.scores, { eager: true,  onDelete: 'CASCADE' })
   player: Player
+
+  @Column("simple-json", {default: "{}"})
+  data: object
 }
