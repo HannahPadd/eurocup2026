@@ -11,8 +11,6 @@ import QualifierProgressionPanel from "./QualifierProgressionPanel";
 type AdminSubmission = {
   id: number;
   percentage: number;
-  faPercentage?: number;
-  faPlusPercentage?: number;
   screenshotUrl: string;
   status: "pending" | "approved" | "rejected" | string;
   createdAt: string;
@@ -231,8 +229,7 @@ export default function QualifiersAdmin() {
         "Song",
         "Group",
         "Difficulty",
-        "FA Percentage",
-        "FA+ Percentage",
+        "Percentage",
         "Status",
         "Divisions",
         "Screenshot",
@@ -245,8 +242,7 @@ export default function QualifiersAdmin() {
           submission.song?.title ?? "",
           submission.song?.group ?? "",
           submission.song?.difficulty ?? "",
-          submission.faPercentage ?? submission.percentage ?? "",
-          submission.faPlusPercentage ?? "",
+          submission.percentage ?? "",
           submission.status ?? "",
           submission.divisionIds
             .map((id) => divisionNameById.get(id) ?? id)
@@ -463,8 +459,7 @@ export default function QualifiersAdmin() {
                 </th>
                 <th className="py-2 pr-2">Player</th>
                 <th className="py-2 pr-2">Song</th>
-                <th className="py-2 pr-2">FA</th>
-                <th className="py-2 pr-2">FA+</th>
+                <th className="py-2 pr-2">%</th>
                 <th className="py-2 pr-2">Status</th>
                 <th className="py-2 pr-2">Divisions</th>
                 <th className="py-2 pr-2">Updated</th>
@@ -488,12 +483,7 @@ export default function QualifiersAdmin() {
                       {submission.song?.group} · {submission.song?.difficulty}
                     </div>
                   </td>
-                  <td className="py-2 pr-2">
-                    {submission.faPercentage ?? submission.percentage}
-                  </td>
-                  <td className="py-2 pr-2 text-sky-200">
-                    {submission.faPlusPercentage ?? "-"}
-                  </td>
+                  <td className="py-2 pr-2">{submission.percentage}</td>
                   <td className="py-2 pr-2">
                     <span
                       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStatusBadgeClass(submission.status)}`}

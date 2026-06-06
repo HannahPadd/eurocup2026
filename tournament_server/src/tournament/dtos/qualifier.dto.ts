@@ -19,22 +19,10 @@ import {
 
 export class CreateQualifierSubmissionDto {
   @ApiProperty({ description: 'The percentage score', example: 77.77 })
-  @IsOptional()
+  @IsNotEmpty()
   @IsNumber()
   @Type(() => Number)
-  percentage?: number;
-
-  @ApiProperty({ description: 'The FA percentage score', example: 77.77, required: false })
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  faPercentage?: number;
-
-  @ApiProperty({ description: 'The FA+ percentage score', example: 75.55, required: false })
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  faPlusPercentage?: number;
+  percentage: number;
 
   @ApiProperty({
     description: 'Optional screenshot URL for proof',

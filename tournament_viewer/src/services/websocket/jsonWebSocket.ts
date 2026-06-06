@@ -7,12 +7,11 @@ type JsonEventHandler = (payload: unknown) => void;
 type WebSocketTarget = "api" | "itgonline";
 type ConnectJsonWebSocketOptions = {
   target?: WebSocketTarget;
+  disableOnFailure?: boolean;
 };
 
 const disabledPaths = new Set<string>();
 const loggedDisabledPaths = new Set<string>();
-
-const EARLY_CLOSE_MS = 3000;
 
 function toWebSocketProtocol(protocol: string): string {
   if (protocol === "https:") {
@@ -52,9 +51,10 @@ export function connectJsonWebSocket(
   options: ConnectJsonWebSocketOptions = {},
 ): WebSocket | null {
   const target = options.target ?? "api";
+  const disableOnFailure = options.disableOnFailure ?? true;
   const connectionKey = `${target}:${path}`;
 
-  if (disabledPaths.has(connectionKey)) {
+  if (disableOnFailure && disabledPaths.has(connectionKey)) {
     if (!loggedDisabledPaths.has(connectionKey)) {
       console.info(
         `WebSocket connection skipped for "${connectionKey}" after initial failure.`,
@@ -69,31 +69,27 @@ export function connectJsonWebSocket(
     ws = new WebSocket(buildWebSocketUrl(path, target));
   } catch (error) {
     console.warn(`WebSocket disabled for "${connectionKey}"`, error);
-    disabledPaths.add(connectionKey);
+    if (disableOnFailure) {
+      disabledPaths.add(connectionKey);
+    }
     return null;
   }
 
-  const connectedAt = Date.now();
   let opened = false;
   ws.addEventListener("open", () => {
     opened = true;
   });
 
   ws.addEventListener("error", () => {
-    if (!opened) {
+    if (!opened && disableOnFailure) {
       disabledPaths.add(connectionKey);
     }
   });
 
   ws.addEventListener("close", (event) => {
-    const closedTooEarly = Date.now() - connectedAt < EARLY_CLOSE_MS;
-    if (event.code !== 1000) {
+    if (event.code !== 1000 && disableOnFailure) {
       disabledPaths.add(connectionKey);
       return;
-    }
-
-    if (!opened || closedTooEarly) {
-      disabledPaths.add(connectionKey);
     }
   });
 

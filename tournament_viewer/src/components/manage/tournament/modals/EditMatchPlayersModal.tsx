@@ -14,7 +14,7 @@ type EditMatchPlayersModalProps = {
   open: boolean;
   match: Match;
   onClose: () => void;
-  onSave: (matchId: number, playerIds: number[]) => void;
+  onSave: (matchId: number, playerIds: number[]) => Promise<void> | void;
 };
 
 const getPlayerLabel = (player: Player) =>
@@ -28,11 +28,13 @@ export default function EditMatchPlayersModal({
 }: EditMatchPlayersModalProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) {
       return;
     }
+    setSaving(false);
     setSelectedPlayerIds((match.players ?? []).map((player) => player.id));
     axios
       .get<Player[]>("players")
@@ -57,11 +59,16 @@ export default function EditMatchPlayersModal({
       title={`Edit Players - ${match.name}`}
       open={open}
       onClose={onClose}
-      onOk={() => {
-        onSave(match.id, selectedPlayerIds);
-        onClose();
+      onOk={async () => {
+        setSaving(true);
+        try {
+          await onSave(match.id, selectedPlayerIds);
+          onClose();
+        } finally {
+          setSaving(false);
+        }
       }}
-      okText="Save players"
+      okText={saving ? "Saving..." : "Save players"}
     >
       <div className="space-y-2">
         <p className="text-xs text-gray-600">
@@ -69,6 +76,7 @@ export default function EditMatchPlayersModal({
         </p>
         <Select
           isMulti
+          isDisabled={saving}
           options={options}
           value={selectedOptions}
           onChange={(next) =>

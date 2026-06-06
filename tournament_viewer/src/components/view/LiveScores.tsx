@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { RawScore } from "../../models/RawScore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheckCircle, faHeart } from "@fortawesome/free-solid-svg-icons";
@@ -103,11 +103,167 @@ let liveScoreSnapshot: LiveScoreSnapshot = {
   songDiffLevel: undefined,
 };
 
+type LiveLobbySummary = {
+  code: string;
+};
+
+type LiveLobbyListPayload = {
+  lobbies?: unknown;
+};
+
+type LiveScoreEventName = "lobbyState" | "sendScoreResult";
+type LiveScoreEventListener = (
+  eventName: LiveScoreEventName,
+  payload: unknown,
+) => void;
+
+const liveScoreListeners = new Set<LiveScoreEventListener>();
+let liveScoreConnection: WebSocket | null = null;
+
 const stripSongNumberPrefix = (title: string): string =>
   title.replace(/^\[\d+\]\s*-\s*/, "");
 
 const getSongTitle = (songInfo?: SendScoreResultPayload["songInfo"]): string =>
   stripSongNumberPrefix(songInfo?.title ?? songInfo?.songPath?.split("/")?.[1] ?? "");
+
+const notifyLiveScoreListeners = (
+  eventName: LiveScoreEventName,
+  payload: unknown,
+) => {
+  liveScoreListeners.forEach((listener) => listener(eventName, payload));
+};
+
+const isLiveLobbySummary = (value: unknown): value is LiveLobbySummary =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { code?: unknown }).code === "string";
+
+const getLobbiesFromPayload = (payload: unknown): LiveLobbySummary[] => {
+  const lobbies = (payload as LiveLobbyListPayload | undefined)?.lobbies;
+
+  if (Array.isArray(lobbies)) {
+    return lobbies.filter(isLiveLobbySummary);
+  }
+
+  if (typeof lobbies === "object" && lobbies !== null) {
+    return Object.values(lobbies).filter(isLiveLobbySummary);
+  }
+
+  return [];
+};
+
+const sendSpectateLobby = (
+  conn: WebSocket,
+  code: string,
+  password: string,
+) => {
+  conn.send(
+    JSON.stringify({
+      event: "spectateLobby",
+      data: {
+        code,
+        password,
+        spectator: {
+          profileName: "Tournament Viewer",
+        },
+      },
+    }),
+  );
+};
+
+const spectateLiveLobby = (conn: WebSocket) => {
+  const lobbyCode = getLiveLobbyCode();
+  const lobbyPassword = getLiveLobbyPassword();
+  let hasSpectated = false;
+
+  const spectate = (code: string) => {
+    if (hasSpectated) {
+      return;
+    }
+
+    hasSpectated = true;
+    sendSpectateLobby(conn, code, lobbyPassword);
+    conn.removeEventListener("message", handleLobbyList);
+  };
+
+  const handleLobbyList = (event: MessageEvent) => {
+    if (typeof event.data !== "string") {
+      return;
+    }
+
+    let eventName: string | undefined;
+    let eventPayload: unknown;
+
+    try {
+      const parsed = JSON.parse(event.data) as unknown;
+
+      if (Array.isArray(parsed) && typeof parsed[0] === "string") {
+        eventName = parsed[0];
+        eventPayload = parsed[1];
+      } else if (typeof parsed === "object" && parsed !== null) {
+        const message = parsed as { event?: unknown; data?: unknown };
+        if (typeof message.event === "string") {
+          eventName = message.event;
+          eventPayload = message.data;
+        }
+      }
+    } catch {
+      return;
+    }
+
+    if (eventName !== "lobbiesList") {
+      return;
+    }
+
+    const [firstLobby] = getLobbiesFromPayload(eventPayload);
+    if (firstLobby) {
+      spectate(firstLobby.code);
+    }
+  };
+
+  conn.addEventListener("message", handleLobbyList);
+
+  conn.send(
+    JSON.stringify({
+      event: "searchLobbies",
+      data: {
+        temporary: false,
+      },
+    }),
+  );
+
+  window.setTimeout(() => spectate(lobbyCode), 1000);
+};
+
+const ensureLiveScoreConnection = () => {
+  if (liveScoreConnection?.readyState === WebSocket.OPEN) {
+    spectateLiveLobby(liveScoreConnection);
+    return liveScoreConnection;
+  }
+
+  if (liveScoreConnection?.readyState === WebSocket.CONNECTING) {
+    return liveScoreConnection;
+  }
+
+  liveScoreConnection = connectJsonWebSocket("/", {
+    lobbyState: (payload: unknown) =>
+      notifyLiveScoreListeners("lobbyState", payload),
+    sendScoreResult: (payload: unknown) =>
+      notifyLiveScoreListeners("sendScoreResult", payload),
+  }, { target: "itgonline", disableOnFailure: false });
+
+  if (liveScoreConnection) {
+    liveScoreConnection.onopen = () => {
+      console.log("Now listening to scores changes.");
+      spectateLiveLobby(liveScoreConnection as WebSocket);
+    };
+    liveScoreConnection.addEventListener("close", () => {
+      liveScoreConnection = null;
+    });
+  }
+
+  return liveScoreConnection;
+};
 
 const toRawScore = (
   player: LobbyPlayer,
@@ -219,6 +375,11 @@ export default function LiveScores({
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const scoreLeadRef = useRef(scoreLead);
+
+  useEffect(() => {
+    scoreLeadRef.current = scoreLead;
+  }, [scoreLead]);
 
   const applyLiveScoreSnapshot = (snapshot: LiveScoreSnapshot) => {
     liveScoreSnapshot = snapshot;
@@ -230,8 +391,11 @@ export default function LiveScores({
   };
 
   useEffect(() => {
-    const conn = connectJsonWebSocket("/", {
-      lobbyState: (payload: unknown) => {
+    const handleLiveScoreEvent: LiveScoreEventListener = (
+      eventName,
+      payload,
+    ) => {
+      if (eventName === "lobbyState") {
         const typedPayload = payload as LobbyStatePayload;
         const oldScores = typedPayload?.players;
 
@@ -241,7 +405,7 @@ export default function LiveScores({
         }
         const songPath = typedPayload.songInfo?.songPath ?? "";
         const newScores: RawScore[] = oldScores.map((player) =>
-          toRawScore(player, songPath, scoreLead),
+          toRawScore(player, songPath, scoreLeadRef.current),
         );
 
         const nextReadyById = Object.fromEntries(
@@ -259,15 +423,10 @@ export default function LiveScores({
           songDiffLevel: nextSongDiffLevel,
         });
         console.log("SetScores");
-        // const msg = payload as RawScore;
-        // setScores((prev) => {
-        //   const newScores = prev.filter(
-        //     (score) => score.score.playerName !== msg.score.playerName,
-        //   );
-        //   return [...newScores, msg];
-        // });
-      },
-      sendScoreResult: (payload: unknown) => {
+        return;
+      }
+
+      if (eventName === "sendScoreResult") {
         const typedPayload = payload as SendScoreResultPayload;
         const finalPlayer = typedPayload?.player;
         if (!finalPlayer) {
@@ -275,7 +434,7 @@ export default function LiveScores({
         }
 
         const songPath = typedPayload.songInfo?.songPath ?? "";
-        const nextScore = toRawScore(finalPlayer, songPath, scoreLead);
+        const nextScore = toRawScore(finalPlayer, songPath, scoreLeadRef.current);
         const nextSongTitle = getSongTitle(typedPayload.songInfo);
         const nextSongDiffType = finalPlayer.diffType;
         const nextSongDiffLevel = finalPlayer.diffLevel;
@@ -298,28 +457,11 @@ export default function LiveScores({
         setSongTitle(nextSongTitle);
         setSongDiffType(nextSongDiffType);
         setSongDiffLevel(nextSongDiffLevel);
-      },
-    }, { target: "itgonline" });
+      }
+    };
 
-    if (conn) {
-      conn.onopen = () => {
-        console.log("Now listening to scores changes.");
-        const lobbyCode = getLiveLobbyCode();
-        const lobbyPassword = getLiveLobbyPassword();
-        conn.send(
-          JSON.stringify({
-            event: "spectateLobby",
-            data: {
-              code: lobbyCode,
-              password: lobbyPassword,
-              spectator: {
-                profileName: "Tournament Viewer",
-              },
-            },
-          }),
-        );
-      };
-    }
+    liveScoreListeners.add(handleLiveScoreEvent);
+    ensureLiveScoreConnection();
 
     axios.get("players").then((response) => {
       setPlayers(response.data);
@@ -330,9 +472,19 @@ export default function LiveScores({
     });
 
     return () => {
-      conn?.close();
+      liveScoreListeners.delete(handleLiveScoreEvent);
     };
-  }, [scoreLead]);
+  }, []);
+
+  const getDisplayedScore = useCallback(
+    (score: RawScore): string => {
+      if (scoreLead === "FA_PLUS") {
+        return score.score.faPlusPercentage ?? score.score.formattedScore;
+      }
+      return score.score.faPercentage ?? score.score.formattedScore;
+    },
+    [scoreLead],
+  );
 
   const sortedScores = useMemo(() => {
     return [...scores].sort((a, b) => {
@@ -345,14 +497,7 @@ export default function LiveScores({
       if (!isDeadA && isDeadB) return -1;
       return scoreB - scoreA;
     });
-  }, [scores, scoreLead]);
-
-  function getDisplayedScore(score: RawScore): string {
-    if (scoreLead === "FA_PLUS") {
-      return score.score.faPlusPercentage ?? score.score.formattedScore;
-    }
-    return score.score.faPercentage ?? score.score.formattedScore;
-  }
+  }, [scores, getDisplayedScore]);
 
   const playersByIdentity = useMemo(() => {
     const map = new Map<string, Player>();

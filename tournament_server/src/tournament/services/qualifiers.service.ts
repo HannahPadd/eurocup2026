@@ -39,7 +39,6 @@ type QualifierPhase = {
 type QualifierDivision = {
   divisionId: number;
   divisionName: string;
-  scoreLead: 'FA' | 'FA_PLUS';
   phases: QualifierPhase[];
 };
 
@@ -55,7 +54,6 @@ type QualifierRankingEntry = {
 type QualifierDivisionRanking = {
   divisionId: number;
   divisionName: string;
-  scoreLead: 'FA' | 'FA_PLUS';
   totalSongs: number;
   rankings: QualifierRankingEntry[];
   recommendedAdvances?: {
@@ -74,8 +72,6 @@ type QualifierRankingBuildEntry = QualifierRankingEntry & {
 type QualifierAdminSubmission = {
   id: number;
   percentage: number;
-  faPercentage?: number;
-  faPlusPercentage?: number;
   screenshotUrl: string;
   status: string;
   createdAt: Date;
@@ -243,7 +239,6 @@ export class QualifiersService {
     return seedingPhases.map(({ division, phases }) => ({
       divisionId: division.id,
       divisionName: division.name,
-      scoreLead: this.getDivisionScoreLead(division),
       phases: phases.map((phase) => ({
         ...this.getQualifierPhaseRulesetConfig(phase.ruleset?.config),
         phaseId: phase.id,
@@ -289,7 +284,6 @@ export class QualifiersService {
       return divisions.map((division) => ({
         divisionId: division.id,
         divisionName: division.name,
-        scoreLead: this.getDivisionScoreLead(division),
         totalSongs: 0,
         rankings: [],
       }));
@@ -330,12 +324,8 @@ export class QualifiersService {
       if (!playerId) {
         continue;
       }
+      const percentage = Number(submission.percentage ?? 0);
       for (const divisionId of divisionIds) {
-        const division = divisions.find((item) => item.id === divisionId);
-        const percentage = this.getSubmissionLeadPercentage(
-          submission,
-          this.getDivisionScoreLead(division),
-        );
         const rulesetConfig = rulesetConfigByDivisionId.get(divisionId) ?? {};
         if (
           rulesetConfig.approvedOnly &&
@@ -482,7 +472,6 @@ export class QualifiersService {
       return {
         divisionId: division.id,
         divisionName: division.name,
-        scoreLead: this.getDivisionScoreLead(division),
         totalSongs,
         rankings: entries.map(stripSongPercentages),
         recommendedAdvances: recommendedAdvances?.map(stripSongPercentages),
@@ -506,14 +495,6 @@ export class QualifiersService {
     return submissions.map((submission) => ({
       id: submission.id,
       percentage: Number(submission.percentage ?? 0),
-      faPercentage:
-        submission.faPercentage !== undefined
-          ? Number(submission.faPercentage)
-          : undefined,
-      faPlusPercentage:
-        submission.faPlusPercentage !== undefined
-          ? Number(submission.faPlusPercentage)
-          : undefined,
       screenshotUrl: submission.screenshotUrl,
       status: submission.status ?? 'pending',
       createdAt: submission.createdAt,
@@ -573,16 +554,6 @@ export class QualifiersService {
       throw new NotFoundException(`Song with id ${songId} not found`);
     }
 
-    const faPercentage =
-      dto.faPercentage !== undefined ? dto.faPercentage : dto.percentage;
-    const faPlusPercentage =
-      dto.faPlusPercentage !== undefined ? dto.faPlusPercentage : dto.percentage;
-    if (faPercentage === undefined && faPlusPercentage === undefined) {
-      throw new BadRequestException(
-        'At least one qualifier score is required',
-      );
-    }
-
     let submission = await this.qualifierRepo.findOne({
       where: { player: { id: playerId }, song: { id: songId } },
     });
@@ -594,9 +565,7 @@ export class QualifiersService {
       submission.status = 'pending';
     }
 
-    submission.faPercentage = faPercentage;
-    submission.faPlusPercentage = faPlusPercentage;
-    submission.percentage = faPercentage ?? faPlusPercentage ?? 0;
+    submission.percentage = dto.percentage;
     submission.screenshotUrl = dto.screenshotUrl?.trim() ?? '';
 
     return await this.qualifierRepo.save(submission);
@@ -1537,21 +1506,28 @@ export class QualifiersService {
       }
     });
 
-    return divisionRankings.map((divisionRanking) => ({
-      ...divisionRanking,
-      rankings: divisionRanking.rankings.filter((entry) => {
-        const targetDivision = divisionByPlayerId.get(entry.playerId);
-        return (
-          !targetDivision ||
-          targetDivision.divisionId === divisionRanking.divisionId
-        );
-      }),
-      recommendedAdvances: divisionRanking.recommendedAdvances?.filter(
-        (entry) =>
-          divisionByPlayerId.get(entry.playerId)?.divisionId ===
-          divisionRanking.divisionId,
-      ),
-    }));
+    return divisionRankings.map((divisionRanking) => {
+      const strength = this.getDivisionStrength(divisionRanking.divisionName);
+      if (strength === 0) {
+        return divisionRanking;
+      }
+
+      return {
+        ...divisionRanking,
+        rankings: divisionRanking.rankings.filter((entry) => {
+          const targetDivision = divisionByPlayerId.get(entry.playerId);
+          return (
+            !targetDivision ||
+            targetDivision.divisionId === divisionRanking.divisionId
+          );
+        }),
+        recommendedAdvances: divisionRanking.recommendedAdvances?.filter(
+          (entry) =>
+            divisionByPlayerId.get(entry.playerId)?.divisionId ===
+            divisionRanking.divisionId,
+        ),
+      };
+    });
   }
 
   private getDivisionStrength(divisionName: string): number {
@@ -1566,22 +1542,6 @@ export class QualifiersService {
       return 1;
     }
     return 0;
-  }
-
-  private getDivisionScoreLead(division?: Division): 'FA' | 'FA_PLUS' {
-    return division?.scoreLead === 'FA_PLUS' ? 'FA_PLUS' : 'FA';
-  }
-
-  private getSubmissionLeadPercentage(
-    submission: QualifierSubmission,
-    scoreLead: 'FA' | 'FA_PLUS',
-  ): number {
-    const value =
-      scoreLead === 'FA_PLUS'
-        ? submission.faPlusPercentage ?? submission.percentage
-        : submission.faPercentage ?? submission.percentage;
-    const percentage = Number(value ?? 0);
-    return Number.isNaN(percentage) ? 0 : percentage;
   }
 
   private validatePlacementRanges(dto: PreviewQualifierProgressionDto) {

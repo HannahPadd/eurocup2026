@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import OkModal from "../../../layout/OkModal";
 
 type AddStandingToMatchModalProps = {
@@ -28,19 +28,41 @@ export default function AddStandingToMatchModal({
   onClose,
   onAddStandingToMatch,
 }: AddStandingToMatchModalProps) {
-  const [percentage, setPercentage] = useState<string>("0");
-  const [score, setScore] = useState<string>("0");
+  const [percentage, setPercentage] = useState<string>("");
+  const [score, setScore] = useState<string>("");
   const [isFailed, setIsFailed] = useState<boolean>(false);
+  const percentageInputRef = useRef<HTMLInputElement | null>(null);
+  const scoreInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setPercentage("");
+    setScore("");
+    setIsFailed(false);
+    window.setTimeout(() => {
+      percentageInputRef.current?.focus();
+    }, 0);
+  }, [open, playerId, songId]);
 
   const onSubmit = () => {
     onAddStandingToMatch(
       playerId,
       songId,
-      Number.parseFloat(percentage.replace(",", ".")),
-      Number.parseInt(score),
+      Number.parseFloat((percentage || "0").replace(",", ".")),
+      Number.parseInt(score || "0"),
       isFailed,
     );
     onClose();
+  };
+
+  const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    onSubmit();
   };
 
   return (
@@ -59,9 +81,11 @@ export default function AddStandingToMatchModal({
             Percentage
           </label>
           <input
+            ref={percentageInputRef}
             type="text"
             value={percentage}
             onChange={(e) => setPercentage(e.target.value)}
+            onKeyDown={submitOnEnter}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
@@ -71,9 +95,11 @@ export default function AddStandingToMatchModal({
               Score
             </label>
             <input
+              ref={scoreInputRef}
               type="text"
               value={score}
               onChange={(e) => setScore(e.target.value)}
+              onKeyDown={submitOnEnter}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>

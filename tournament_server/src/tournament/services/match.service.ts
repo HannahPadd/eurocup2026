@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateMatchDto, UpdateMatchDto } from '../dtos';
 import { Phase, Player, Match } from '@persistence/entities';
 
@@ -152,6 +152,8 @@ export class MatchesService {
       throw new Error(`Match with ID ${id} not found`);
     }
 
+    let nextPlayers: Player[] | undefined;
+
     if (dto.phaseId) {
       const phase = await this.phaseRepository.findOneBy({ id: dto.phaseId });
       if (!phase) {
@@ -161,24 +163,46 @@ export class MatchesService {
       delete dto.phaseId;
     }
 
-    if (dto.playerIds) {
-      const players = [];
-      for (const playerId of dto.playerIds) {
-        const player = await this.playerRepository.findOneBy({ id: playerId });
+    if (dto.playerIds !== undefined) {
+      const playerIds = Array.from(new Set(dto.playerIds.map(Number)));
+      const players = playerIds.length
+        ? await this.playerRepository.findBy({ id: In(playerIds) })
+        : [];
+      const playerById = new Map(players.map((player) => [player.id, player]));
+      const missingPlayerId = playerIds.find((playerId) => !playerById.has(playerId));
 
-        if (!player) {
-          throw new NotFoundException(`Player with ID ${playerId} not found`);
-        }
-        players.push(player);
+      if (missingPlayerId) {
+        throw new NotFoundException(`Player with ID ${missingPlayerId} not found`);
       }
 
-      dto.players = players;
+      nextPlayers = playerIds.map((playerId) => playerById.get(playerId));
       delete dto.playerIds;
     }
 
     this.matchRepository.merge(match, dto);
+    await this.matchRepository.save(match);
 
-    return await this.matchRepository.save(match);
+    if (nextPlayers !== undefined) {
+      const currentPlayers = match.players ?? [];
+      const nextPlayerIds = new Set(nextPlayers.map((player) => player.id));
+      const currentPlayerIds = new Set(currentPlayers.map((player) => player.id));
+      const playersToAdd = nextPlayers.filter(
+        (player) => !currentPlayerIds.has(player.id),
+      );
+      const playersToRemove = currentPlayers.filter(
+        (player) => !nextPlayerIds.has(player.id),
+      );
+
+      if (playersToAdd.length > 0 || playersToRemove.length > 0) {
+        await this.matchRepository
+          .createQueryBuilder()
+          .relation(Match, 'players')
+          .of(match)
+          .addAndRemove(playersToAdd, playersToRemove);
+      }
+    }
+
+    return await this.findOne(id);
   }
 
   async remove(id: number) {

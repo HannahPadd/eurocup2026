@@ -14,7 +14,6 @@ type QualifierRankingEntry = {
 type QualifierDivisionRanking = {
   divisionId: number;
   divisionName: string;
-  scoreLead?: "FA" | "FA_PLUS";
   totalSongs: number;
   rankings: QualifierRankingEntry[];
 };
@@ -94,8 +93,7 @@ export default function QualifierRankings() {
               {division.divisionName}
             </h3>
             <span className="text-xs text-gray-300">
-              {division.totalSongs} qualifier songs · lead{" "}
-              {division.scoreLead === "FA_PLUS" ? "FA+" : "FA"}
+              {division.totalSongs} qualifier songs
             </span>
           </div>
           {division.rankings.length === 0 ? (
