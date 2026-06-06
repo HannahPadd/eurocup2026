@@ -35,6 +35,14 @@ export class ScoresService {
     const newScore = new Score();
 
     newScore.percentage = this.normalizePercentage(dto.percentage);
+    newScore.faPercentage =
+      dto.faPercentage !== undefined
+        ? this.normalizePercentage(dto.faPercentage)
+        : undefined;
+    newScore.faPlusPercentage =
+      dto.faPlusPercentage !== undefined
+        ? this.normalizePercentage(dto.faPlusPercentage)
+        : undefined;
     newScore.isFailed = dto.isFailed;
     newScore.song = song;
     newScore.player = player;
@@ -80,6 +88,12 @@ export class ScoresService {
 
     if (dto.percentage !== undefined) {
       dto.percentage = this.normalizePercentage(dto.percentage);
+    }
+    if (dto.faPercentage !== undefined) {
+      dto.faPercentage = this.normalizePercentage(dto.faPercentage);
+    }
+    if (dto.faPlusPercentage !== undefined) {
+      dto.faPlusPercentage = this.normalizePercentage(dto.faPlusPercentage);
     }
 
     this.scoreRepository.merge(existingScore, dto);

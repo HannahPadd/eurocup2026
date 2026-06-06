@@ -19,14 +19,24 @@ export type QualifierListItem = {
 
 type QualifierInput = {
   percentage: string;
+  faPercentage: string;
+  faPlusPercentage: string;
   screenshotUrl: string;
 };
 
 type Props = {
   items: QualifierListItem[];
   inputs: Record<number, QualifierInput>;
-  onChange: (songId: number, field: "percentage" | "screenshotUrl", value: string) => void;
-  onBlurPercentage: (songId: number, value: string) => void;
+  onChange: (
+    songId: number,
+    field: "faPercentage" | "faPlusPercentage" | "screenshotUrl",
+    value: string,
+  ) => void;
+  onBlurPercentage: (
+    songId: number,
+    field: "faPercentage" | "faPlusPercentage",
+    value: string,
+  ) => void;
   flash: boolean;
   flashKey: number;
 };
@@ -52,6 +62,8 @@ export default function QualifierList({
       {items.map((item) => {
         const input = inputs[item.songId] || {
           percentage: "",
+          faPercentage: "",
+          faPlusPercentage: "",
           screenshotUrl: "",
         };
         const screenshotUrl = input.screenshotUrl.trim();
@@ -62,7 +74,7 @@ export default function QualifierList({
         return (
           <div
             key={`${item.key}-${flashKey}`}
-            className={`grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,0.9fr)_minmax(0,1.4fr)] lg:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1.6fr)] gap-3 items-center bg-white/5 border border-white/10 rounded-lg p-4 ${
+            className={`grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1.4fr)] lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.7fr)_minmax(0,1.5fr)] gap-3 items-center bg-white/5 border border-white/10 rounded-lg p-4 ${
               flash ? "qualifier-flash" : ""
             }`}
           >
@@ -85,17 +97,47 @@ export default function QualifierList({
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-2 md:contents">
-              <input
-                type="text"
-                placeholder="Score (77.77)"
-                className="w-full min-w-0 rounded-md bg-white text-black px-3 py-1.5"
-                value={input.percentage}
-                onChange={(event) =>
-                  onChange(item.songId, "percentage", event.target.value)
-                }
-                onBlur={(event) => onBlurPercentage(item.songId, event.target.value)}
-              />
+            <div className="grid grid-cols-2 items-start gap-2">
+              <label className="block text-xs font-semibold text-gray-200">
+                FA
+                <input
+                  type="text"
+                  placeholder="77.77"
+                  className="mt-1 w-full min-w-0 rounded-md bg-white px-3 py-1.5 text-black"
+                  value={input.faPercentage}
+                  onChange={(event) =>
+                    onChange(item.songId, "faPercentage", event.target.value)
+                  }
+                  onBlur={(event) =>
+                    onBlurPercentage(
+                      item.songId,
+                      "faPercentage",
+                      event.target.value,
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-xs font-semibold text-sky-200">
+                FA+
+                <input
+                  type="text"
+                  placeholder="75.55"
+                  className="mt-1 w-full min-w-0 rounded-md bg-white px-3 py-1.5 text-black"
+                  value={input.faPlusPercentage}
+                  onChange={(event) =>
+                    onChange(item.songId, "faPlusPercentage", event.target.value)
+                  }
+                  onBlur={(event) =>
+                    onBlurPercentage(
+                      item.songId,
+                      "faPlusPercentage",
+                      event.target.value,
+                    )
+                  }
+                />
+              </label>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-2 md:contents">
               {isEditingScreenshot ? (
                 <div className="space-y-2">
                   <input

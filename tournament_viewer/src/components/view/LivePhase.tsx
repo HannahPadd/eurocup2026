@@ -72,6 +72,7 @@ export default function LivePhase() {
       {import.meta.env.VITE_PUBLIC_ENABLE_LIVE_SCORES === "true" && (
         <LiveScores
           divisionName={division?.name}
+          scoreLead={division?.scoreLead}
           phaseName={phase?.name}
           matchName={activeMatch?.name}
           roundLabel={

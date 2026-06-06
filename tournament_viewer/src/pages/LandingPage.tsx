@@ -14,6 +14,8 @@ import { isQualifierPhase } from "../utils/qualifierPhase";
 
 type QualifierSubmission = {
   percentage: number;
+  faPercentage?: number;
+  faPlusPercentage?: number;
   screenshotUrl: string;
   updatedAt: string;
 };
@@ -39,6 +41,7 @@ type QualifierPhase = {
 type QualifierDivision = {
   divisionId: number;
   divisionName: string;
+  scoreLead?: "FA" | "FA_PLUS";
   phases: QualifierPhase[];
 };
 
@@ -47,6 +50,12 @@ type DivisionPhaseRulesetConfig = {
   minimumSubmissions?: number;
 };
 
+type QualifierInput = {
+  percentage: string;
+  faPercentage: string;
+  faPlusPercentage: string;
+  screenshotUrl: string;
+};
 
 type PlayerProfile = {
   id: number;
@@ -67,7 +76,7 @@ export default function LandingPage() {
   );
   const [qualifiers, setQualifiers] = useState<QualifierDivision[]>([]);
   const [qualifierInputs, setQualifierInputs] = useState<
-    Record<number, { percentage: string; screenshotUrl: string }>
+    Record<number, QualifierInput>
   >({});
   const [qualifierLoading, setQualifierLoading] = useState(false);
   const [qualifierSaving, setQualifierSaving] = useState(false);
@@ -172,10 +181,7 @@ export default function LandingPage() {
 
   const applyQualifierData = (data: QualifierDivision[]) => {
     setQualifiers(data);
-    const nextInputs: Record<
-      number,
-      { percentage: string; screenshotUrl: string }
-    > = {};
+    const nextInputs: Record<number, QualifierInput> = {};
     for (const division of data) {
       for (const phase of division.phases) {
         for (const { song, submission } of phase.songs) {
@@ -183,6 +189,16 @@ export default function LandingPage() {
             percentage: submission
               ? formatPercentageDisplay(submission.percentage)
               : "",
+            faPercentage:
+              submission?.faPercentage !== undefined
+                ? formatPercentageDisplay(submission.faPercentage)
+                : submission
+                  ? formatPercentageDisplay(submission.percentage)
+                  : "",
+            faPlusPercentage:
+              submission?.faPlusPercentage !== undefined
+                ? formatPercentageDisplay(submission.faPlusPercentage)
+                : "",
             screenshotUrl: submission?.screenshotUrl ?? "",
           };
         }
@@ -245,13 +261,15 @@ export default function LandingPage() {
 
   const updateQualifierInput = (
     songId: number,
-    field: "percentage" | "screenshotUrl",
+    field: "faPercentage" | "faPlusPercentage" | "screenshotUrl",
     value: string,
   ) => {
     setQualifierInputs((prev) => ({
       ...prev,
       [songId]: {
         percentage: prev[songId]?.percentage ?? "",
+        faPercentage: prev[songId]?.faPercentage ?? "",
+        faPlusPercentage: prev[songId]?.faPlusPercentage ?? "",
         screenshotUrl: prev[songId]?.screenshotUrl ?? "",
         [field]: value,
       },
@@ -269,34 +287,31 @@ export default function LandingPage() {
     try {
       const submissions: {
         songId: number;
-        percentage: number;
+        faPercentage?: number;
+        faPlusPercentage?: number;
         screenshotUrl: string;
       }[] = [];
       for (const { song } of qualifierSongs) {
         const entry = qualifierInputs[song.song.id];
-        if (!entry?.percentage) {
+        if (!entry?.faPercentage && !entry?.faPlusPercentage) {
           continue;
         }
-        const percentage = Number(entry.percentage);
-        if (Number.isNaN(percentage)) {
+        const faPercentage = parsePercentage(entry.faPercentage);
+        const faPlusPercentage = parsePercentage(entry.faPlusPercentage);
+        if (
+          (entry.faPercentage && faPercentage === null) ||
+          (entry.faPlusPercentage && faPlusPercentage === null)
+        ) {
           setQualifierError(
             "Qualifier scores must be numbers between 0.00 and 100.",
           );
           setQualifierSaving(false);
           return;
         }
-        if (percentage < 0 || percentage > 100) {
-          setQualifierError("Qualifier scores must be between 0.00 and 100.");
-          setQualifierSaving(false);
-          return;
-        }
-        const normalized =
-          percentage >= 100
-            ? 100
-            : Number((Math.round(percentage * 100) / 100).toFixed(2));
         submissions.push({
           songId: song.song.id,
-          percentage: normalized,
+          faPercentage: faPercentage ?? undefined,
+          faPlusPercentage: faPlusPercentage ?? undefined,
           screenshotUrl: entry.screenshotUrl?.trim() ?? "",
         });
       }
@@ -304,7 +319,9 @@ export default function LandingPage() {
       await Promise.all(
         submissions.map((submission) =>
           axios.post(`qualifier/${playerId}/${submission.songId}`, {
-            percentage: submission.percentage,
+            percentage: submission.faPercentage ?? submission.faPlusPercentage,
+            faPercentage: submission.faPercentage,
+            faPlusPercentage: submission.faPlusPercentage,
             screenshotUrl: submission.screenshotUrl,
           }),
         ),
@@ -561,14 +578,14 @@ export default function LandingPage() {
             Send in qualifiers
           </h2>
           <div className="mt-2 text-sm text-gray-300">
-            Submit a score (e.g. 77.77) in ITG score timing window{" "}
+            Submit your FA and FA+ qualifier scores (e.g. 77.77){" "}
             <details className="relative inline-block align-middle">
               <summary className="inline cursor-pointer list-none text-blue-200 hover:text-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70 rounded-sm">
                 (i)
               </summary>
               <div className="absolute left-0 z-20 mt-2 w-64 rounded-md border border-white/15 bg-slate-900/95 p-3 text-xs text-gray-100 shadow-lg">
-                Qualifications will be held in standard ITG timing window and
-                not EX score
+                Divisions can be led by either FA or FA+. Submit both scores
+                when available.
               </div>
             </details>
             . Screenshots are checked before the qualifications close.
@@ -588,11 +605,11 @@ export default function LandingPage() {
               items={qualifierItems}
               inputs={qualifierInputs}
               onChange={updateQualifierInput}
-              onBlurPercentage={(songId, value) => {
+              onBlurPercentage={(songId, field, value) => {
                 const parsed = parsePercentage(value);
                 updateQualifierInput(
                   songId,
-                  "percentage",
+                  field,
                   parsed === null ? "" : formatPercentageDisplay(parsed),
                 );
               }}
@@ -679,11 +696,15 @@ export default function LandingPage() {
                     for (const phase of qualifierPhases) {
                       for (const song of phase.songs) {
                         if (!songSubmissionById.has(song.song.id)) {
+                          const leadPercentage =
+                            qualifierDivision?.scoreLead === "FA_PLUS"
+                              ? song.submission?.faPlusPercentage ??
+                                song.submission?.percentage
+                              : song.submission?.faPercentage ??
+                                song.submission?.percentage;
                           songSubmissionById.set(
                             song.song.id,
-                            song.submission
-                              ? Number(song.submission.percentage ?? 0)
-                              : null,
+                            song.submission ? Number(leadPercentage ?? 0) : null,
                           );
                         }
                       }

@@ -21,9 +21,7 @@ import {
   faTrash,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
-import {
-  togglePlayerDivisionIds,
-} from "../../../utils/playerDivisions";
+import { togglePlayerDivisionIds } from "../../../utils/playerDivisions";
 import DivisionMembersModal from "../divisions/DivisionMembersModal";
 import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 import EditMatchNotesModal from "./modals/EditMatchNotesModal";
@@ -189,7 +187,9 @@ export default function TournamentSettings({
     }
   };
 
-  const activeMatchIndex = matches.findIndex((match) => match.id === activeMatchId);
+  const activeMatchIndex = matches.findIndex(
+    (match) => match.id === activeMatchId,
+  );
 
   const loadMatchActions = async () => {
     if (!selectedPhase) {
@@ -211,7 +211,6 @@ export default function TournamentSettings({
           ? active.id
           : null,
       );
-
     } catch {
       setMatches([]);
       setActiveMatchId(null);
@@ -269,7 +268,9 @@ export default function TournamentSettings({
     if (!status.ready) {
       const missingSummary = status.missingRounds
         .flatMap((round) =>
-          round.missingPlayers.map((player) => player.playerName || `#${player.id}`),
+          round.missingPlayers.map(
+            (player) => player.playerName || `#${player.id}`,
+          ),
         )
         .slice(0, 6)
         .join(", ");
@@ -365,7 +366,10 @@ export default function TournamentSettings({
                 placeholder="BGYJ"
                 className="w-full rounded border border-white/20 bg-black/30 px-2 py-1 font-mono uppercase tracking-wide text-white sm:w-24"
               />
-              <label htmlFor="live-lobby-password" className="font-semibold sm:ml-2">
+              <label
+                htmlFor="live-lobby-password"
+                className="font-semibold sm:ml-2"
+              >
                 Password:
               </label>
               <input
@@ -403,6 +407,7 @@ export default function TournamentSettings({
                 </div>
                 <PhaseList
                   controls={controls}
+                  hideEmptyHistoryPhases={!controls}
                   onPhaseSelect={setSelectedPhase}
                   divisionId={selectedDivision.id}
                 />
@@ -411,18 +416,18 @@ export default function TournamentSettings({
                     <div className="text-xs uppercase tracking-wide pb-3 text-gray-400">
                       Matches
                     </div>
-                      <div className="inline-flex w-fit self-start bg-gray-200 p-2 px-4 rounded-lg">
-                        <button
-                          onClick={() => {
-                            setOpenCreateMatchModalSignal((prev) => prev + 1)
-                            triggerMatchRefresh();
-                          }}
-                          className="text-green-800 font-bold inline-flex w-fit flex-row gap-2 items-center"
-                        >
-                          <FontAwesomeIcon icon={faHandFist} />
-                          <span>New match</span>
-                        </button>
-                      </div>
+                    <div className="inline-flex w-fit self-start bg-gray-200 p-2 px-4 rounded-lg">
+                      <button
+                        onClick={() => {
+                          setOpenCreateMatchModalSignal((prev) => prev + 1);
+                          triggerMatchRefresh();
+                        }}
+                        className="text-green-800 font-bold inline-flex w-fit flex-row gap-2 items-center"
+                      >
+                        <FontAwesomeIcon icon={faHandFist} />
+                        <span>New match</span>
+                      </button>
+                    </div>
                   </div>
                 )}
                 {controls && selectedPhase && matches.length > 0 && (
@@ -461,7 +466,8 @@ export default function TournamentSettings({
                               )}
                               {!isActive && !isPast && roundsUntil > 0 && (
                                 <span className="text-[10px] rounded-full bg-blue-700/40 px-2 py-0.5 text-blue-100">
-                                  In {roundsUntil} {roundsUntil === 1 ? "round" : "rounds"}
+                                  In {roundsUntil}{" "}
+                                  {roundsUntil === 1 ? "round" : "rounds"}
                                 </span>
                               )}
                             </div>
@@ -474,10 +480,7 @@ export default function TournamentSettings({
                                       await commitProgressionFromGeneral(match);
                                     }}
                                     className="rounded-md border border-amber-400/50 px-2 py-1 text-xs text-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-                                    disabled={
-                                      completionLoading ||
-                                      !completion
-                                    }
+                                    disabled={completionLoading || !completion}
                                   >
                                     Commit
                                   </button>
@@ -487,9 +490,12 @@ export default function TournamentSettings({
                                 <button
                                   title="Set active match"
                                   onClick={async () => {
-                                    await axios.post("tournament/setactivematch", {
-                                      matchId: match.id,
-                                    });
+                                    await axios.post(
+                                      "tournament/setactivematch",
+                                      {
+                                        matchId: match.id,
+                                      },
+                                    );
                                     triggerMatchRefresh();
                                   }}
                                   className="rounded-md border border-emerald-400/50 px-2 py-1 text-xs text-emerald-200"
@@ -566,7 +572,11 @@ export default function TournamentSettings({
               />
             ) : (
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-gray-300">
-                Select a division and phase to view match information.
+                {controls
+                  ? "Select a division and phase to view match information."
+                  : selectedDivision
+                    ? "No played phases available for this division yet."
+                    : "Select a division to view match history."}
               </div>
             )}
           </div>
@@ -578,7 +588,13 @@ export default function TournamentSettings({
           divisionId={selectedDivision?.id ?? -1}
           phaseId={selectedPhase.id}
           matchId={songsMatch.id}
-          onAddSongToMatchByRoll={async (divisionId, phaseId, matchId, group, level) => {
+          onAddSongToMatchByRoll={async (
+            divisionId,
+            phaseId,
+            matchId,
+            group,
+            level,
+          ) => {
             await axios.post("tournament/addsongtomatch", {
               divisionId,
               phaseId,
@@ -588,7 +604,12 @@ export default function TournamentSettings({
             });
             triggerMatchRefresh();
           }}
-          onAddSongToMatchBySongId={async (divisionId, phaseId, matchId, songId) => {
+          onAddSongToMatchBySongId={async (
+            divisionId,
+            phaseId,
+            matchId,
+            songId,
+          ) => {
             await axios.post("tournament/addsongtomatch", {
               divisionId,
               phaseId,
@@ -597,7 +618,14 @@ export default function TournamentSettings({
             });
             triggerMatchRefresh();
           }}
-          onEditSongToMatchByRoll={async (divisionId, phaseId, matchId, group, level, editSongId) => {
+          onEditSongToMatchByRoll={async (
+            divisionId,
+            phaseId,
+            matchId,
+            group,
+            level,
+            editSongId,
+          ) => {
             await axios.post("tournament/editmatchsong", {
               divisionId,
               phaseId,
@@ -609,7 +637,13 @@ export default function TournamentSettings({
             });
             triggerMatchRefresh();
           }}
-          onEditSongToMatchBySongId={async (divisionId, phaseId, matchId, songId, editSongId) => {
+          onEditSongToMatchBySongId={async (
+            divisionId,
+            phaseId,
+            matchId,
+            songId,
+            editSongId,
+          ) => {
             await axios.post("tournament/editmatchsong", {
               divisionId,
               phaseId,

@@ -1,9 +1,23 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  ValidationPipe,
+} from '@nestjs/common';
 import { QualifiersService } from '../services/qualifiers.service';
 import {
   CommitQualifierProgressionDto,
+  CommitQualifierWaterfallDto,
   CreateQualifierSubmissionDto,
   PreviewQualifierProgressionDto,
+  PreviewQualifierWaterfallDto,
   UpdateQualifierSubmissionStatusDto,
 } from '../dtos';
 import { Public } from '@auth/public.decorator';
@@ -36,7 +50,7 @@ export class QualifiersController {
   @Patch('qualifiers/admin/submissions/:id')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body(new ValidationPipe()) dto: UpdateQualifierSubmissionStatusDto
+    @Body(new ValidationPipe()) dto: UpdateQualifierSubmissionStatusDto,
   ) {
     return await this.service.updateSubmissionStatus(id, dto);
   }
@@ -50,22 +64,40 @@ export class QualifiersController {
   async upsert(
     @Param('playerId', ParseIntPipe) playerId: number,
     @Param('songId', ParseIntPipe) songId: number,
-    @Body(new ValidationPipe()) dto: CreateQualifierSubmissionDto
+    @Body(new ValidationPipe()) dto: CreateQualifierSubmissionDto,
   ) {
     return await this.service.upsert(playerId, songId, dto);
   }
 
   @Post('qualifiers/progression/preview')
   async previewProgression(
-    @Body(new ValidationPipe({ transform: true })) dto: PreviewQualifierProgressionDto,
+    @Body(new ValidationPipe({ transform: true }))
+    dto: PreviewQualifierProgressionDto,
   ) {
     return await this.service.previewProgression(dto);
   }
 
   @Post('qualifiers/progression/commit')
   async commitProgression(
-    @Body(new ValidationPipe({ transform: true })) dto: CommitQualifierProgressionDto,
+    @Body(new ValidationPipe({ transform: true }))
+    dto: CommitQualifierProgressionDto,
   ) {
     return await this.service.commitProgression(dto);
+  }
+
+  @Post('qualifiers/waterfall/preview')
+  async previewWaterfall(
+    @Body(new ValidationPipe({ transform: true }))
+    dto: PreviewQualifierWaterfallDto,
+  ) {
+    return await this.service.previewWaterfall(dto);
+  }
+
+  @Post('qualifiers/waterfall/commit')
+  async commitWaterfall(
+    @Body(new ValidationPipe({ transform: true }))
+    dto: CommitQualifierWaterfallDto,
+  ) {
+    return await this.service.commitWaterfall(dto);
   }
 }

@@ -119,14 +119,17 @@ export class ScoreListenerService implements OnModuleInit {
 				throw new NotFoundException(`Player with playerName ${playerName} not found`);
 			}
 
-			const percentage = message?.data?.player?.exScore ?? message?.data?.player?.score ?? 0;
+			const faPercentage = Number(message?.data?.player?.score ?? 0);
+			const faPlusPercentage = Number(message?.data?.player?.exScore ?? faPercentage);
 			const playerHealth = Number(message?.data?.player?.health ?? 100);
 			const isFailedByFlag = Boolean(message?.data?.player?.failed ?? false);
 			const isFailedByHealth = Number.isFinite(playerHealth) && playerHealth <= 0;
 			const isFailed = isFailedByFlag || isFailedByHealth;
 
-			const standing = this.standingManger.AddScore({
-				percentage,
+			const standing = await this.standingManger.AddScore({
+				percentage: faPercentage,
+				faPercentage,
+				faPlusPercentage,
 				isFailed,
 				songId: song.id,
 				playerId: player.id

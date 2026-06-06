@@ -71,6 +71,7 @@ export class DivisionsService {
         const division = new Division();
 
         division.name = dto.name;
+        division.scoreLead = dto.scoreLead ?? 'FA';
         division.tournament = tournament;
 
         await this.divisionRepository.save(division);

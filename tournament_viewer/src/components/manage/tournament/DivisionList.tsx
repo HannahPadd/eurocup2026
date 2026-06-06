@@ -94,6 +94,25 @@ export default function DivisionList({
       }
     }
   };
+
+  const updateDivisionScoreLead = async (scoreLead: "FA" | "FA_PLUS") => {
+    if (selectedDivisionId < 0) {
+      return;
+    }
+    const response = await axios.patch<Division>(
+      `divisions/${selectedDivisionId}`,
+      { scoreLead },
+    );
+    setDivisions((prev) =>
+      prev.map((division) =>
+        division.id === response.data.id ? response.data : division,
+      ),
+    );
+    onDivisionSelect(response.data);
+  };
+
+  const selectedDivision = divisions.find((d) => d.id === selectedDivisionId);
+
   return (
     <div className="flex flex-col gap-2 text-black">
       <Select
@@ -115,6 +134,22 @@ export default function DivisionList({
       />
       {controls && (
         <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+            Lead score
+            <select
+              className="rounded border border-slate-300 bg-white px-1 py-0.5 text-xs"
+              value={selectedDivision?.scoreLead ?? "FA"}
+              disabled={selectedDivisionId === -1}
+              onChange={(event) =>
+                updateDivisionScoreLead(
+                  event.target.value === "FA_PLUS" ? "FA_PLUS" : "FA",
+                )
+              }
+            >
+              <option value="FA">FA</option>
+              <option value="FA_PLUS">FA+</option>
+            </select>
+          </label>
           <button
             onClick={createDivision}
             className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"

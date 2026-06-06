@@ -56,8 +56,58 @@ type QualifierProgressionCommitResult = {
   preview: QualifierProgressionPreview;
 };
 
+type QualifierWaterfallPreview = {
+  divisionId: number;
+  divisionName: string;
+  source: "RANKINGS" | "RECOMMENDED_ADVANCES";
+  totalSeededPlayers: number;
+  settings: {
+    phaseName: string;
+    matchSize: number;
+    advanceCount: number;
+    finalistsCount: number;
+    scoringSystem: string;
+  };
+  matches: Array<{
+    tempId: string;
+    persistedMatchId?: number;
+    name: string;
+    kind: "SEED" | "WINNER" | "LOSER" | "FINAL";
+    stage: number;
+    estimatedPlayerCount: number;
+    seedFromRank?: number;
+    seedToRank?: number;
+    routes: Array<{
+      fromRank: number;
+      toRank: number;
+      count: number;
+      action: "ADVANCE" | "SEND_TO_LOSERS" | "ELIMINATE";
+      targetTempId?: string;
+      targetMatchName?: string;
+      targetMatchId?: number;
+    }>;
+  }>;
+  summary: {
+    seedMatches: number;
+    winnerMatches: number;
+    loserMatches: number;
+    finalMatches: number;
+    generatedMatches: number;
+  };
+};
+
+type QualifierWaterfallCommitResult = {
+  runId: string;
+  phaseId: number;
+  rulesetId: number;
+  createdMatches: number;
+  seededPlayers: number;
+  preview: QualifierWaterfallPreview;
+};
+
 type QualifierProgressionPanelProps = {
   divisions: Division[];
+  onRefresh?: () => Promise<void> | void;
 };
 
 const readApiErrorMessage = (error: unknown, fallback: string): string => {
@@ -75,28 +125,60 @@ const readApiErrorMessage = (error: unknown, fallback: string): string => {
 
 export default function QualifierProgressionPanel({
   divisions,
+  onRefresh,
 }: QualifierProgressionPanelProps) {
   const [selectedDivisionId, setSelectedDivisionId] = useState<number | "">("");
-  const [useRecommendedAdvances, setUseRecommendedAdvances] = useState(false);
+  const [progressionMode, setProgressionMode] = useState<
+    "manual" | "waterfall"
+  >("waterfall");
+  const [useRecommendedAdvances, setUseRecommendedAdvances] = useState(true);
   const [clearTargetMatches, setClearTargetMatches] = useState(false);
+  const [replaceExistingGeneratedPhase, setReplaceExistingGeneratedPhase] =
+    useState(false);
+  const [waterfallPhaseName, setWaterfallPhaseName] = useState("Tournament");
+  const [waterfallMatchSize, setWaterfallMatchSize] = useState(10);
+  const [waterfallAdvanceCount, setWaterfallAdvanceCount] = useState(5);
+  const [waterfallFinalistsCount, setWaterfallFinalistsCount] = useState(10);
   const [placements, setPlacements] = useState<
     QualifierProgressionPlacementInput[]
   >([{ id: 1, fromRank: "1", toRank: "10", targetMatchId: "" }]);
   const [nextPlacementId, setNextPlacementId] = useState(2);
   const [progressionPreview, setProgressionPreview] =
     useState<QualifierProgressionPreview | null>(null);
+  const [waterfallPreview, setWaterfallPreview] =
+    useState<QualifierWaterfallPreview | null>(null);
   const [progressionLoading, setProgressionLoading] = useState(false);
   const [progressionError, setProgressionError] = useState<string | null>(null);
   const [progressionMessage, setProgressionMessage] = useState<string | null>(
     null,
   );
 
+  const updateSelectedDivisionScoreLead = async (
+    scoreLead: "FA" | "FA_PLUS",
+  ) => {
+    if (selectedDivisionId === "") {
+      return;
+    }
+    setProgressionError(null);
+    try {
+      await axios.patch(`divisions/${selectedDivisionId}`, { scoreLead });
+      setProgressionMessage(
+        `Division lead score set to ${scoreLead === "FA_PLUS" ? "FA+" : "FA"}.`,
+      );
+      await onRefresh?.();
+    } catch (err) {
+      setProgressionError(
+        readApiErrorMessage(err, "Unable to update division lead score."),
+      );
+    }
+  };
+
   const selectedDivision = useMemo(
     () =>
       selectedDivisionId === ""
         ? null
-        : divisions.find((division) => division.id === selectedDivisionId) ??
-          null,
+        : (divisions.find((division) => division.id === selectedDivisionId) ??
+          null),
     [divisions, selectedDivisionId],
   );
 
@@ -132,7 +214,9 @@ export default function QualifierProgressionPanel({
   useEffect(() => {
     if (selectedDivisionMatches.length === 0) {
       setPlacements((prev) => {
-        const hasTarget = prev.some((placement) => placement.targetMatchId !== "");
+        const hasTarget = prev.some(
+          (placement) => placement.targetMatchId !== "",
+        );
         if (!hasTarget) {
           return prev;
         }
@@ -165,9 +249,19 @@ export default function QualifierProgressionPanel({
 
   useEffect(() => {
     setProgressionPreview(null);
+    setWaterfallPreview(null);
     setProgressionError(null);
     setProgressionMessage(null);
-  }, [selectedDivisionId, useRecommendedAdvances, placements]);
+  }, [
+    selectedDivisionId,
+    useRecommendedAdvances,
+    progressionMode,
+    waterfallPhaseName,
+    waterfallMatchSize,
+    waterfallAdvanceCount,
+    waterfallFinalistsCount,
+    placements,
+  ]);
 
   const addPlacement = () => {
     setPlacements((prev) => [
@@ -267,11 +361,44 @@ export default function QualifierProgressionPanel({
     };
   };
 
+  const buildWaterfallPayload = () => {
+    if (selectedDivisionId === "") {
+      throw new Error("Select a division first.");
+    }
+    if (waterfallAdvanceCount >= waterfallMatchSize) {
+      throw new Error("Advance count must be lower than match size.");
+    }
+    if (waterfallFinalistsCount < waterfallAdvanceCount) {
+      throw new Error("Finalists count must be at least the advance count.");
+    }
+
+    return {
+      divisionId: selectedDivisionId,
+      useRecommendedAdvances,
+      phaseName: waterfallPhaseName.trim() || "Tournament",
+      matchSize: waterfallMatchSize,
+      advanceCount: waterfallAdvanceCount,
+      finalistsCount: waterfallFinalistsCount,
+      scoringSystem: "EurocupScoreCalculator",
+    };
+  };
+
   const previewProgression = async () => {
     setProgressionLoading(true);
     setProgressionError(null);
     setProgressionMessage(null);
     try {
+      if (progressionMode === "waterfall") {
+        const response = await axios.post<QualifierWaterfallPreview>(
+          "qualifiers/waterfall/preview",
+          buildWaterfallPayload(),
+        );
+        setWaterfallPreview(response.data);
+        setProgressionPreview(null);
+        setProgressionMessage("Waterfall plan preview generated.");
+        return;
+      }
+
       const payload = buildProgressionPayload();
       const response = await axios.post<QualifierProgressionPreview>(
         "qualifiers/progression/preview",
@@ -293,6 +420,23 @@ export default function QualifierProgressionPanel({
     setProgressionError(null);
     setProgressionMessage(null);
     try {
+      if (progressionMode === "waterfall") {
+        const response = await axios.post<QualifierWaterfallCommitResult>(
+          "qualifiers/waterfall/commit",
+          {
+            ...buildWaterfallPayload(),
+            replaceExistingGeneratedPhase,
+          },
+        );
+        setWaterfallPreview(response.data.preview);
+        setProgressionPreview(null);
+        setProgressionMessage(
+          `Committed ${response.data.runId}. Created ${response.data.createdMatches} matches and seeded ${response.data.seededPlayers} players.`,
+        );
+        await onRefresh?.();
+        return;
+      }
+
       const payload = {
         ...buildProgressionPayload(),
         clearTargetMatches,
@@ -340,7 +484,7 @@ export default function QualifierProgressionPanel({
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-4">
         <select
           value={selectedDivisionId}
           onChange={(event) =>
@@ -358,95 +502,197 @@ export default function QualifierProgressionPanel({
           ))}
         </select>
         <label className="flex items-center gap-2 text-xs text-gray-200">
-          <input
-            type="checkbox"
-            checked={useRecommendedAdvances}
-            onChange={(event) => setUseRecommendedAdvances(event.target.checked)}
-          />
-          Use ruleset recommended advances
+          Lead score
+          <select
+            value={selectedDivision?.scoreLead ?? "FA"}
+            disabled={!selectedDivision}
+            onChange={(event) =>
+              updateSelectedDivisionScoreLead(
+                event.target.value === "FA_PLUS" ? "FA_PLUS" : "FA",
+              )
+            }
+            className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900 disabled:opacity-60"
+          >
+            <option value="FA">FA</option>
+            <option value="FA_PLUS">FA+</option>
+          </select>
         </label>
+        <select
+          value={progressionMode}
+          onChange={(event) =>
+            setProgressionMode(event.target.value as "manual" | "waterfall")
+          }
+          className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
+        >
+          <option value="waterfall">Auto waterfall</option>
+          <option value="manual">Manual mapping</option>
+        </select>
         <label className="flex items-center gap-2 text-xs text-gray-200">
           <input
             type="checkbox"
-            checked={clearTargetMatches}
-            onChange={(event) => setClearTargetMatches(event.target.checked)}
+            checked={useRecommendedAdvances}
+            onChange={(event) =>
+              setUseRecommendedAdvances(event.target.checked)
+            }
           />
-          Clear target matches on commit
+          Use ruleset recommended advances
         </label>
+        {progressionMode === "manual" && (
+          <label className="flex items-center gap-2 text-xs text-gray-200">
+            <input
+              type="checkbox"
+              checked={clearTargetMatches}
+              onChange={(event) => setClearTargetMatches(event.target.checked)}
+            />
+            Clear target matches on commit
+          </label>
+        )}
+        {progressionMode === "waterfall" && (
+          <label className="flex items-center gap-2 text-xs text-gray-200">
+            <input
+              type="checkbox"
+              checked={replaceExistingGeneratedPhase}
+              onChange={(event) =>
+                setReplaceExistingGeneratedPhase(event.target.checked)
+              }
+            />
+            Replace empty/generated phase
+          </label>
+        )}
       </div>
 
-      <div className="mt-3">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-sm font-semibold text-gray-100">
-            Placement mapping
-          </h4>
-          <button
-            type="button"
-            onClick={addPlacement}
-            className="rounded-md border border-slate-500 px-2 py-1 text-[11px] font-semibold text-slate-100"
-          >
-            Add mapping
-          </button>
+      {progressionMode === "waterfall" && (
+        <div className="mt-3 grid grid-cols-1 gap-2 rounded-md border border-white/10 bg-black/20 p-3 md:grid-cols-4">
+          <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">
+            Phase name
+            <input
+              type="text"
+              value={waterfallPhaseName}
+              onChange={(event) => setWaterfallPhaseName(event.target.value)}
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-normal normal-case tracking-normal text-gray-900"
+              placeholder="Tournament"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">
+            Match size
+            <input
+              type="number"
+              min={2}
+              value={waterfallMatchSize}
+              onChange={(event) =>
+                setWaterfallMatchSize(Number(event.target.value))
+              }
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-normal normal-case tracking-normal text-gray-900"
+              placeholder="10"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">
+            Advance count
+            <input
+              type="number"
+              min={1}
+              value={waterfallAdvanceCount}
+              onChange={(event) =>
+                setWaterfallAdvanceCount(Number(event.target.value))
+              }
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-normal normal-case tracking-normal text-gray-900"
+              placeholder="5"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">
+            Finalists count
+            <input
+              type="number"
+              min={2}
+              value={waterfallFinalistsCount}
+              onChange={(event) =>
+                setWaterfallFinalistsCount(Number(event.target.value))
+              }
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-normal normal-case tracking-normal text-gray-900"
+              placeholder="10"
+            />
+          </label>
         </div>
-        <div className="space-y-2">
-          {placements.map((placement, index) => (
-            <div
-              key={placement.id}
-              className="grid grid-cols-1 gap-2 rounded-md border border-white/10 bg-black/20 p-2 md:grid-cols-8"
+      )}
+
+      {progressionMode === "manual" && (
+        <div className="mt-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-gray-100">
+              Placement mapping
+            </h4>
+            <button
+              type="button"
+              onClick={addPlacement}
+              className="rounded-md border border-slate-500 px-2 py-1 text-[11px] font-semibold text-slate-100"
             >
-              <div className="md:col-span-1 text-xs text-gray-300">
-                Slot {index + 1}
+              Add mapping
+            </button>
+          </div>
+          <div className="space-y-2">
+            {placements.map((placement, index) => (
+              <div
+                key={placement.id}
+                className="grid grid-cols-1 gap-2 rounded-md border border-white/10 bg-black/20 p-2 md:grid-cols-8"
+              >
+                <div className="md:col-span-1 text-xs text-gray-300">
+                  Slot {index + 1}
+                </div>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="From rank"
+                  value={placement.fromRank}
+                  onChange={(event) =>
+                    updatePlacement(
+                      placement.id,
+                      "fromRank",
+                      event.target.value,
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900 md:col-span-2"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="To rank"
+                  value={placement.toRank}
+                  onChange={(event) =>
+                    updatePlacement(placement.id, "toRank", event.target.value)
+                  }
+                  className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900 md:col-span-2"
+                />
+                <select
+                  value={placement.targetMatchId}
+                  onChange={(event) =>
+                    updatePlacement(
+                      placement.id,
+                      "targetMatchId",
+                      event.target.value,
+                    )
+                  }
+                  className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900 md:col-span-2"
+                >
+                  <option value="">Target match</option>
+                  {selectedDivisionMatches.map((match) => (
+                    <option key={match.id} value={match.id}>
+                      {match.phaseName} / {match.name} (#{match.id})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removePlacement(placement.id)}
+                  disabled={placements.length <= 1}
+                  className="rounded-md border border-red-500 px-2 py-1 text-[11px] font-semibold text-red-200 disabled:opacity-50 md:col-span-1"
+                >
+                  Remove
+                </button>
               </div>
-              <input
-                type="number"
-                min={1}
-                placeholder="From rank"
-                value={placement.fromRank}
-                onChange={(event) =>
-                  updatePlacement(placement.id, "fromRank", event.target.value)
-                }
-                className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900 md:col-span-2"
-              />
-              <input
-                type="number"
-                min={1}
-                placeholder="To rank"
-                value={placement.toRank}
-                onChange={(event) =>
-                  updatePlacement(placement.id, "toRank", event.target.value)
-                }
-                className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900 md:col-span-2"
-              />
-              <select
-                value={placement.targetMatchId}
-                onChange={(event) =>
-                  updatePlacement(
-                    placement.id,
-                    "targetMatchId",
-                    event.target.value,
-                  )
-                }
-                className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900 md:col-span-2"
-              >
-                <option value="">Target match</option>
-                {selectedDivisionMatches.map((match) => (
-                  <option key={match.id} value={match.id}>
-                    {match.phaseName} / {match.name} (#{match.id})
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => removePlacement(placement.id)}
-                disabled={placements.length <= 1}
-                className="rounded-md border border-red-500 px-2 py-1 text-[11px] font-semibold text-red-200 disabled:opacity-50 md:col-span-1"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {progressionLoading && (
         <div className="mt-3 text-xs text-gray-300">Processing...</div>
@@ -471,8 +717,12 @@ export default function QualifierProgressionPanel({
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs text-gray-200 md:grid-cols-4">
             <div>Assign: {progressionPreview.summary.assigned}</div>
-            <div>Already in target: {progressionPreview.summary.alreadyInTarget}</div>
-            <div>Capacity skipped: {progressionPreview.summary.skippedByCapacity}</div>
+            <div>
+              Already in target: {progressionPreview.summary.alreadyInTarget}
+            </div>
+            <div>
+              Capacity skipped: {progressionPreview.summary.skippedByCapacity}
+            </div>
             <div>Unassigned: {progressionPreview.summary.unassigned}</div>
           </div>
 
@@ -527,7 +777,8 @@ export default function QualifierProgressionPanel({
           {progressionPreview.unassignedPlayers.length > 0 && (
             <div className="space-y-2">
               <div className="text-xs font-semibold text-gray-300">
-                Unassigned players ({progressionPreview.unassignedPlayers.length})
+                Unassigned players (
+                {progressionPreview.unassignedPlayers.length})
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-xs text-gray-200">
@@ -541,7 +792,10 @@ export default function QualifierProgressionPanel({
                   </thead>
                   <tbody>
                     {progressionPreview.unassignedPlayers.map((row) => (
-                      <tr key={row.playerId} className="border-t border-white/5">
+                      <tr
+                        key={row.playerId}
+                        className="border-t border-white/5"
+                      >
                         <td className="py-1 pr-2">#{row.rank}</td>
                         <td className="py-1 pr-2">{row.playerName}</td>
                         <td className="py-1 pr-2">
@@ -555,6 +809,65 @@ export default function QualifierProgressionPanel({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {waterfallPreview && (
+        <div className="mt-4 space-y-3 rounded-md border border-white/10 bg-black/20 p-3">
+          <div className="text-xs text-gray-300">
+            Division: {waterfallPreview.divisionName} | Source:{" "}
+            {waterfallPreview.source} | Seeded:{" "}
+            {waterfallPreview.totalSeededPlayers} | Phase:{" "}
+            {waterfallPreview.settings.phaseName}
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-gray-200 md:grid-cols-5">
+            <div>Seed: {waterfallPreview.summary.seedMatches}</div>
+            <div>Winner: {waterfallPreview.summary.winnerMatches}</div>
+            <div>Loser: {waterfallPreview.summary.loserMatches}</div>
+            <div>Final: {waterfallPreview.summary.finalMatches}</div>
+            <div>Total: {waterfallPreview.summary.generatedMatches}</div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-xs text-gray-200">
+              <thead className="text-gray-300">
+                <tr>
+                  <th className="py-2 pr-2">Match</th>
+                  <th className="py-2 pr-2">Players</th>
+                  <th className="py-2 pr-2">Seed ranks</th>
+                  <th className="py-2 pr-2">Routing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {waterfallPreview.matches.map((match) => (
+                  <tr key={match.tempId} className="border-t border-white/5">
+                    <td className="py-1 pr-2">
+                      {match.persistedMatchId
+                        ? `${match.name} (#${match.persistedMatchId})`
+                        : match.name}
+                    </td>
+                    <td className="py-1 pr-2">{match.estimatedPlayerCount}</td>
+                    <td className="py-1 pr-2">
+                      {match.seedFromRank && match.seedToRank
+                        ? `#${match.seedFromRank}-#${match.seedToRank}`
+                        : "-"}
+                    </td>
+                    <td className="py-1 pr-2">
+                      {match.routes.length === 0
+                        ? "Terminal"
+                        : match.routes
+                            .map((route) =>
+                              route.action === "ELIMINATE"
+                                ? `#${route.fromRank}-#${route.toRank} eliminated`
+                                : `#${route.fromRank}-#${route.toRank} -> ${route.targetMatchName ?? route.targetTempId}`,
+                            )
+                            .join("; ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>

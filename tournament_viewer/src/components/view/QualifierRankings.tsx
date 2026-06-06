@@ -8,11 +8,13 @@ type QualifierRankingEntry = {
   playerCountry?: string;
   averagePercentage: number;
   submittedCount: number;
+  manualOverride?: boolean;
 };
 
 type QualifierDivisionRanking = {
   divisionId: number;
   divisionName: string;
+  scoreLead?: "FA" | "FA_PLUS";
   totalSongs: number;
   rankings: QualifierRankingEntry[];
 };
@@ -21,7 +23,9 @@ export default function QualifierRankings() {
   const [divisions, setDivisions] = useState<QualifierDivisionRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const visibleDivisions = divisions.filter((division) => division.totalSongs > 0);
+  const visibleDivisions = divisions.filter(
+    (division) => division.totalSongs > 0,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -90,7 +94,8 @@ export default function QualifierRankings() {
               {division.divisionName}
             </h3>
             <span className="text-xs text-gray-300">
-              {division.totalSongs} qualifier songs
+              {division.totalSongs} qualifier songs · lead{" "}
+              {division.scoreLead === "FA_PLUS" ? "FA+" : "FA"}
             </span>
           </div>
           {division.rankings.length === 0 ? (

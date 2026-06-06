@@ -5,23 +5,27 @@ import { Match } from "../../../models/Match";
 import Select from "react-select";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faPlus,
-  faTrash,
-  faMusic,
-} from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faTrash, faMusic } from "@fortawesome/free-solid-svg-icons";
 import OkModal from "../../layout/OkModal";
 import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 
 type PhaseListProps = {
   divisionId: number;
   controls?: boolean;
+  hideEmptyHistoryPhases?: boolean;
   onPhaseSelect: (phase: Phase | null) => void;
 };
+
+const hasRoundsWithPlayers = (phase: Phase) =>
+  (phase.matches ?? []).some(
+    (match) =>
+      (match.players ?? []).length > 0 && (match.rounds ?? []).length > 0,
+  );
 
 export default function PhaseList({
   divisionId,
   controls = false,
+  hideEmptyHistoryPhases = false,
   onPhaseSelect,
 }: PhaseListProps) {
   const [phases, setPhases] = useState<Phase[]>([]);
@@ -36,11 +40,16 @@ export default function PhaseList({
   useEffect(() => {
     hasPrefilledRef.current = false;
     axios.get<Division>(`divisions/${divisionId}`).then((response) => {
-      const phases = response.data.phases;
+      const phases = hideEmptyHistoryPhases
+        ? (response.data.phases ?? []).filter(hasRoundsWithPlayers)
+        : response.data.phases;
       setPhases(phases);
       if (phases.length > 0) {
         setSelectedPhaseId(phases[0].id);
         onPhaseSelect(phases[0]);
+      } else {
+        setSelectedPhaseId(-1);
+        onPhaseSelect(null);
       }
     });
     setQualifierMatches([]);
@@ -50,7 +59,7 @@ export default function PhaseList({
     setQualifierError(null);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [divisionId]);
+  }, [divisionId, hideEmptyHistoryPhases]);
 
   useEffect(() => {
     if (hasPrefilledRef.current || phases.length === 0) {
@@ -70,7 +79,11 @@ export default function PhaseList({
           const matchesResponse = await axios.get<Match[]>(
             `matches/phase/${phase.id}`,
           );
-          if ((matchesResponse.data ?? []).some((match) => match.id === activeMatchId)) {
+          if (
+            (matchesResponse.data ?? []).some(
+              (match) => match.id === activeMatchId,
+            )
+          ) {
             setSelectedPhaseId(phase.id);
             onPhaseSelect(phase);
             return;
@@ -320,8 +333,9 @@ export default function PhaseList({
                   ? {
                       value: qualifierMatchId,
                       label:
-                        qualifierMatches.find((match) => match.id === qualifierMatchId)
-                          ?.name ?? "Select match",
+                        qualifierMatches.find(
+                          (match) => match.id === qualifierMatchId,
+                        )?.name ?? "Select match",
                     }
                   : null
               }

@@ -81,22 +81,51 @@ type SendScoreResultPayload = {
 
 type LiveScoresProps = {
   divisionName?: string;
+  scoreLead?: "FA" | "FA_PLUS";
   phaseName?: string;
   matchName?: string;
   roundLabel?: string;
 };
 
+type LiveScoreSnapshot = {
+  scores: RawScore[];
+  readyById: Record<string, boolean>;
+  songTitle: string;
+  songDiffType?: string;
+  songDiffLevel?: number;
+};
+
+let liveScoreSnapshot: LiveScoreSnapshot = {
+  scores: [],
+  readyById: {},
+  songTitle: "",
+  songDiffType: undefined,
+  songDiffLevel: undefined,
+};
+
+const stripSongNumberPrefix = (title: string): string =>
+  title.replace(/^\[\d+\]\s*-\s*/, "");
+
+const getSongTitle = (songInfo?: SendScoreResultPayload["songInfo"]): string =>
+  stripSongNumberPrefix(songInfo?.title ?? songInfo?.songPath?.split("/")?.[1] ?? "");
+
 const toRawScore = (
   player: LobbyPlayer,
   songPath: string,
+  scoreLead: "FA" | "FA_PLUS",
 ): RawScore => {
+  const faScore = normalizePercent(Number(player.score));
+  const faPlusScore = normalizePercent(Number(player.exScore ?? player.score));
+  const displayedScore = scoreLead === "FA_PLUS" ? faPlusScore : faScore;
   const judgments = player.judgments;
   if (!judgments) {
     return {
       score: {
         playerName: player.profileName,
         song: songPath,
-        formattedScore: "0.00",
+        formattedScore: displayedScore.toFixed(2),
+        faPercentage: faScore.toFixed(2),
+        faPlusPercentage: faPlusScore.toFixed(2),
         life: 0,
         isFailed: Boolean(player.failed),
         actualDancePoints: 0,
@@ -124,14 +153,15 @@ const toRawScore = (
     };
   }
 
-  const formattedScore = normalizePercent(Number(player.score));
   const lifePercent = normalizePercent(Number(player.health));
 
   return {
-    score: {
-      playerName: player.profileName,
-      song: songPath,
-      formattedScore: formattedScore.toFixed(2),
+      score: {
+        playerName: player.profileName,
+        song: songPath,
+        formattedScore: displayedScore.toFixed(2),
+        faPercentage: faScore.toFixed(2),
+        faPlusPercentage: faPlusScore.toFixed(2),
       life: lifePercent,
       isFailed: Boolean(player.failed),
       actualDancePoints: 0,
@@ -166,20 +196,38 @@ const toRawScore = (
 
 export default function LiveScores({
   divisionName,
+  scoreLead = "FA",
   phaseName,
   matchName,
   roundLabel,
 }: LiveScoresProps) {
-  const [scores, setScores] = useState<RawScore[]>([]);
+  const [scores, setScores] = useState<RawScore[]>(
+    () => liveScoreSnapshot.scores,
+  );
   const [showJudgements, setShowJudgements] = useState(true);
   const [showFaPlusSplit, setShowFaPlusSplit] = useState(true);
-  const [readyById, setReadyById] = useState<Record<string, boolean>>({});
-  const [songTitle, setSongTitle] = useState("");
-  const [songDiffType, setSongDiffType] = useState<string | undefined>();
-  const [songDiffLevel, setSongDiffLevel] = useState<number | undefined>();
+  const [readyById, setReadyById] = useState<Record<string, boolean>>(
+    () => liveScoreSnapshot.readyById,
+  );
+  const [songTitle, setSongTitle] = useState(liveScoreSnapshot.songTitle);
+  const [songDiffType, setSongDiffType] = useState<string | undefined>(
+    liveScoreSnapshot.songDiffType,
+  );
+  const [songDiffLevel, setSongDiffLevel] = useState<number | undefined>(
+    liveScoreSnapshot.songDiffLevel,
+  );
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+
+  const applyLiveScoreSnapshot = (snapshot: LiveScoreSnapshot) => {
+    liveScoreSnapshot = snapshot;
+    setScores(snapshot.scores);
+    setReadyById(snapshot.readyById);
+    setSongTitle(snapshot.songTitle);
+    setSongDiffType(snapshot.songDiffType);
+    setSongDiffLevel(snapshot.songDiffLevel);
+  };
 
   useEffect(() => {
     const conn = connectJsonWebSocket("/", {
@@ -193,24 +241,23 @@ export default function LiveScores({
         }
         const songPath = typedPayload.songInfo?.songPath ?? "";
         const newScores: RawScore[] = oldScores.map((player) =>
-          toRawScore(player, songPath),
+          toRawScore(player, songPath, scoreLead),
         );
 
-        setScores(() => {
-          return newScores;
+        const nextReadyById = Object.fromEntries(
+          oldScores.map((player) => [player.playerId, Boolean(player.ready)]),
+        );
+        const nextSongTitle = getSongTitle(typedPayload.songInfo);
+        const nextSongDiffType = oldScores[0]?.diffType;
+        const nextSongDiffLevel = oldScores[0]?.diffLevel;
+
+        applyLiveScoreSnapshot({
+          scores: newScores,
+          readyById: nextReadyById,
+          songTitle: nextSongTitle,
+          songDiffType: nextSongDiffType,
+          songDiffLevel: nextSongDiffLevel,
         });
-        setReadyById(
-          Object.fromEntries(
-            oldScores.map((player) => [player.playerId, Boolean(player.ready)]),
-          ),
-        );
-        setSongTitle(
-          typedPayload?.songInfo?.title ??
-            typedPayload?.songInfo?.songPath?.split("/")?.[1] ??
-            "",
-        );
-        setSongDiffType(oldScores[0]?.diffType);
-        setSongDiffLevel(oldScores[0]?.diffLevel);
         console.log("SetScores");
         // const msg = payload as RawScore;
         // setScores((prev) => {
@@ -228,22 +275,29 @@ export default function LiveScores({
         }
 
         const songPath = typedPayload.songInfo?.songPath ?? "";
-        const nextScore = toRawScore(finalPlayer, songPath);
+        const nextScore = toRawScore(finalPlayer, songPath, scoreLead);
+        const nextSongTitle = getSongTitle(typedPayload.songInfo);
+        const nextSongDiffType = finalPlayer.diffType;
+        const nextSongDiffLevel = finalPlayer.diffLevel;
 
         setScores((prev) => {
           const filtered = prev.filter(
             (item) => item.score.playerName !== nextScore.score.playerName,
           );
-          return [...filtered, nextScore];
+          const nextScores = [...filtered, nextScore];
+          liveScoreSnapshot = {
+            ...liveScoreSnapshot,
+            scores: nextScores,
+            songTitle: nextSongTitle,
+            songDiffType: nextSongDiffType,
+            songDiffLevel: nextSongDiffLevel,
+          };
+          return nextScores;
         });
 
-        setSongTitle(
-          typedPayload.songInfo?.title ??
-            typedPayload.songInfo?.songPath?.split("/")?.[1] ??
-            "",
-        );
-        setSongDiffType(finalPlayer.diffType);
-        setSongDiffLevel(finalPlayer.diffLevel);
+        setSongTitle(nextSongTitle);
+        setSongDiffType(nextSongDiffType);
+        setSongDiffLevel(nextSongDiffLevel);
       },
     }, { target: "itgonline" });
 
@@ -278,12 +332,12 @@ export default function LiveScores({
     return () => {
       conn?.close();
     };
-  }, []);
+  }, [scoreLead]);
 
   const sortedScores = useMemo(() => {
     return [...scores].sort((a, b) => {
-      const scoreA = +a.score.formattedScore;
-      const scoreB = +b.score.formattedScore;
+      const scoreA = +getDisplayedScore(a);
+      const scoreB = +getDisplayedScore(b);
       const isDeadA = a.score.isFailed || a.score.life <= 0;
       const isDeadB = b.score.isFailed || b.score.life <= 0;
 
@@ -291,7 +345,14 @@ export default function LiveScores({
       if (!isDeadA && isDeadB) return -1;
       return scoreB - scoreA;
     });
-  }, [scores]);
+  }, [scores, scoreLead]);
+
+  function getDisplayedScore(score: RawScore): string {
+    if (scoreLead === "FA_PLUS") {
+      return score.score.faPlusPercentage ?? score.score.formattedScore;
+    }
+    return score.score.faPercentage ?? score.score.formattedScore;
+  }
 
   const playersByIdentity = useMemo(() => {
     const map = new Map<string, Player>();
@@ -413,8 +474,12 @@ export default function LiveScores({
                 </span>
               </span>
 
-              <span className=" font-bold text-xl">
-                {score.score.formattedScore}%
+              <span
+                className={`font-bold text-xl ${
+                  scoreLead === "FA_PLUS" ? "text-sky-200" : ""
+                }`}
+              >
+                {getDisplayedScore(score)}%
               </span>
               </div>
             {showJudgements && (

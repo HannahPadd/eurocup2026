@@ -6,6 +6,8 @@ export interface Score {
   actualDancePoints: number;
   currentPossibleDancePoints: number;
   formattedScore: string;
+  faPercentage?: string;
+  faPlusPercentage?: string;
   holdNote: HoldNote;
   id: string;
   isFailed: boolean;

@@ -1,21 +1,36 @@
 import { CreateDivisionDto, UpdateDivisionDto } from './dtos/division.dto';
 import { CreateMatchDto, UpdateMatchDto } from './dtos/match.dto';
 import { CreatePhaseDto, UpdatePhaseDto } from './dtos/phase.dto';
-import { CreatePlayerDto, UpdatePlayerDto, UpdatePlayerPasswordDto } from './dtos/player.dto';
+import {
+  CreatePlayerDto,
+  UpdatePlayerDto,
+  UpdatePlayerPasswordDto,
+} from './dtos/player.dto';
 import { CreateRoundDto, UpdateRoundDto } from './dtos/round.dto';
 import { CreateScoreDto, UpdateScoreDto } from './dtos/score.dto';
 import { CreateSongDto, UpdateSongDto } from './dtos/song.dto';
 import { CreateStandingDto, UpdateStandingDto } from './dtos/standing.dto';
 import { CreateTeamDto, UpdateTeamDto } from './dtos/team.dto';
-import { CreateTournamentDto, UpdateTournamentDto } from './dtos/tournament.dto';
-import { CreateMatchAssignmentDto, UpdateMatchAssignmentDto } from './dtos/match_assignment.dto';
+import {
+  CreateTournamentDto,
+  UpdateTournamentDto,
+} from './dtos/tournament.dto';
+import {
+  CreateMatchAssignmentDto,
+  UpdateMatchAssignmentDto,
+} from './dtos/match_assignment.dto';
 import { CreateSetupDto, UpdateSetupDto } from './dtos/setup.dto';
-import { CreateAccountDto, UpdateAcountDto  } from './dtos/acount.dto'
-import { CreateAccountPlayerDto, UpdateAccountPlayerDto } from './dtos/accountplayer.dto';
+import { CreateAccountDto, UpdateAcountDto } from './dtos/acount.dto';
+import {
+  CreateAccountPlayerDto,
+  UpdateAccountPlayerDto,
+} from './dtos/accountplayer.dto';
 import {
   CommitQualifierProgressionDto,
+  CommitQualifierWaterfallDto,
   CreateQualifierSubmissionDto,
   PreviewQualifierProgressionDto,
+  PreviewQualifierWaterfallDto,
   QualifierProgressionPlacementDto,
   UpdateQualifierSubmissionStatusDto,
 } from './dtos/qualifier.dto';
@@ -41,6 +56,8 @@ export {
   QualifierProgressionPlacementDto,
   PreviewQualifierProgressionDto,
   CommitQualifierProgressionDto,
+  PreviewQualifierWaterfallDto,
+  CommitQualifierWaterfallDto,
 };
 export { CreateRulesetDto, UpdateRulesetDto };
 export { CommitPhaseProgressionDto };

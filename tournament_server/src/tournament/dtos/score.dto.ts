@@ -10,6 +10,18 @@ export class CreateScoreDto {
   @Type(() => Number)
   percentage: number;
 
+  @ApiProperty({ description: 'The FA percentage score', example: 95, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPercentage?: number;
+
+  @ApiProperty({ description: 'The FA+ percentage score', example: 92.5, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPlusPercentage?: number;
+
   @ApiProperty({ description: 'Indicates if the score is a failure', example: false })
   @IsNotEmpty()
   @IsBoolean()
@@ -35,6 +47,18 @@ export class UpdateScoreDto {
   @IsNumber()
   @Type(() => Number)
   percentage: number;
+
+  @ApiProperty({ description: 'The FA percentage score', example: 95, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPercentage?: number;
+
+  @ApiProperty({ description: 'The FA+ percentage score', example: 92.5, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPlusPercentage?: number;
 
   @ApiProperty({ description: 'Indicates if the score is a failure', example: false, required: false })
   @IsOptional()

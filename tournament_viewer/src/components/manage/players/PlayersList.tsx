@@ -16,7 +16,9 @@ import Select from "react-select";
 import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
 import {
+  getPlayerForcedDivisionIds,
   getPlayerDivisionIds,
+  isPlayerForcedInDivision,
   isPlayerInDivision,
 } from "../../../utils/playerDivisions";
 import { isQualifierPhase } from "../../../utils/qualifierPhase";
@@ -47,6 +49,7 @@ type QualifierRankingEntry = {
   playerCountry?: string;
   averagePercentage: number;
   submittedCount: number;
+  manualOverride?: boolean;
 };
 
 type QualifierDivisionRanking = {
@@ -88,6 +91,7 @@ const registrationStatusClasses = {
   registered: "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
   qualified: "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
   notQualified: "border-red-400/50 bg-red-500/15 text-red-200",
+  forced: "border-sky-400/50 bg-sky-500/15 text-sky-100",
 };
 
 const getDivisionRegistrationStatus = (
@@ -95,6 +99,13 @@ const getDivisionRegistrationStatus = (
   division: Division,
   qualifierRankings: QualifierDivisionRanking[],
 ) => {
+  if (isPlayerForcedInDivision(player, division.id)) {
+    return {
+      label: "Forced",
+      className: registrationStatusClasses.forced,
+    };
+  }
+
   const qualifierRanking = qualifierRankings.find(
     (ranking) => ranking.divisionId === division.id,
   );
@@ -110,9 +121,11 @@ const getDivisionRegistrationStatus = (
   }
 
   const qualifiedPlayerIds = new Set(
-    (qualifierRanking?.recommendedAdvances ??
+    (
+      qualifierRanking?.recommendedAdvances ??
       qualifierRanking?.rankings ??
-      []).map((entry) => entry.playerId),
+      []
+    ).map((entry) => entry.playerId),
   );
 
   if (qualifiedPlayerIds.has(player.id)) {
@@ -142,12 +155,17 @@ const isQualifierRequiredForDivision = (
 ) =>
   Boolean(
     division &&
-      ((qualifierRanking?.totalSongs ?? 0) > 0 ||
-        (division.phases ?? []).some((phase) => isQualifierPhase(phase))),
+    ((qualifierRanking?.totalSongs ?? 0) > 0 ||
+      (division.phases ?? []).some((phase) => isQualifierPhase(phase))),
   );
 
 const isTechPlacementDivision = (division: Division | undefined) =>
-  Boolean(division?.name.trim().toUpperCase().match(/\b(LOW|MID|HIGH)\b/));
+  Boolean(
+    division?.name
+      .trim()
+      .toUpperCase()
+      .match(/\b(LOW|MID|HIGH)\b/),
+  );
 
 export default function PlayersList() {
   const { auth, setAuth } = useAuth();
@@ -189,9 +207,7 @@ export default function PlayersList() {
     if (typeof nextIsAdmin !== "boolean") {
       return;
     }
-    setAuth((prev) =>
-      prev ? { ...prev, isAdmin: nextIsAdmin } : prev,
-    );
+    setAuth((prev) => (prev ? { ...prev, isAdmin: nextIsAdmin } : prev));
   };
 
   useEffect(() => {
@@ -211,7 +227,9 @@ export default function PlayersList() {
           axios.get<Player[]>("players"),
           axios.get<Team[]>("teams"),
           axios.get<Division[]>("divisions"),
-          axios.get<PlayerQualifierSubmission[]>("qualifiers/admin/submissions"),
+          axios.get<PlayerQualifierSubmission[]>(
+            "qualifiers/admin/submissions",
+          ),
           axios.get<QualifierDivisionRanking[]>("qualifiers/rankings"),
         ]);
         if (!isMounted) {
@@ -274,8 +292,10 @@ export default function PlayersList() {
       return [];
     }
 
-    const registeredPlayers = players.filter((player) =>
-      isPlayerInDivision(player, selectedDivision.id),
+    const registeredPlayers = players.filter(
+      (player) =>
+        isPlayerInDivision(player, selectedDivision.id) ||
+        isPlayerForcedInDivision(player, selectedDivision.id),
     );
     const qualifierRanking = getDivisionQualifierRanking(
       selectedDivision,
@@ -290,14 +310,22 @@ export default function PlayersList() {
         (qualifierRanking?.rankings ?? []).map((entry) => entry.playerId),
       );
       return registeredPlayers
-        .filter((player) => placedPlayerIds.has(player.id))
+        .filter(
+          (player) =>
+            placedPlayerIds.has(player.id) ||
+            isPlayerForcedInDivision(player, selectedDivision.id),
+        )
         .sort((a, b) => {
-          const aIndex = qualifierRanking?.rankings.findIndex(
-            (entry) => entry.playerId === a.id,
-          ) ?? -1;
-          const bIndex = qualifierRanking?.rankings.findIndex(
-            (entry) => entry.playerId === b.id,
-          ) ?? -1;
+          const aIndexRaw =
+            qualifierRanking?.rankings.findIndex(
+              (entry) => entry.playerId === a.id,
+            ) ?? -1;
+          const bIndexRaw =
+            qualifierRanking?.rankings.findIndex(
+              (entry) => entry.playerId === b.id,
+            ) ?? -1;
+          const aIndex = aIndexRaw >= 0 ? aIndexRaw : Number.MAX_SAFE_INTEGER;
+          const bIndex = bIndexRaw >= 0 ? bIndexRaw : Number.MAX_SAFE_INTEGER;
           return aIndex - bIndex;
         });
     }
@@ -596,11 +624,8 @@ export default function PlayersList() {
                       `players/${playerId}`,
                       updates,
                     );
-                    setPlayers(
-                      (prev) =>
-                        prev.map((p) =>
-                          p.id === playerId ? response.data : p,
-                        ),
+                    setPlayers((prev) =>
+                      prev.map((p) => (p.id === playerId ? response.data : p)),
                     );
                     syncAuthAdmin(response.data, updates);
                     toast.success("Player updated");
@@ -618,20 +643,40 @@ export default function PlayersList() {
                       },
                     );
                     setPlayers((prev) =>
-                      prev.map((p) =>
-                        p.id === playerId ? response.data : p,
-                      ),
+                      prev.map((p) => (p.id === playerId ? response.data : p)),
                     );
                     toast.success("Player divisions updated");
                   } catch (error) {
                     toast.error("Unable to update player divisions");
                   }
                 }}
+                onUpdateForcedDivisions={async (
+                  playerId,
+                  forcedDivisionIds,
+                ) => {
+                  try {
+                    const response = await axios.patch<Player>(
+                      `players/${playerId}`,
+                      {
+                        forcedDivisionIds,
+                      },
+                    );
+                    setPlayers((prev) =>
+                      prev.map((p) => (p.id === playerId ? response.data : p)),
+                    );
+                    toast.success("Forced divisions updated");
+                  } catch (error) {
+                    toast.error("Unable to update forced divisions");
+                  }
+                }}
                 qualifierSubmissions={qualifierSubmissions
-                  .filter((submission) => submission.player?.id === selectedPlayerId)
+                  .filter(
+                    (submission) => submission.player?.id === selectedPlayerId,
+                  )
                   .sort(
                     (a, b) =>
-                      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+                      new Date(b.updatedAt).getTime() -
+                      new Date(a.updatedAt).getTime(),
                   )}
                 qualifierRankings={qualifierRankings}
               />
@@ -787,6 +832,7 @@ function PlayerItem({
   divisions,
   onUpdateFlags,
   onUpdateDivisions,
+  onUpdateForcedDivisions,
   qualifierSubmissions,
   qualifierRankings,
 }: {
@@ -802,10 +848,20 @@ function PlayerItem({
     updates: { isAdmin?: boolean; hasRegistered?: boolean },
   ) => void;
   onUpdateDivisions: (playerId: number, divisionIds: number[]) => void;
+  onUpdateForcedDivisions: (
+    playerId: number,
+    forcedDivisionIds: number[],
+  ) => void;
   qualifierSubmissions: PlayerQualifierSubmission[];
   qualifierRankings: QualifierDivisionRanking[];
 }) {
   const selectedDivisionIds = getPlayerDivisionIds(player);
+  const forcedDivisionIds = getPlayerForcedDivisionIds(player);
+  const displayDivisions = divisions.filter(
+    (division) =>
+      selectedDivisionIds.includes(division.id) ||
+      forcedDivisionIds.includes(division.id),
+  );
   const [divisionModalOpen, setDivisionModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -818,6 +874,13 @@ function PlayerItem({
       ? selectedDivisionIds.filter((id) => id !== divisionId)
       : [...selectedDivisionIds, divisionId];
     onUpdateDivisions(player.id, nextDivisionIds);
+  };
+
+  const toggleForcedDivision = (divisionId: number) => {
+    const nextForcedDivisionIds = forcedDivisionIds.includes(divisionId)
+      ? forcedDivisionIds.filter((id) => id !== divisionId)
+      : [...forcedDivisionIds, divisionId];
+    onUpdateForcedDivisions(player.id, nextForcedDivisionIds);
   };
 
   const openPasswordModal = () => {
@@ -848,7 +911,8 @@ function PlayerItem({
       toast.success("Password updated");
       setPasswordModalOpen(false);
     } catch (error: unknown) {
-      const message = axios.isAxiosError(error) &&
+      const message =
+        axios.isAxiosError(error) &&
         typeof error.response?.data?.message === "string"
           ? error.response.data.message
           : "Unable to update password.";
@@ -859,7 +923,11 @@ function PlayerItem({
   };
 
   return (
-    <div className={"rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3 theme-text"}>
+    <div
+      className={
+        "rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3 theme-text"
+      }
+    >
       <h3 className="text-2xl theme-text">Player Information</h3>
       <div>
         <h3 className="theme-text text-sm uppercase tracking-wide">Name</h3>
@@ -907,45 +975,45 @@ function PlayerItem({
         </label>
       </div>
       <div className={"flex flex-wrap gap-2 items-center"}>
-          <span>Team: </span>
+        <span>Team: </span>
 
-          <Select
-            onChange={(v) => {
-              if (v?.value) {
-                addToTeam(player.id, v.value);
-              }
-            }}
-            value={
-              player.teamId
-                ? {
-                    label: teams.find((t) => t.id === player.teamId)?.name,
-                    value: player.teamId,
-                  }
-                : null
+        <Select
+          onChange={(v) => {
+            if (v?.value) {
+              addToTeam(player.id, v.value);
             }
-            className={"w-full md:w-56"}
-            options={teams.map((t) => ({
-              label: t.name,
-              value: t.id,
-            }))}
-          />
-          <button onClick={createTeam}>
-            <FontAwesomeIcon icon={faPlus} />
-          </button>
-          <button onClick={() => removeFromTeam(player.id)}>
-            <FontAwesomeIcon icon={faMinus} />
-          </button>
-          <button onClick={() => deleteTeam(player.teamId as number)}>
-            <FontAwesomeIcon icon={faTrash} />
-          </button>
+          }}
+          value={
+            player.teamId
+              ? {
+                  label: teams.find((t) => t.id === player.teamId)?.name,
+                  value: player.teamId,
+                }
+              : null
+          }
+          className={"w-full md:w-56"}
+          options={teams.map((t) => ({
+            label: t.name,
+            value: t.id,
+          }))}
+        />
+        <button onClick={createTeam}>
+          <FontAwesomeIcon icon={faPlus} />
+        </button>
+        <button onClick={() => removeFromTeam(player.id)}>
+          <FontAwesomeIcon icon={faMinus} />
+        </button>
+        <button onClick={() => deleteTeam(player.teamId as number)}>
+          <FontAwesomeIcon icon={faTrash} />
+        </button>
       </div>
       <div className="w-full">
         <h3 className="theme-text text-sm uppercase tracking-wide">
           Divisions & qualifications
         </h3>
-        {player.divisions && player.divisions.length > 0 ? (
+        {displayDivisions.length > 0 ? (
           <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
-            {player.divisions.map((division) => {
+            {displayDivisions.map((division) => {
               const status = getDivisionRegistrationStatus(
                 player,
                 division,
@@ -980,7 +1048,9 @@ function PlayerItem({
           Qualifier submissions
         </h3>
         {qualifierSubmissions.length === 0 ? (
-          <p className="mt-1 text-xs text-gray-300">No qualifier submissions yet.</p>
+          <p className="mt-1 text-xs text-gray-300">
+            No qualifier submissions yet.
+          </p>
         ) : (
           <ul className="mt-2 divide-y divide-white/10">
             {qualifierSubmissions.map((submission) => (
@@ -989,7 +1059,9 @@ function PlayerItem({
                 className="flex items-center justify-between gap-3 py-2"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-white">{submission.song?.title}</p>
+                  <p className="truncate text-sm text-white">
+                    {submission.song?.title}
+                  </p>
                   <p className="text-[10px] text-gray-400">
                     {submission.song?.group} · {submission.song?.difficulty}
                   </p>
@@ -1015,7 +1087,9 @@ function PlayerItem({
         playerName={getPlayerDisplayName(player)}
         divisions={divisions}
         selectedDivisionIds={selectedDivisionIds}
+        forcedDivisionIds={forcedDivisionIds}
         onToggleDivision={toggleDivision}
+        onToggleForcedDivision={toggleForcedDivision}
       />
       <OkModal
         title={`Set password for ${getPlayerDisplayName(player)}`}
@@ -1045,7 +1119,9 @@ function PlayerItem({
               autoComplete="new-password"
             />
           </label>
-          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+          {passwordError && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
         </div>
       </OkModal>
     </div>
