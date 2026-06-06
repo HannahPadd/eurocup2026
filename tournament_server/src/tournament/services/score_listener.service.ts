@@ -132,7 +132,8 @@ export class ScoreListenerService implements OnModuleInit {
 				faPlusPercentage,
 				isFailed,
 				songId: song.id,
-				playerId: player.id
+				playerId: player.id,
+				data: message?.data?.player
 			})
 
 			if(!standing)
