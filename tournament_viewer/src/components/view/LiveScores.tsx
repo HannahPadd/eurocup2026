@@ -152,23 +152,42 @@ const getLobbiesFromPayload = (payload: unknown): LiveLobbySummary[] => {
   return [];
 };
 
-const sendSpectateLobby = (
+const spectateLobby = (
   conn: WebSocket,
-  code: string,
   password: string,
 ) => {
-  conn.send(
-    JSON.stringify({
-      event: "spectateLobby",
-      data: {
-        code,
-        password,
-        spectator: {
-          profileName: "Tournament Viewer",
-        },
-      },
-    }),
-  );
+
+  const func = (e:any) => {
+    const msg = JSON.parse(e.data)
+    if(msg.event == 'lobbySearched') {
+      if(msg.data.lobbies.length > 0) {
+        const lobby = msg.data.lobbies[0];
+        conn.send(
+          JSON.stringify({
+            event: "spectateLobby",
+            data: {
+              code: lobby.code,
+              password,
+              spectator: {
+                profileName: "Tournament Viewer",
+              },
+            },
+          }),
+        );
+      }
+
+      conn.removeEventListener("message", func);
+    }
+  };
+
+  const listener = conn.addEventListener("message", func)
+  
+  conn.send(JSON.stringify({
+    event: 'searchLobby',
+    data: {
+      temporary: false
+    }
+  }))
 };
 
 const spectateLiveLobby = (conn: WebSocket) => {
@@ -176,63 +195,7 @@ const spectateLiveLobby = (conn: WebSocket) => {
   const lobbyPassword = getLiveLobbyPassword();
   let hasSpectated = false;
 
-  const spectate = (code: string) => {
-    if (hasSpectated) {
-      return;
-    }
-
-    hasSpectated = true;
-    sendSpectateLobby(conn, code, lobbyPassword);
-    conn.removeEventListener("message", handleLobbyList);
-  };
-
-  const handleLobbyList = (event: MessageEvent) => {
-    if (typeof event.data !== "string") {
-      return;
-    }
-
-    let eventName: string | undefined;
-    let eventPayload: unknown;
-
-    try {
-      const parsed = JSON.parse(event.data) as unknown;
-
-      if (Array.isArray(parsed) && typeof parsed[0] === "string") {
-        eventName = parsed[0];
-        eventPayload = parsed[1];
-      } else if (typeof parsed === "object" && parsed !== null) {
-        const message = parsed as { event?: unknown; data?: unknown };
-        if (typeof message.event === "string") {
-          eventName = message.event;
-          eventPayload = message.data;
-        }
-      }
-    } catch {
-      return;
-    }
-
-    if (eventName !== "lobbiesList") {
-      return;
-    }
-
-    const [firstLobby] = getLobbiesFromPayload(eventPayload);
-    if (firstLobby) {
-      spectate(firstLobby.code);
-    }
-  };
-
-  conn.addEventListener("message", handleLobbyList);
-
-  conn.send(
-    JSON.stringify({
-      event: "searchLobbies",
-      data: {
-        temporary: false,
-      },
-    }),
-  );
-
-  window.setTimeout(() => spectate(lobbyCode), 1000);
+  spectateLobby(conn, lobbyPassword);
 };
 
 const ensureLiveScoreConnection = () => {
