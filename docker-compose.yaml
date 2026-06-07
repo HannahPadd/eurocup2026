@@ -8,14 +8,12 @@ services:
       dockerfile: DockerfileDev
       args:
         - VITE_API_BASE_URL=http://127.0.0.1:8402
-        - VITE_ITGONLINE_URL=wss://online.itgeurocup.com:443
-        - VITE_PUBLIC_ENABLE_LIVE_SCORES=true
+        - VITE_ITGONLINE_URL=ws://online.itgeurocup.com/
 
     environment:
       PORT: 8401
       VITE_API_BASE_URL: http://127.0.0.1:8402
-      VITE_ITGONLINE_URL: wss://online.itgeurocup.com:443
-      VITE_PUBLIC_ENABLE_LIVE_SCORES: true
+      VITE_ITGONLINE_URL: ws://online.itgeurocup.com/
     restart: always
     volumes:
       - ./tournament_viewer/src:/app/src
@@ -45,4 +43,3 @@ services:
       PORT: 8402
       JWT_SECRET: example_secret
       CORS_ORIGIN: http://127.0.0.1:8401,http://localhost:8401
-      ITG_ONLINE_URL: wss://online.itgeurocup.com:443/
