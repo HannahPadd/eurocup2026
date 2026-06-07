@@ -7,7 +7,7 @@ import { Player } from "../../models/Player.ts";
 import { Team, TEAM_COLORS } from "../../models/Team.ts";
 import { countryToFlagUrl } from "../../utils/flags";
 import { connectJsonWebSocket } from "../../services/websocket/jsonWebSocket";
-import { getLiveLobbyCode, getLiveLobbyPassword } from "../../utils/liveLobbyCode";
+import { getLiveLobbyPassword } from "../../utils/liveLobbyCode";
 
 const normalizePercent = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
@@ -103,14 +103,6 @@ let liveScoreSnapshot: LiveScoreSnapshot = {
   songDiffLevel: undefined,
 };
 
-type LiveLobbySummary = {
-  code: string;
-};
-
-type LiveLobbyListPayload = {
-  lobbies?: unknown;
-};
-
 type LiveScoreEventName = "lobbyState" | "sendScoreResult";
 type LiveScoreEventListener = (
   eventName: LiveScoreEventName,
@@ -133,17 +125,12 @@ const notifyLiveScoreListeners = (
   liveScoreListeners.forEach((listener) => listener(eventName, payload));
 };
 
-const isLiveLobbySummary = (value: unknown): value is LiveLobbySummary =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as { code?: unknown }).code === "string";
-
 const spectateLobby = (
   conn: WebSocket,
   password: string,
 ) => {
 
-  const func = (e:any) => {
+  const func = (e: MessageEvent<string>) => {
     const msg = JSON.parse(e.data)
     if(msg.event == 'lobbySearched') {
       if(msg.data.lobbies.length > 0) {
@@ -165,8 +152,7 @@ const spectateLobby = (
       conn.removeEventListener("message", func);
     }
   };
-
-  const listener = conn.addEventListener("message", func)
+  conn.addEventListener("message", func)
   
   conn.send(JSON.stringify({
     event: 'searchLobby',
@@ -177,9 +163,7 @@ const spectateLobby = (
 };
 
 const spectateLiveLobby = (conn: WebSocket) => {
-  const lobbyCode = getLiveLobbyCode();
   const lobbyPassword = getLiveLobbyPassword();
-  let hasSpectated = false;
 
   spectateLobby(conn, lobbyPassword);
 };

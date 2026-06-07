@@ -22,10 +22,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    void navigator.serviceWorker
-      .register("/service-worker.js", { updateViaCache: "none" })
-      .then((registration) => {
-        void registration.update();
+    void navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        void registration.unregister();
       });
+    });
   });
 }
