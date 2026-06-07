@@ -73,7 +73,7 @@ export class ScoreListenerService implements OnModuleInit {
 		}
 		this.initialized = true;
 		
-		this.itgOnlineUrl = process.env.ITG_ONLINE_URL;
+		this.itgOnlineUrl = process.env.ITG_ONLINE_URL?.trim() || 'wss://online.itgeurocup.com:443/';
 		
 		const options = {
 			WebSocket: WS, // custom WebSocket constructor
