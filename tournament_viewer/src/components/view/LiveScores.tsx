@@ -138,20 +138,6 @@ const isLiveLobbySummary = (value: unknown): value is LiveLobbySummary =>
   value !== null &&
   typeof (value as { code?: unknown }).code === "string";
 
-const getLobbiesFromPayload = (payload: unknown): LiveLobbySummary[] => {
-  const lobbies = (payload as LiveLobbyListPayload | undefined)?.lobbies;
-
-  if (Array.isArray(lobbies)) {
-    return lobbies.filter(isLiveLobbySummary);
-  }
-
-  if (typeof lobbies === "object" && lobbies !== null) {
-    return Object.values(lobbies).filter(isLiveLobbySummary);
-  }
-
-  return [];
-};
-
 const spectateLobby = (
   conn: WebSocket,
   password: string,
