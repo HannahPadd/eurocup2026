@@ -16,9 +16,12 @@ import Select from "react-select";
 import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
 import {
+  getPlayerForcedDivisionIds,
   getPlayerDivisionIds,
+  isPlayerForcedInDivision,
   isPlayerInDivision,
 } from "../../../utils/playerDivisions";
+import { isQualifierPhase } from "../../../utils/qualifierPhase";
 import PlayerDivisionsModal from "../divisions/PlayerDivisionsModal";
 import OkModal from "../../layout/OkModal";
 
@@ -38,6 +41,23 @@ type PlayerQualifierSubmission = {
     group: string;
     difficulty: number;
   };
+};
+
+type QualifierRankingEntry = {
+  playerId: number;
+  playerName: string;
+  playerCountry?: string;
+  averagePercentage: number;
+  submittedCount: number;
+  manualOverride?: boolean;
+};
+
+type QualifierDivisionRanking = {
+  divisionId: number;
+  divisionName: string;
+  totalSongs: number;
+  rankings: QualifierRankingEntry[];
+  recommendedAdvances?: QualifierRankingEntry[];
 };
 
 const normalizeSubmissionStatus = (status?: string) =>
@@ -64,13 +84,99 @@ const formatSubmissionStatus = (status?: string) => {
 
 type PlayersViewMode = "details" | "registrations";
 
-export default function PlayersList({ onImport }: { onImport?: () => void }) {
+const baseRegistrationStatusClass =
+  "inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold";
+
+const registrationStatusClasses = {
+  registered: "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
+  qualified: "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
+  notQualified: "border-red-400/50 bg-red-500/15 text-red-200",
+  forced: "border-sky-400/50 bg-sky-500/15 text-sky-100",
+};
+
+const getDivisionRegistrationStatus = (
+  player: Player,
+  division: Division,
+  qualifierRankings: QualifierDivisionRanking[],
+) => {
+  if (isPlayerForcedInDivision(player, division.id)) {
+    return {
+      label: "Forced",
+      className: registrationStatusClasses.forced,
+    };
+  }
+
+  const qualifierRanking = qualifierRankings.find(
+    (ranking) => ranking.divisionId === division.id,
+  );
+  const qualifierRequired =
+    (qualifierRanking?.totalSongs ?? 0) > 0 ||
+    (division.phases ?? []).some((phase) => isQualifierPhase(phase));
+
+  if (!qualifierRequired) {
+    return {
+      label: "Registered",
+      className: registrationStatusClasses.registered,
+    };
+  }
+
+  const qualifiedPlayerIds = new Set(
+    (
+      qualifierRanking?.recommendedAdvances ??
+      qualifierRanking?.rankings ??
+      []
+    ).map((entry) => entry.playerId),
+  );
+
+  if (qualifiedPlayerIds.has(player.id)) {
+    return {
+      label: "Qualified",
+      className: registrationStatusClasses.qualified,
+    };
+  }
+
+  return {
+    label: "Not qualified",
+    className: registrationStatusClasses.notQualified,
+  };
+};
+
+const getDivisionQualifierRanking = (
+  division: Division | undefined,
+  qualifierRankings: QualifierDivisionRanking[],
+) =>
+  division
+    ? qualifierRankings.find((ranking) => ranking.divisionId === division.id)
+    : undefined;
+
+const isQualifierRequiredForDivision = (
+  division: Division | undefined,
+  qualifierRanking?: QualifierDivisionRanking,
+) =>
+  Boolean(
+    division &&
+    ((qualifierRanking?.totalSongs ?? 0) > 0 ||
+      (division.phases ?? []).some((phase) => isQualifierPhase(phase))),
+  );
+
+const isTechPlacementDivision = (division: Division | undefined) =>
+  Boolean(
+    division?.name
+      .trim()
+      .toUpperCase()
+      .match(/\b(LOW|MID|HIGH)\b/),
+  );
+
+export default function PlayersList() {
   const { auth, setAuth } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [qualifierSubmissions, setQualifierSubmissions] = useState<
     PlayerQualifierSubmission[]
+  >([]);
+  const [qualifierRankings, setQualifierRankings] = useState<
+    QualifierDivisionRanking[]
   >([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -101,9 +207,7 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
     if (typeof nextIsAdmin !== "boolean") {
       return;
     }
-    setAuth((prev) =>
-      prev ? { ...prev, isAdmin: nextIsAdmin } : prev,
-    );
+    setAuth((prev) => (prev ? { ...prev, isAdmin: nextIsAdmin } : prev));
   };
 
   useEffect(() => {
@@ -118,11 +222,15 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
           teamsResponse,
           divisionsResponse,
           qualifierSubmissionsResponse,
+          qualifierRankingsResponse,
         ] = await Promise.all([
           axios.get<Player[]>("players"),
           axios.get<Team[]>("teams"),
           axios.get<Division[]>("divisions"),
-          axios.get<PlayerQualifierSubmission[]>("qualifiers/admin/submissions"),
+          axios.get<PlayerQualifierSubmission[]>(
+            "qualifiers/admin/submissions",
+          ),
+          axios.get<QualifierDivisionRanking[]>("qualifiers/rankings"),
         ]);
         if (!isMounted) {
           return;
@@ -141,6 +249,7 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
           ),
         );
         setQualifierSubmissions(qualifierSubmissionsResponse.data ?? []);
+        setQualifierRankings(qualifierRankingsResponse.data ?? []);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -178,17 +287,58 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
     [divisions, selectedDivisionId],
   );
 
-  const registeredPlayersForDivision = useMemo(
-    () =>
-      selectedDivision
-        ? players
-            .filter((player) => isPlayerInDivision(player, selectedDivision.id))
-            .sort((a, b) =>
-              getPlayerDisplayName(a).localeCompare(getPlayerDisplayName(b)),
-            )
-        : [],
-    [players, selectedDivision],
-  );
+  const registeredPlayersForDivision = useMemo(() => {
+    if (!selectedDivision) {
+      return [];
+    }
+
+    const registeredPlayers = players.filter(
+      (player) =>
+        isPlayerInDivision(player, selectedDivision.id) ||
+        isPlayerForcedInDivision(player, selectedDivision.id),
+    );
+    const qualifierRanking = getDivisionQualifierRanking(
+      selectedDivision,
+      qualifierRankings,
+    );
+
+    if (
+      isQualifierRequiredForDivision(selectedDivision, qualifierRanking) &&
+      isTechPlacementDivision(selectedDivision)
+    ) {
+      const placedPlayerIds = new Set(
+        (qualifierRanking?.rankings ?? []).map((entry) => entry.playerId),
+      );
+      return registeredPlayers
+        .filter(
+          (player) =>
+            placedPlayerIds.has(player.id) ||
+            isPlayerForcedInDivision(player, selectedDivision.id),
+        )
+        .sort((a, b) => {
+          const aIndexRaw =
+            qualifierRanking?.rankings.findIndex(
+              (entry) => entry.playerId === a.id,
+            ) ?? -1;
+          const bIndexRaw =
+            qualifierRanking?.rankings.findIndex(
+              (entry) => entry.playerId === b.id,
+            ) ?? -1;
+          const aIndex = aIndexRaw >= 0 ? aIndexRaw : Number.MAX_SAFE_INTEGER;
+          const bIndex = bIndexRaw >= 0 ? bIndexRaw : Number.MAX_SAFE_INTEGER;
+          return aIndex - bIndex;
+        });
+    }
+
+    return registeredPlayers.sort((a, b) =>
+      getPlayerDisplayName(a).localeCompare(getPlayerDisplayName(b)),
+    );
+  }, [players, qualifierRankings, selectedDivision]);
+
+  const openPlayerDetails = (playerId: number) => {
+    setSelectedPlayerId(playerId);
+    setViewMode("details");
+  };
 
   const createPlayer = () => {
     const name = prompt("Enter player name");
@@ -325,15 +475,6 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
             <div className={selectedPlayerId >= 0 ? "hidden md:block" : ""}>
               <div className="mb-2 flex flex-row flex-wrap items-center gap-3">
                 <h2 className="theme-text">Players List</h2>
-                {onImport && (
-                  <button
-                    type="button"
-                    onClick={onImport}
-                    className="rounded-md border border-slate-500/40 bg-slate-600/20 px-2 py-1 text-xs font-semibold text-slate-100"
-                  >
-                    Import players
-                  </button>
-                )}
                 <button
                   onClick={createPlayer}
                   title="Add new player"
@@ -483,11 +624,8 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                       `players/${playerId}`,
                       updates,
                     );
-                    setPlayers(
-                      (prev) =>
-                        prev.map((p) =>
-                          p.id === playerId ? response.data : p,
-                        ),
+                    setPlayers((prev) =>
+                      prev.map((p) => (p.id === playerId ? response.data : p)),
                     );
                     syncAuthAdmin(response.data, updates);
                     toast.success("Player updated");
@@ -505,21 +643,42 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                       },
                     );
                     setPlayers((prev) =>
-                      prev.map((p) =>
-                        p.id === playerId ? response.data : p,
-                      ),
+                      prev.map((p) => (p.id === playerId ? response.data : p)),
                     );
                     toast.success("Player divisions updated");
                   } catch (error) {
                     toast.error("Unable to update player divisions");
                   }
                 }}
+                onUpdateForcedDivisions={async (
+                  playerId,
+                  forcedDivisionIds,
+                ) => {
+                  try {
+                    const response = await axios.patch<Player>(
+                      `players/${playerId}`,
+                      {
+                        forcedDivisionIds,
+                      },
+                    );
+                    setPlayers((prev) =>
+                      prev.map((p) => (p.id === playerId ? response.data : p)),
+                    );
+                    toast.success("Forced divisions updated");
+                  } catch (error) {
+                    toast.error("Unable to update forced divisions");
+                  }
+                }}
                 qualifierSubmissions={qualifierSubmissions
-                  .filter((submission) => submission.player?.id === selectedPlayerId)
+                  .filter(
+                    (submission) => submission.player?.id === selectedPlayerId,
+                  )
                   .sort(
                     (a, b) =>
-                      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+                      new Date(b.updatedAt).getTime() -
+                      new Date(a.updatedAt).getTime(),
                   )}
+                qualifierRankings={qualifierRankings}
               />
             )}
             {viewMode === "registrations" && (
@@ -529,6 +688,8 @@ export default function PlayersList({ onImport }: { onImport?: () => void }) {
                 totalPlayers={players.length}
                 loading={loading}
                 loadError={loadError}
+                qualifierRankings={qualifierRankings}
+                onOpenPlayer={openPlayerDetails}
               />
             )}
           </div>
@@ -544,12 +705,16 @@ function DivisionRegistrationsTable({
   totalPlayers,
   loading,
   loadError,
+  qualifierRankings,
+  onOpenPlayer,
 }: {
   players: Player[];
   division?: Division;
   totalPlayers: number;
   loading: boolean;
   loadError: string | null;
+  qualifierRankings: QualifierDivisionRanking[];
+  onOpenPlayer: (playerId: number) => void;
 }) {
   if (loading) {
     return (
@@ -598,7 +763,7 @@ function DivisionRegistrationsTable({
                 Country
               </th>
               <th scope="col" className="px-3 py-2 font-semibold">
-                Registered divisions
+                Details
               </th>
               <th scope="col" className="px-3 py-2 font-semibold">
                 Status
@@ -606,26 +771,40 @@ function DivisionRegistrationsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
-            {players.map((player) => (
-              <tr key={player.id} className="bg-black/10">
-                <td className="px-3 py-2 font-semibold text-white">
-                  {getPlayerDisplayName(player)}
-                </td>
-                <td className="px-3 py-2 text-gray-200">
-                  {player.country?.trim() || "-"}
-                </td>
-                <td className="px-3 py-2 text-gray-200">
-                  {player.divisions && player.divisions.length > 0
-                    ? player.divisions.map((item) => item.name).join(", ")
-                    : "-"}
-                </td>
-                <td className="px-3 py-2">
-                  <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200">
-                    Registered
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {players.map((player) => {
+              const status = getDivisionRegistrationStatus(
+                player,
+                division,
+                qualifierRankings,
+              );
+
+              return (
+                <tr key={player.id} className="bg-black/10">
+                  <td className="px-3 py-2 font-semibold text-white">
+                    {getPlayerDisplayName(player)}
+                  </td>
+                  <td className="px-3 py-2 text-gray-200">
+                    {player.country?.trim() || "-"}
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenPlayer(player.id)}
+                      className="text-sm font-semibold text-blue-200 underline-offset-2 hover:text-blue-100 hover:underline"
+                    >
+                      View details
+                    </button>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`${baseRegistrationStatusClass} ${status.className}`}
+                    >
+                      {status.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
             {players.length === 0 && (
               <tr>
                 <td
@@ -653,7 +832,9 @@ function PlayerItem({
   divisions,
   onUpdateFlags,
   onUpdateDivisions,
+  onUpdateForcedDivisions,
   qualifierSubmissions,
+  qualifierRankings,
 }: {
   player: Player;
   teams: Team[];
@@ -667,9 +848,20 @@ function PlayerItem({
     updates: { isAdmin?: boolean; hasRegistered?: boolean },
   ) => void;
   onUpdateDivisions: (playerId: number, divisionIds: number[]) => void;
+  onUpdateForcedDivisions: (
+    playerId: number,
+    forcedDivisionIds: number[],
+  ) => void;
   qualifierSubmissions: PlayerQualifierSubmission[];
+  qualifierRankings: QualifierDivisionRanking[];
 }) {
   const selectedDivisionIds = getPlayerDivisionIds(player);
+  const forcedDivisionIds = getPlayerForcedDivisionIds(player);
+  const displayDivisions = divisions.filter(
+    (division) =>
+      selectedDivisionIds.includes(division.id) ||
+      forcedDivisionIds.includes(division.id),
+  );
   const [divisionModalOpen, setDivisionModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -682,6 +874,13 @@ function PlayerItem({
       ? selectedDivisionIds.filter((id) => id !== divisionId)
       : [...selectedDivisionIds, divisionId];
     onUpdateDivisions(player.id, nextDivisionIds);
+  };
+
+  const toggleForcedDivision = (divisionId: number) => {
+    const nextForcedDivisionIds = forcedDivisionIds.includes(divisionId)
+      ? forcedDivisionIds.filter((id) => id !== divisionId)
+      : [...forcedDivisionIds, divisionId];
+    onUpdateForcedDivisions(player.id, nextForcedDivisionIds);
   };
 
   const openPasswordModal = () => {
@@ -712,7 +911,8 @@ function PlayerItem({
       toast.success("Password updated");
       setPasswordModalOpen(false);
     } catch (error: unknown) {
-      const message = axios.isAxiosError(error) &&
+      const message =
+        axios.isAxiosError(error) &&
         typeof error.response?.data?.message === "string"
           ? error.response.data.message
           : "Unable to update password.";
@@ -723,7 +923,11 @@ function PlayerItem({
   };
 
   return (
-    <div className={"rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3 theme-text"}>
+    <div
+      className={
+        "rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3 theme-text"
+      }
+    >
       <h3 className="text-2xl theme-text">Player Information</h3>
       <div>
         <h3 className="theme-text text-sm uppercase tracking-wide">Name</h3>
@@ -732,14 +936,6 @@ function PlayerItem({
         </span>
       </div>
 
-      <div>
-        <h3 className="theme-text text-sm uppercase tracking-wide">Divisions</h3>
-        <span className="text-white">
-          {player.divisions && player.divisions.length > 0
-            ? player.divisions.map((division) => division.name).join(", ")
-            : "None"}
-        </span>
-      </div>
       <button
         type="button"
         onClick={() => setDivisionModalOpen(true)}
@@ -811,14 +1007,50 @@ function PlayerItem({
           <FontAwesomeIcon icon={faTrash} />
         </button>
       </div>
-      <h3 className="mt-3 theme-text">Player Scores</h3>
-      <p>No scores on record for this player.</p>
+      <div className="w-full">
+        <h3 className="theme-text text-sm uppercase tracking-wide">
+          Divisions & qualifications
+        </h3>
+        {displayDivisions.length > 0 ? (
+          <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
+            {displayDivisions.map((division) => {
+              const status = getDivisionRegistrationStatus(
+                player,
+                division,
+                qualifierRankings,
+              );
+
+              return (
+                <div
+                  key={division.id}
+                  className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-white/10 bg-black/10 px-2 py-1.5"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                    {division.name}
+                  </span>
+                  <span
+                    className={`${baseRegistrationStatusClass} shrink-0 ${status.className}`}
+                  >
+                    {status.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-1 text-xs text-gray-300">
+            No registered divisions yet.
+          </p>
+        )}
+      </div>
       <div className="mt-3">
         <h3 className="theme-text text-sm uppercase tracking-wide">
           Qualifier submissions
         </h3>
         {qualifierSubmissions.length === 0 ? (
-          <p className="mt-1 text-xs text-gray-300">No qualifier submissions yet.</p>
+          <p className="mt-1 text-xs text-gray-300">
+            No qualifier submissions yet.
+          </p>
         ) : (
           <ul className="mt-2 divide-y divide-white/10">
             {qualifierSubmissions.map((submission) => (
@@ -827,7 +1059,9 @@ function PlayerItem({
                 className="flex items-center justify-between gap-3 py-2"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-white">{submission.song?.title}</p>
+                  <p className="truncate text-sm text-white">
+                    {submission.song?.title}
+                  </p>
                   <p className="text-[10px] text-gray-400">
                     {submission.song?.group} · {submission.song?.difficulty}
                   </p>
@@ -853,7 +1087,9 @@ function PlayerItem({
         playerName={getPlayerDisplayName(player)}
         divisions={divisions}
         selectedDivisionIds={selectedDivisionIds}
+        forcedDivisionIds={forcedDivisionIds}
         onToggleDivision={toggleDivision}
+        onToggleForcedDivision={toggleForcedDivision}
       />
       <OkModal
         title={`Set password for ${getPlayerDisplayName(player)}`}
@@ -883,7 +1119,9 @@ function PlayerItem({
               autoComplete="new-password"
             />
           </label>
-          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+          {passwordError && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
         </div>
       </OkModal>
     </div>

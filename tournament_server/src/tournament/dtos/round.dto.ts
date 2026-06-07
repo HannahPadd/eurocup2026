@@ -1,7 +1,13 @@
 // Suggested code may be subject to a license. Learn more: ~LicenseLog:2556429189.
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
-import { Match, Song }  from '@persistence/entities';
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
+import { Match, Song } from '@persistence/entities';
 
 export class CreateRoundDto {
   @ApiProperty({ description: 'The ID of the match this round belongs to' })
@@ -16,6 +22,8 @@ export class CreateRoundDto {
 
   @ApiProperty({ description: 'list of disabled players' })
   @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
   disabledPlayerIds: number[];
 }
 
@@ -28,15 +36,20 @@ export class UpdateRoundDto {
   @IsNumber()
   matchId: number;
 
-  @ApiProperty({ description: 'The ID of the song played in this round', required: false })
+  @ApiProperty({
+    description: 'The ID of the song played in this round',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   songId: number;
 
   @ApiProperty({ description: 'list of disabled players' })
   @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
   disabledPlayerIds: number[];
-  
+
   match?: Match;
   song?: Song;
 }

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne, RelationId } from 'typeorm';
 
 import { Setup } from './setup.entity';
 import { Round } from './round.entity';
@@ -18,5 +18,7 @@ export class MatchAssignment {
 
   @ManyToOne(() => Setup, (setup) => setup.matchAssignments, { onDelete: 'CASCADE' })
   setup: Setup;
-}
 
+  @RelationId((matchAssignment: MatchAssignment) => matchAssignment.setup)
+  setupId: number;
+}

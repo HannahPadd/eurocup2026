@@ -75,6 +75,9 @@ export class Player {
   @Column({ default: false })
   hasRegistered: boolean;
 
+  @Column({ type: 'simple-json', nullable: true })
+  forcedDivisionIds: number[];
+
   @OneToMany(() => Score, (score) => score.player, { cascade: true })
   scores: Score[];
 

@@ -25,6 +25,7 @@ export interface Player {
   score?: number;
   teamId?: number;
   divisions?: Division[];
+  forcedDivisionIds?: number[];
   hasRegistered?: boolean;
   isAdmin?: boolean;
 }

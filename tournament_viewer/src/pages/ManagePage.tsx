@@ -176,7 +176,7 @@ export default function ManagePage() {
             <SongsList onImport={() => setImportMode("songs")} />
           </Tab.Panel>
           <Tab.Panel>
-            <PlayersList onImport={() => setImportMode("players")} />
+            <PlayersList />
           </Tab.Panel>
           <Tab.Panel>
             <QualifiersAdmin />

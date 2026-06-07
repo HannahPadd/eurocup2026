@@ -1,8 +1,9 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Division } from "../../../models/Division";
+import { Match } from "../../../models/Match";
 import { faPlus, faTrash, faUsers } from "@fortawesome/free-solid-svg-icons";
 import Select from "react-select";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 type DivisionListProps = {
@@ -18,12 +19,51 @@ export default function DivisionList({
 }: DivisionListProps) {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [selectedDivisionId, setSelectedDivisionId] = useState<number>(-1);
+  const hasPrefilledRef = useRef(false);
 
   useEffect(() => {
     axios.get<Division[]>("divisions").then((response) => {
       setDivisions(response.data);
     });
   }, []);
+
+  useEffect(() => {
+    if (hasPrefilledRef.current || divisions.length === 0) {
+      return;
+    }
+    hasPrefilledRef.current = true;
+    const prefillFromActiveMatch = async () => {
+      try {
+        const activeMatchResponse = await axios.get<Match | null>(
+          "tournament/activeMatch",
+        );
+        const activeMatchId = activeMatchResponse.data?.id;
+        if (!activeMatchId) {
+          return;
+        }
+
+        for (const division of divisions) {
+          const detailResponse = await axios.get<Division>(
+            `divisions/${division.id}`,
+          );
+          const phases = detailResponse.data.phases ?? [];
+          for (const phase of phases) {
+            const matchesResponse = await axios.get<Match[]>(
+              `matches/phase/${phase.id}`,
+            );
+            if ((matchesResponse.data ?? []).some((match) => match.id === activeMatchId)) {
+              setSelectedDivisionId(detailResponse.data.id);
+              onDivisionSelect(detailResponse.data);
+              return;
+            }
+          }
+        }
+      } catch {
+        // keep manual selection if prefill cannot be resolved
+      }
+    };
+    void prefillFromActiveMatch();
+  }, [divisions, onDivisionSelect]);
 
   // Division functions
   const createDivision = () => {
@@ -54,6 +94,25 @@ export default function DivisionList({
       }
     }
   };
+
+  const updateDivisionScoreLead = async (scoreLead: "FA" | "FA_PLUS") => {
+    if (selectedDivisionId < 0) {
+      return;
+    }
+    const response = await axios.patch<Division>(
+      `divisions/${selectedDivisionId}`,
+      { scoreLead },
+    );
+    setDivisions((prev) =>
+      prev.map((division) =>
+        division.id === response.data.id ? response.data : division,
+      ),
+    );
+    onDivisionSelect(response.data);
+  };
+
+  const selectedDivision = divisions.find((d) => d.id === selectedDivisionId);
+
   return (
     <div className="flex flex-col gap-2 text-black">
       <Select
@@ -75,6 +134,22 @@ export default function DivisionList({
       />
       {controls && (
         <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+            Lead score
+            <select
+              className="rounded border border-slate-300 bg-white px-1 py-0.5 text-xs"
+              value={selectedDivision?.scoreLead ?? "FA"}
+              disabled={selectedDivisionId === -1}
+              onChange={(event) =>
+                updateDivisionScoreLead(
+                  event.target.value === "FA_PLUS" ? "FA_PLUS" : "FA",
+                )
+              }
+            >
+              <option value="FA">FA</option>
+              <option value="FA_PLUS">FA+</option>
+            </select>
+          </label>
           <button
             onClick={createDivision}
             className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"

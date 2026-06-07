@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsBoolean,
   IsNotEmpty,
   IsObject,
@@ -14,7 +15,10 @@ export class CreateRulesetDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'Rules for promotion and elimination', required: false })
+  @ApiProperty({
+    example: 'Rules for promotion and elimination',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -23,7 +27,13 @@ export class CreateRulesetDto {
     example: {
       tiePolicy: 'MANUAL_EXTRA_SONG',
       rules: [
-        { type: 'SEND_RANK_RANGE_TO_PHASE', fromRank: 5, toRank: 10, targetPhaseId: 22, lane: 'LOSERS' },
+        {
+          type: 'SEND_RANK_RANGE_TO_PHASE',
+          fromRank: 5,
+          toRank: 10,
+          targetPhaseId: 22,
+          lane: 'LOSERS',
+        },
         { type: 'ELIMINATE_BOTTOM_N', count: 4 },
       ],
     },
@@ -37,6 +47,16 @@ export class CreateRulesetDto {
   @IsBoolean()
   @Type(() => Boolean)
   isActive?: boolean;
+
+  @ApiProperty({
+    example: 'PHASE',
+    required: false,
+    enum: ['PHASE', 'QUALIFIER'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['PHASE', 'QUALIFIER'])
+  scope?: 'PHASE' | 'QUALIFIER';
 }
 
 export class UpdateRulesetDto {
@@ -66,4 +86,14 @@ export class UpdateRulesetDto {
   @IsBoolean()
   @Type(() => Boolean)
   isActive?: boolean;
+
+  @ApiProperty({
+    example: 'PHASE',
+    required: false,
+    enum: ['PHASE', 'QUALIFIER'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['PHASE', 'QUALIFIER'])
+  scope?: 'PHASE' | 'QUALIFIER';
 }

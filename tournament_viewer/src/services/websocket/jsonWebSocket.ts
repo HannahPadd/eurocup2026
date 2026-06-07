@@ -4,26 +4,94 @@ type JsonEventPayload = {
 };
 
 type JsonEventHandler = (payload: unknown) => void;
+type WebSocketTarget = "api" | "itgonline";
+type ConnectJsonWebSocketOptions = {
+  target?: WebSocketTarget;
+  disableOnFailure?: boolean;
+};
 
-export function buildWebSocketUrl(path: string): string {
-  const apiBase =
-      import.meta.env.VITE_ITGONLINE_URL
-  const url = new URL(path, apiBase);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+const disabledPaths = new Set<string>();
+const loggedDisabledPaths = new Set<string>();
+
+function toWebSocketProtocol(protocol: string): string {
+  if (protocol === "https:") {
+    return "wss:";
+  }
+  if (protocol === "http:") {
+    return "ws:";
+  }
+  return protocol;
+}
+
+function getBaseForTarget(target: WebSocketTarget): string {
+  if (target === "itgonline") {
+    return import.meta.env.VITE_ITGONLINE_URL;
+  }
+
+  return (
+    import.meta.env.VITE_PUBLIC_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    window.location.origin
+  );
+}
+
+export function buildWebSocketUrl(
+  path: string,
+  target: WebSocketTarget = "api",
+): string {
+  const base = getBaseForTarget(target);
+  const url = new URL(path, base);
+  url.protocol = toWebSocketProtocol(url.protocol);
   return url.toString();
 }
 
 export function connectJsonWebSocket(
   path: string,
   handlers: Record<string, JsonEventHandler>,
+  options: ConnectJsonWebSocketOptions = {},
 ): WebSocket | null {
-  let ws: WebSocket;
-  try {
-    ws = new WebSocket(buildWebSocketUrl(path));
-  } catch (error) {
-    console.warn(`WebSocket disabled for path "${path}"`, error);
+  const target = options.target ?? "api";
+  const disableOnFailure = options.disableOnFailure ?? true;
+  const connectionKey = `${target}:${path}`;
+
+  if (disableOnFailure && disabledPaths.has(connectionKey)) {
+    if (!loggedDisabledPaths.has(connectionKey)) {
+      console.info(
+        `WebSocket connection skipped for "${connectionKey}" after initial failure.`,
+      );
+      loggedDisabledPaths.add(connectionKey);
+    }
     return null;
   }
+
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(buildWebSocketUrl(path, target));
+  } catch (error) {
+    console.warn(`WebSocket disabled for "${connectionKey}"`, error);
+    if (disableOnFailure) {
+      disabledPaths.add(connectionKey);
+    }
+    return null;
+  }
+
+  let opened = false;
+  ws.addEventListener("open", () => {
+    opened = true;
+  });
+
+  ws.addEventListener("error", () => {
+    if (!opened && disableOnFailure) {
+      disabledPaths.add(connectionKey);
+    }
+  });
+
+  ws.addEventListener("close", (event) => {
+    if (event.code !== 1000 && disableOnFailure) {
+      disabledPaths.add(connectionKey);
+      return;
+    }
+  });
 
   ws.onmessage = (messageEvent) => {
     if (typeof messageEvent.data !== "string") {

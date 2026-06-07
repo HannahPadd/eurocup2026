@@ -1,11 +1,10 @@
-import { IsNotEmpty, IsNumber, IsString, IsOptional, } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Bracket, Division, Score, Team }  from '@persistence/entities';
+import { Bracket, Division, Score, Team } from '@persistence/entities';
 import { ApiProperty } from '@nestjs/swagger';
 import { PrimaryGeneratedColumn } from 'typeorm';
 
 export class CreatePlayerDto {
-  
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -28,8 +27,8 @@ export class CreatePlayerDto {
   playerName: string;
 
   @ApiProperty({
-  example: '5 years',
-  description: 'Time the player has been actively playing',
+    example: '5 years',
+    description: 'Time the player has been actively playing',
   })
   @IsNotEmpty()
   @IsString()
@@ -37,8 +36,8 @@ export class CreatePlayerDto {
   playedFor: string;
 
   @ApiProperty({
-  example: 'Netherlands',
-  description: 'Country the player represents',
+    example: 'Netherlands',
+    description: 'Country the player represents',
   })
   @IsNotEmpty()
   @IsString()
@@ -46,8 +45,8 @@ export class CreatePlayerDto {
   country: string;
 
   @ApiProperty({
-  example: '15',
-  description: 'Highest stamina pass the player has achieved',
+    example: '15',
+    description: 'Highest stamina pass the player has achieved',
   })
   @IsNotEmpty()
   @IsString()
@@ -55,8 +54,8 @@ export class CreatePlayerDto {
   highestStaminaPass: number;
 
   @ApiProperty({
-  example: '??',
-  description: 'I don\'t know',
+    example: '??',
+    description: "I don't know",
   })
   @IsNotEmpty()
   @IsString()
@@ -64,8 +63,8 @@ export class CreatePlayerDto {
   staminaLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The footspeed level of the player',
+    example: '12',
+    description: 'The footspeed level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -73,8 +72,8 @@ export class CreatePlayerDto {
   footSpeedLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The crossover tech level of the player',
+    example: '12',
+    description: 'The crossover tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -82,8 +81,8 @@ export class CreatePlayerDto {
   crossOverTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The footswitch tech level of the player',
+    example: '12',
+    description: 'The footswitch tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -91,8 +90,8 @@ export class CreatePlayerDto {
   footSwitchTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The sideswitch tech level of the player',
+    example: '12',
+    description: 'The sideswitch tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -100,8 +99,8 @@ export class CreatePlayerDto {
   sideSwitchTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The bracket tech level of the player',
+    example: '12',
+    description: 'The bracket tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -109,17 +108,17 @@ export class CreatePlayerDto {
   bracketTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The doublestep tech level of the player',
+    example: '12',
+    description: 'The doublestep tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
   @Type(() => Number)
   doubleStepTechLevel: number;
-  
+
   @ApiProperty({
-  example: '12',
-  description: 'The jack tech level of the player',
+    example: '12',
+    description: 'The jack tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -127,8 +126,8 @@ export class CreatePlayerDto {
   jackTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The xmod tech level of the player',
+    example: '12',
+    description: 'The xmod tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -136,8 +135,8 @@ export class CreatePlayerDto {
   xmodTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The burst tech level of the player',
+    example: '12',
+    description: 'The burst tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -145,8 +144,8 @@ export class CreatePlayerDto {
   burstTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The rhythms tech level of the player',
+    example: '12',
+    description: 'The rhythms tech level of the player',
   })
   @IsNotEmpty()
   @IsString()
@@ -154,8 +153,8 @@ export class CreatePlayerDto {
   rhythmsTechLevel: number;
 
   @ApiProperty({
-  example: 1,
-  description: 'ID of the scores table for this player',
+    example: 1,
+    description: 'ID of the scores table for this player',
   })
   @IsNotEmpty()
   @IsString()
@@ -176,14 +175,13 @@ export class CreatePlayerDto {
   divisions: Division[];
 
   @ApiProperty({
-  example: 1,
-  description: 'ID of the bracket table this player belongs to',
+    example: 1,
+    description: 'ID of the bracket table this player belongs to',
   })
   @IsNotEmpty()
   @IsString()
   @Type(() => Number)
   BracketId: number;
-
 }
 
 export class UpdatePlayerDto {
@@ -196,7 +194,7 @@ export class UpdatePlayerDto {
   @Type(() => String)
   playerPictureUrl: string;
 
-   @ApiProperty({
+  @ApiProperty({
     example: 'example@example.com',
     description: 'New email of the player',
   })
@@ -204,7 +202,7 @@ export class UpdatePlayerDto {
   @IsString()
   @Type(() => String)
   email: string;
-  
+
   @ApiProperty({
     example: 'Password!',
     description: 'New player password',
@@ -216,7 +214,7 @@ export class UpdatePlayerDto {
 
   @ApiProperty({
     example: '',
-    description: 'New api key for groovestats'
+    description: 'New api key for groovestats',
   })
   @IsOptional()
   @IsString()
@@ -231,7 +229,7 @@ export class UpdatePlayerDto {
   @IsOptional()
   @IsString()
   @Type(() => String)
-  resultsID: string
+  resultsID: string;
 
   @ApiProperty({
     example: 'John Doe',
@@ -243,8 +241,8 @@ export class UpdatePlayerDto {
   playerName: string;
 
   @ApiProperty({
-  example: '5 years',
-  description: 'Time the player has been actively playing',
+    example: '5 years',
+    description: 'Time the player has been actively playing',
   })
   @IsOptional()
   @IsString()
@@ -252,8 +250,8 @@ export class UpdatePlayerDto {
   playedFor: string;
 
   @ApiProperty({
-  example: 'Netherlands',
-  description: 'Country the player represents',
+    example: 'Netherlands',
+    description: 'Country the player represents',
   })
   @IsOptional()
   @IsString()
@@ -261,8 +259,8 @@ export class UpdatePlayerDto {
   country: string;
 
   @ApiProperty({
-  example: '15',
-  description: 'Highest stamina pass the player has achieved',
+    example: '15',
+    description: 'Highest stamina pass the player has achieved',
   })
   @IsOptional()
   @IsString()
@@ -270,8 +268,8 @@ export class UpdatePlayerDto {
   highestStaminaPass: number;
 
   @ApiProperty({
-  example: '??',
-  description: 'I don\'t know',
+    example: '??',
+    description: "I don't know",
   })
   @IsOptional()
   @IsString()
@@ -279,8 +277,8 @@ export class UpdatePlayerDto {
   staminaLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The footspeed level of the player',
+    example: '12',
+    description: 'The footspeed level of the player',
   })
   @IsOptional()
   @IsString()
@@ -288,8 +286,8 @@ export class UpdatePlayerDto {
   footSpeedLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The crossover tech level of the player',
+    example: '12',
+    description: 'The crossover tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -297,8 +295,8 @@ export class UpdatePlayerDto {
   crossOverTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The footswitch tech level of the player',
+    example: '12',
+    description: 'The footswitch tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -306,8 +304,8 @@ export class UpdatePlayerDto {
   footSwitchTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The sideswitch tech level of the player',
+    example: '12',
+    description: 'The sideswitch tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -315,8 +313,8 @@ export class UpdatePlayerDto {
   sideSwitchTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The bracket tech level of the player',
+    example: '12',
+    description: 'The bracket tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -324,17 +322,17 @@ export class UpdatePlayerDto {
   bracketTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The doublestep tech level of the player',
+    example: '12',
+    description: 'The doublestep tech level of the player',
   })
   @IsOptional()
   @IsString()
   @Type(() => Number)
   doubleStepTechLevel: number;
-  
+
   @ApiProperty({
-  example: '12',
-  description: 'The jack tech level of the player',
+    example: '12',
+    description: 'The jack tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -342,8 +340,8 @@ export class UpdatePlayerDto {
   jackTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The xmod tech level of the player',
+    example: '12',
+    description: 'The xmod tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -351,8 +349,8 @@ export class UpdatePlayerDto {
   xmodTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The burst tech level of the player',
+    example: '12',
+    description: 'The burst tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -360,8 +358,8 @@ export class UpdatePlayerDto {
   burstTechLevel: number;
 
   @ApiProperty({
-  example: '12',
-  description: 'The rhythms tech level of the player',
+    example: '12',
+    description: 'The rhythms tech level of the player',
   })
   @IsOptional()
   @IsString()
@@ -369,15 +367,15 @@ export class UpdatePlayerDto {
   rhythmsTechLevel: number;
 
   @ApiProperty({
-  example: 1,
-  description: 'ID of the scores table for this player',
+    example: 1,
+    description: 'ID of the scores table for this player',
   })
   @IsOptional()
   @IsString()
   @Type(() => Number)
   scoresId: number;
 
-  score?: Promise<Score>
+  score?: Promise<Score>;
 
   @ApiProperty({
     example: 1,
@@ -389,40 +387,47 @@ export class UpdatePlayerDto {
   @Type(() => Number)
   teamId: number;
 
-  team?: Team
+  team?: Team;
 
   @IsOptional()
   divisionId: number[];
-  
+
+  @ApiProperty({
+    example: [9],
+    description: 'Division ids that an admin manually forced this player into',
+    required: false,
+  })
+  @IsOptional()
+  forcedDivisionIds: number[];
+
   divisions: Division[];
 
   @ApiProperty({
-  example: 1,
-  description: 'ID of the bracket table this player belongs to',
+    example: 1,
+    description: 'ID of the bracket table this player belongs to',
   })
   @IsOptional()
   @IsString()
   @Type(() => Number)
   BracketId: number;
 
-  bracket?: Bracket
+  bracket?: Bracket;
 
   @ApiProperty({
-  example: true,
-  description: 'Whether the player has completed registration',
-  required: false,
+    example: true,
+    description: 'Whether the player has completed registration',
+    required: false,
   })
   @IsOptional()
   hasRegistered: boolean;
 
   @ApiProperty({
-  example: false,
-  description: 'Whether the player account is an admin',
-  required: false,
+    example: false,
+    description: 'Whether the player account is an admin',
+    required: false,
   })
   @IsOptional()
   isAdmin: boolean;
-  
 }
 
 export class UpdatePlayerPasswordDto {

@@ -50,4 +50,7 @@ export class Match {
 
   @ManyToOne(() => Bracket, (bracket) => bracket.match)
   bracket: Bracket
+
+  @Column({ nullable: true })
+  lobbyCode: string;
 }

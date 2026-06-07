@@ -85,7 +85,7 @@ export default function QualifierList({
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-2 md:contents">
+            <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-2 md:contents">
               <input
                 type="text"
                 placeholder="Score (77.77)"

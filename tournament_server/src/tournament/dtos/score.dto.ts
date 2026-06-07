@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsBoolean, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { Song, Player }  from '@persistence/entities';
@@ -9,6 +9,18 @@ export class CreateScoreDto {
   @IsNumber()
   @Type(() => Number)
   percentage: number;
+
+  @ApiProperty({ description: 'The FA percentage score', example: 95, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPercentage?: number;
+
+  @ApiProperty({ description: 'The FA+ percentage score', example: 92.5, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPlusPercentage?: number;
 
   @ApiProperty({ description: 'Indicates if the score is a failure', example: false })
   @IsNotEmpty()
@@ -27,6 +39,11 @@ export class CreateScoreDto {
   @IsNumber()
   @Type(() => Number)
   playerId: number;
+
+  @ApiProperty({ description: 'Additional score data like step counts', example: {} })
+  @IsObject()
+  @Type(() => Object)
+  data?: object
 }
 
 export class UpdateScoreDto {
@@ -35,6 +52,18 @@ export class UpdateScoreDto {
   @IsNumber()
   @Type(() => Number)
   percentage: number;
+
+  @ApiProperty({ description: 'The FA percentage score', example: 95, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPercentage?: number;
+
+  @ApiProperty({ description: 'The FA+ percentage score', example: 92.5, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  faPlusPercentage?: number;
 
   @ApiProperty({ description: 'Indicates if the score is a failure', example: false, required: false })
   @IsOptional()

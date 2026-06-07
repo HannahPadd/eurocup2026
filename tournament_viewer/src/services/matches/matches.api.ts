@@ -10,9 +10,7 @@ import {
 
 export async function listByPhase(phaseId: number): Promise<Match[]> {
   try {
-    const response = await axios.get<Match[]>(
-      "tournament/expandphase/" + phaseId,
-    );
+    const response = await axios.get<Match[]>(`matches/phase/${phaseId}`);
 
     return response.data;
   } catch (error) {
@@ -21,9 +19,9 @@ export async function listByPhase(phaseId: number): Promise<Match[]> {
   }
 }
 
-export async function getActiveMatch(): Promise<Match> {
+export async function getActiveMatch(): Promise<Match | null> {
   try {
-    const response = await axios.get<Match>("tournament/activeMatch");
+    const response = await axios.get<Match | null>("tournament/activeMatch");
 
     return response.data;
   } catch (error) {
@@ -73,9 +71,12 @@ export async function editMatchPlayers(
 
 export async function setActiveMatch(
   request: SetActiveMatchRequest,
-): Promise<void> {
+): Promise<Match | null> {
   try {
-    const response = await axios.post("tournament/setactivematch", request);
+    const response = await axios.post<Match | null>(
+      "tournament/setactivematch",
+      request,
+    );
     return response.data;
   } catch (error) {
     console.error("Error setting active match:", error);

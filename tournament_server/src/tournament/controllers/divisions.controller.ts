@@ -1,8 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, ValidationPipe } from '@nestjs/common';
 import { DivisionsService } from '../services';
 import { Division } from '@persistence/entities';
 import { CreateDivisionDto, UpdateDivisionDto } from '../dtos';
-import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
 import { Public } from '@auth/public.decorator';
 
 @Controller('divisions')
@@ -20,6 +19,12 @@ export class DivisionsController {
     async findAll(): Promise<Division[]> {
         const divisions = await this.service.findAll();
         return divisions;
+    }
+
+    @Public()
+    @Get(':id/ranking')
+    ranking(@Param('id', ParseIntPipe) id: number) {
+        return this.service.ranking(id);
     }
 
     @Public()

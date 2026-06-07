@@ -10,6 +10,7 @@ import QualifierList, {
 import { formatPercentageDisplay, parsePercentage } from "../utils/formatting";
 import { buildRegistrationDivisionOptions } from "../utils/registrationDivisionOptions";
 import OkModal from "../components/layout/OkModal";
+import { isQualifierPhase } from "../utils/qualifierPhase";
 
 type QualifierSubmission = {
   percentage: number;
@@ -46,6 +47,10 @@ type DivisionPhaseRulesetConfig = {
   minimumSubmissions?: number;
 };
 
+type QualifierInput = {
+  percentage: string;
+  screenshotUrl: string;
+};
 
 type PlayerProfile = {
   id: number;
@@ -66,7 +71,7 @@ export default function LandingPage() {
   );
   const [qualifiers, setQualifiers] = useState<QualifierDivision[]>([]);
   const [qualifierInputs, setQualifierInputs] = useState<
-    Record<number, { percentage: string; screenshotUrl: string }>
+    Record<number, QualifierInput>
   >({});
   const [qualifierLoading, setQualifierLoading] = useState(false);
   const [qualifierSaving, setQualifierSaving] = useState(false);
@@ -171,10 +176,7 @@ export default function LandingPage() {
 
   const applyQualifierData = (data: QualifierDivision[]) => {
     setQualifiers(data);
-    const nextInputs: Record<
-      number,
-      { percentage: string; screenshotUrl: string }
-    > = {};
+    const nextInputs: Record<number, QualifierInput> = {};
     for (const division of data) {
       for (const phase of division.phases) {
         for (const { song, submission } of phase.songs) {
@@ -478,18 +480,7 @@ export default function LandingPage() {
 
     for (const division of divisions) {
       for (const phase of division.phases ?? []) {
-        const phaseName = (phase.name ?? "").toLowerCase();
-        const rulesetName = (
-          (phase.ruleset as { name?: string } | undefined)?.name ?? ""
-        )
-          .trim()
-          .toLowerCase();
-        const isQualifierPhase =
-          phaseName.includes("seeding") ||
-          phaseName.includes("qualifier") ||
-          rulesetName.includes("seeding") ||
-          rulesetName.includes("qualifier");
-        if (!isQualifierPhase) {
+        if (!isQualifierPhase(phase)) {
           continue;
         }
 
@@ -570,7 +561,7 @@ export default function LandingPage() {
           <h2 className="text-2xl font-semibold theme-text">
             Send in qualifiers
           </h2>
-          <p className="mt-2 text-sm text-gray-300">
+          <div className="mt-2 text-sm text-gray-300">
             Submit a score (e.g. 77.77) in ITG score timing window{" "}
             <details className="relative inline-block align-middle">
               <summary className="inline cursor-pointer list-none text-blue-200 hover:text-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70 rounded-sm">
@@ -582,7 +573,7 @@ export default function LandingPage() {
               </div>
             </details>
             . Screenshots are checked before the qualifications close.
-          </p>
+          </div>
           <div className="mt-6 grid grid-cols-1 gap-4">
             {qualifierLoading && (
               <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-gray-300">

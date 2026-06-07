@@ -4,6 +4,8 @@ import { Song } from './Song'
 export interface Score {
   id: number;
   percentage: number;
+  faPercentage?: number;
+  faPlusPercentage?: number;
   isFailed: boolean;
   player: Player;
   song: Song;

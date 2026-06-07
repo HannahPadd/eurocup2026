@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Division } from "../../../models/Division";
 import DivisionList from "./DivisionList";
 import { Phase } from "../../../models/Phase";
@@ -21,9 +21,7 @@ import {
   faTrash,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
-import {
-  togglePlayerDivisionIds,
-} from "../../../utils/playerDivisions";
+import { togglePlayerDivisionIds } from "../../../utils/playerDivisions";
 import DivisionMembersModal from "../divisions/DivisionMembersModal";
 import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 import EditMatchNotesModal from "./modals/EditMatchNotesModal";
@@ -38,6 +36,89 @@ import {
 type TournamentSettingsProps = {
   controls: boolean;
 };
+
+type MatchCompletionStatus = {
+  matchId: number;
+  matchName: string;
+  ready: boolean;
+  totalRounds: number;
+  completedRounds: number;
+  missingRounds: {
+    roundId: number;
+    songId: number;
+    songTitle: string;
+    requiredPlayers: number;
+    submittedPlayers: number;
+    missingPlayers: { id: number; playerName: string }[];
+  }[];
+};
+
+type RulesetStepLike = {
+  sourceMatchId?: unknown;
+};
+
+function parsePositiveNumber(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function resolveStepIndexForMatch(
+  phase: Phase | null,
+  matchId: number,
+): { stepIndex?: number; error?: string } {
+  const rawSteps = phase?.ruleset?.config?.steps;
+  if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
+    return {};
+  }
+
+  const stepsWithSource: { index: number; sourceMatchId: number }[] = [];
+  rawSteps.forEach((rawStep, index) => {
+    const step =
+      typeof rawStep === "object" && rawStep
+        ? (rawStep as RulesetStepLike)
+        : undefined;
+    const sourceMatchId = parsePositiveNumber(step?.sourceMatchId);
+    if (sourceMatchId) {
+      stepsWithSource.push({ index, sourceMatchId });
+    }
+  });
+
+  if (stepsWithSource.length === 0) {
+    if (rawSteps.length === 1) {
+      return { stepIndex: 0 };
+    }
+    return {
+      error:
+        "This phase has multiple ruleset steps but no valid sourceMatchId mapping. Open Manage > Rulesets and select the step manually.",
+    };
+  }
+
+  const matchingSteps = stepsWithSource.filter(
+    (step) => step.sourceMatchId === matchId,
+  );
+  if (matchingSteps.length === 1) {
+    return { stepIndex: matchingSteps[0].index };
+  }
+  if (matchingSteps.length > 1) {
+    return {
+      error:
+        "Multiple ruleset steps target this match. Open Manage > Rulesets and select the exact step before commit.",
+    };
+  }
+
+  return {
+    error:
+      "No ruleset step targets this match. Open Manage > Rulesets and select the step before commit.",
+  };
+}
 
 export default function TournamentSettings({
   controls,
@@ -61,6 +142,12 @@ export default function TournamentSettings({
   const [liveLobbyPassword, setLiveLobbyPasswordState] = useState(
     getLiveLobbyPassword(),
   );
+  const [completionByMatchId, setCompletionByMatchId] = useState<
+    Record<number, MatchCompletionStatus>
+  >({});
+  const [completionLoadingByMatchId, setCompletionLoadingByMatchId] = useState<
+    Record<number, boolean>
+  >({});
 
   useEffect(() => {
     if (!controls) {
@@ -100,17 +187,21 @@ export default function TournamentSettings({
     }
   };
 
-  const activeMatchIndex = matches.findIndex((match) => match.id === activeMatchId);
+  const activeMatchIndex = matches.findIndex(
+    (match) => match.id === activeMatchId,
+  );
 
   const loadMatchActions = async () => {
     if (!selectedPhase) {
       setMatches([]);
       setActiveMatchId(null);
+      setCompletionByMatchId({});
+      setCompletionLoadingByMatchId({});
       return;
     }
     try {
       const [matchesResponse, activeMatchResponse] = await Promise.all([
-        axios.get<Match[]>(`tournament/expandphase/${selectedPhase.id}`),
+        axios.get<Match[]>(`matches/phase/${selectedPhase.id}`),
         axios.get<Match | null>("tournament/activeMatch"),
       ]);
       setMatches(matchesResponse.data ?? []);
@@ -123,6 +214,8 @@ export default function TournamentSettings({
     } catch {
       setMatches([]);
       setActiveMatchId(null);
+      setCompletionByMatchId({});
+      setCompletionLoadingByMatchId({});
     }
   };
 
@@ -132,6 +225,94 @@ export default function TournamentSettings({
   }, [selectedPhase?.id, matchRefreshSignal]);
 
   const triggerMatchRefresh = () => setMatchRefreshSignal((prev) => prev + 1);
+
+  const loadCompletionStatus = useCallback(async (matchId: number) => {
+    setCompletionLoadingByMatchId((prev) => ({ ...prev, [matchId]: true }));
+    try {
+      const response = await axios.get<MatchCompletionStatus>(
+        `matches/${matchId}/completion-status`,
+      );
+      setCompletionByMatchId((prev) => ({ ...prev, [matchId]: response.data }));
+    } catch {
+      toast.error("Unable to load match completion status.");
+    } finally {
+      setCompletionLoadingByMatchId((prev) => ({ ...prev, [matchId]: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activeMatchId) {
+      return;
+    }
+    if (completionByMatchId[activeMatchId]) {
+      return;
+    }
+    void loadCompletionStatus(activeMatchId);
+  }, [activeMatchId, completionByMatchId, loadCompletionStatus]);
+
+  const handleMatchesSnapshot = useCallback(
+    (nextMatches: Match[], activeMatch: Match | null) => {
+      setMatches(nextMatches);
+      setActiveMatchId(activeMatch?.id ?? null);
+    },
+    [],
+  );
+
+  const commitProgressionFromGeneral = async (match: Match) => {
+    const status = completionByMatchId[match.id];
+    if (!status) {
+      toast.error("Completion status unavailable. Refresh status first.");
+      return;
+    }
+
+    if (!status.ready) {
+      const missingSummary = status.missingRounds
+        .flatMap((round) =>
+          round.missingPlayers.map(
+            (player) => player.playerName || `#${player.id}`,
+          ),
+        )
+        .slice(0, 6)
+        .join(", ");
+      const accepted = window.confirm(
+        `Match is not complete. Missing players include: ${missingSummary || "unknown"}. Commit anyway?`,
+      );
+      if (!accepted) {
+        return;
+      }
+    }
+
+    const { stepIndex, error: stepResolutionError } = resolveStepIndexForMatch(
+      selectedPhase,
+      match.id,
+    );
+    if (stepResolutionError) {
+      toast.error(stepResolutionError);
+      return;
+    }
+
+    try {
+      const response = await axios.post<{
+        runId: string;
+        saved: number;
+        autoAssignedPlayers: number;
+      }>(`matches/${match.id}/progression/commit`, {
+        autoAssignPlayersToTargetMatches: true,
+        stepIndex,
+      });
+
+      toast.success(
+        `Progression committed. Saved ${response.data.saved}, auto-assigned ${response.data.autoAssignedPlayers}.`,
+      );
+      await loadCompletionStatus(match.id);
+      triggerMatchRefresh();
+    } catch {
+      toast.error(
+        "Commit failed. If this phase uses multiple ruleset steps, use Manage > Rulesets to select the step.",
+      );
+    }
+  };
+
   const setQualifierMatchName = async (matchId: number) => {
     try {
       await axios.patch(`matches/${matchId}`, { name: "Qualifier" });
@@ -185,7 +366,10 @@ export default function TournamentSettings({
                 placeholder="BGYJ"
                 className="w-full rounded border border-white/20 bg-black/30 px-2 py-1 font-mono uppercase tracking-wide text-white sm:w-24"
               />
-              <label htmlFor="live-lobby-password" className="font-semibold sm:ml-2">
+              <label
+                htmlFor="live-lobby-password"
+                className="font-semibold sm:ml-2"
+              >
                 Password:
               </label>
               <input
@@ -223,6 +407,7 @@ export default function TournamentSettings({
                 </div>
                 <PhaseList
                   controls={controls}
+                  hideEmptyHistoryPhases={!controls}
                   onPhaseSelect={setSelectedPhase}
                   divisionId={selectedDivision.id}
                 />
@@ -231,18 +416,18 @@ export default function TournamentSettings({
                     <div className="text-xs uppercase tracking-wide pb-3 text-gray-400">
                       Matches
                     </div>
-                      <div className="inline-flex w-fit self-start bg-gray-200 p-2 px-4 rounded-lg">
-                        <button
-                          onClick={() => {
-                            setOpenCreateMatchModalSignal((prev) => prev + 1)
-                            triggerMatchRefresh();
-                          }}
-                          className="text-green-800 font-bold inline-flex w-fit flex-row gap-2 items-center"
-                        >
-                          <FontAwesomeIcon icon={faHandFist} />
-                          <span>New match</span>
-                        </button>
-                      </div>
+                    <div className="inline-flex w-fit self-start bg-gray-200 p-2 px-4 rounded-lg">
+                      <button
+                        onClick={() => {
+                          setOpenCreateMatchModalSignal((prev) => prev + 1);
+                          triggerMatchRefresh();
+                        }}
+                        className="text-green-800 font-bold inline-flex w-fit flex-row gap-2 items-center"
+                      >
+                        <FontAwesomeIcon icon={faHandFist} />
+                        <span>New match</span>
+                      </button>
+                    </div>
                   </div>
                 )}
                 {controls && selectedPhase && matches.length > 0 && (
@@ -250,6 +435,10 @@ export default function TournamentSettings({
                     <div className="mt-2 space-y-2">
                       {matches.map((match, index) => {
                         const isActive = activeMatchId === match.id;
+                        const completion = completionByMatchId[match.id];
+                        const completionLoading = Boolean(
+                          completionLoadingByMatchId[match.id],
+                        );
                         const roundsUntil =
                           activeMatchIndex >= 0 && index > activeMatchIndex
                             ? index - activeMatchIndex
@@ -277,18 +466,36 @@ export default function TournamentSettings({
                               )}
                               {!isActive && !isPast && roundsUntil > 0 && (
                                 <span className="text-[10px] rounded-full bg-blue-700/40 px-2 py-0.5 text-blue-100">
-                                  In {roundsUntil} {roundsUntil === 1 ? "round" : "rounds"}
+                                  In {roundsUntil}{" "}
+                                  {roundsUntil === 1 ? "round" : "rounds"}
                                 </span>
                               )}
                             </div>
                             <div className="mt-2 flex flex-wrap gap-2">
+                              {isActive && (
+                                <>
+                                  <button
+                                    title="Commit progression for active match"
+                                    onClick={async () => {
+                                      await commitProgressionFromGeneral(match);
+                                    }}
+                                    className="rounded-md border border-amber-400/50 px-2 py-1 text-xs text-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                    disabled={completionLoading || !completion}
+                                  >
+                                    Commit
+                                  </button>
+                                </>
+                              )}
                               {!isActive && (
                                 <button
                                   title="Set active match"
                                   onClick={async () => {
-                                    await axios.post("tournament/setactivematch", {
-                                      matchId: match.id,
-                                    });
+                                    await axios.post(
+                                      "tournament/setactivematch",
+                                      {
+                                        matchId: match.id,
+                                      },
+                                    );
                                     triggerMatchRefresh();
                                   }}
                                   className="rounded-md border border-emerald-400/50 px-2 py-1 text-xs text-emerald-200"
@@ -361,14 +568,15 @@ export default function TournamentSettings({
                 showCreateButton={false}
                 openCreateMatchModalSignal={openCreateMatchModalSignal}
                 refreshSignal={matchRefreshSignal}
-                onMatchesSnapshot={(nextMatches, activeMatch) => {
-                  setMatches(nextMatches);
-                  setActiveMatchId(activeMatch?.id ?? null);
-                }}
+                onMatchesSnapshot={handleMatchesSnapshot}
               />
             ) : (
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-gray-300">
-                Select a division and phase to view match information.
+                {controls
+                  ? "Select a division and phase to view match information."
+                  : selectedDivision
+                    ? "No played phases available for this division yet."
+                    : "Select a division to view match history."}
               </div>
             )}
           </div>
@@ -380,7 +588,13 @@ export default function TournamentSettings({
           divisionId={selectedDivision?.id ?? -1}
           phaseId={selectedPhase.id}
           matchId={songsMatch.id}
-          onAddSongToMatchByRoll={async (divisionId, phaseId, matchId, group, level) => {
+          onAddSongToMatchByRoll={async (
+            divisionId,
+            phaseId,
+            matchId,
+            group,
+            level,
+          ) => {
             await axios.post("tournament/addsongtomatch", {
               divisionId,
               phaseId,
@@ -390,7 +604,12 @@ export default function TournamentSettings({
             });
             triggerMatchRefresh();
           }}
-          onAddSongToMatchBySongId={async (divisionId, phaseId, matchId, songId) => {
+          onAddSongToMatchBySongId={async (
+            divisionId,
+            phaseId,
+            matchId,
+            songId,
+          ) => {
             await axios.post("tournament/addsongtomatch", {
               divisionId,
               phaseId,
@@ -399,7 +618,14 @@ export default function TournamentSettings({
             });
             triggerMatchRefresh();
           }}
-          onEditSongToMatchByRoll={async (divisionId, phaseId, matchId, group, level, editSongId) => {
+          onEditSongToMatchByRoll={async (
+            divisionId,
+            phaseId,
+            matchId,
+            group,
+            level,
+            editSongId,
+          ) => {
             await axios.post("tournament/editmatchsong", {
               divisionId,
               phaseId,
@@ -411,7 +637,13 @@ export default function TournamentSettings({
             });
             triggerMatchRefresh();
           }}
-          onEditSongToMatchBySongId={async (divisionId, phaseId, matchId, songId, editSongId) => {
+          onEditSongToMatchBySongId={async (
+            divisionId,
+            phaseId,
+            matchId,
+            songId,
+            editSongId,
+          ) => {
             await axios.post("tournament/editmatchsong", {
               divisionId,
               phaseId,

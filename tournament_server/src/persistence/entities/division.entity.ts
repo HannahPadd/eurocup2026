@@ -18,6 +18,9 @@ export class Division {
   @Column()
   name: string;
 
+  @Column({ default: 'FA' })
+  scoreLead: 'FA' | 'FA_PLUS';
+
   @OneToMany(() => Phase, (phase) => phase.division, { eager: true, cascade: true  })
   phases: Phase[];
 

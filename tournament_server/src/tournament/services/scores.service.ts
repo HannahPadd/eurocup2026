@@ -15,6 +15,10 @@ export class ScoresService {
     private playerRepository: Repository<Player>,
   ) { }
 
+  private normalizePercentage(value: number): number {
+    return Math.round(value * 100) / 100;
+  }
+
   async create(dto: CreateScoreDto) {
     const song = await this.songRepository.findOneBy({ id: dto.songId });
 
@@ -30,10 +34,19 @@ export class ScoresService {
 
     const newScore = new Score();
 
-    newScore.percentage = dto.percentage;
+    newScore.percentage = this.normalizePercentage(dto.percentage);
+    newScore.faPercentage =
+      dto.faPercentage !== undefined
+        ? this.normalizePercentage(dto.faPercentage)
+        : undefined;
+    newScore.faPlusPercentage =
+      dto.faPlusPercentage !== undefined
+        ? this.normalizePercentage(dto.faPlusPercentage)
+        : undefined;
     newScore.isFailed = dto.isFailed;
     newScore.song = song;
     newScore.player = player;
+    newScore.data = dto.data;
 
     await this.scoreRepository.save(newScore);
 
@@ -72,6 +85,16 @@ export class ScoresService {
       }
       dto.player = player;
       delete dto.playerId;
+    }
+
+    if (dto.percentage !== undefined) {
+      dto.percentage = this.normalizePercentage(dto.percentage);
+    }
+    if (dto.faPercentage !== undefined) {
+      dto.faPercentage = this.normalizePercentage(dto.faPercentage);
+    }
+    if (dto.faPlusPercentage !== undefined) {
+      dto.faPlusPercentage = this.normalizePercentage(dto.faPlusPercentage);
     }
 
     this.scoreRepository.merge(existingScore, dto);

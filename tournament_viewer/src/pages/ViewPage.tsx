@@ -4,7 +4,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircle } from "@fortawesome/free-solid-svg-icons";
 import LivePhase from "../components/view/LivePhase";
 import TournamentSettings from "../components/manage/tournament/TournamentSettings";
-import Rankings from "../components/view/Rankings.tsx";
 import QualifierRankings from "../components/view/QualifierRankings";
 import { useState } from "react";
 
@@ -35,20 +34,6 @@ export default function ViewPage() {
                   className="text-[0.6rem] sm:text-sm animate-pulse text-red-500"
                 />
                 <span>LIVE</span>
-              </div>
-            </Tab>
-            <Tab
-              className={({ selected }) =>
-                classNames(
-                  "py-2 px-3 text-sm sm:px-4 sm:text-lg",
-                  selected
-                    ? "border-b-2 border-blue-500 font-bold theme-text"
-                    : "text-gray-500",
-                )
-              }
-            >
-              <div className="flex flex-row gap-3 items-center">
-                <span>Rankings</span>
               </div>
             </Tab>
             <Tab
@@ -86,7 +71,7 @@ export default function ViewPage() {
                   {({ active }) => (
                     <button
                       type="button"
-                      onClick={() => setTabIndex(2)}
+                      onClick={() => setTabIndex(1)}
                       className={classNames(
                         "w-full rounded px-3 py-2 text-left text-sm",
                         active ? "bg-white/10 text-white" : "text-gray-200",
@@ -100,7 +85,7 @@ export default function ViewPage() {
                   {({ active }) => (
                     <button
                       type="button"
-                      onClick={() => setTabIndex(3)}
+                      onClick={() => setTabIndex(2)}
                       className={classNames(
                         "w-full rounded px-3 py-2 text-left text-sm",
                         active ? "bg-white/10 text-white" : "text-gray-200",
@@ -117,9 +102,6 @@ export default function ViewPage() {
           <Tab.Panels className="mt-3">
             <Tab.Panel>
               <LivePhase />
-            </Tab.Panel>
-            <Tab.Panel>
-              <Rankings />
             </Tab.Panel>
             <Tab.Panel>
               <QualifierRankings />

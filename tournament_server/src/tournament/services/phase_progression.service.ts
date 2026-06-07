@@ -4,13 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
   Match,
   Phase,
   PhaseProgressionAction,
   PhaseProgressionResult,
   Player,
+  Standing,
 } from '@persistence/entities';
 
 type TiePolicy = 'MANUAL_EXTRA_SONG' | 'MANUAL_ADMIN';
@@ -58,9 +59,9 @@ type PhaseRulesetConfig = {
   rules?: PhaseRule[];
   steps?: {
     name?: string;
-    sourceMatchId?: number;
+    sourceMatchId?: number | string;
     tiePolicy?: TiePolicy;
-    rules: PhaseRule[];
+    rules?: PhaseRule[];
   }[];
 };
 
@@ -107,7 +108,8 @@ export class PhaseProgressionService {
     @InjectRepository(PhaseProgressionResult)
     private progressionRepo: Repository<PhaseProgressionResult>,
     @InjectRepository(Player)
-    private playerRepo: Repository<Player>
+    private playerRepo: Repository<Player>,
+    private dataSource: DataSource,
   ) {}
 
   async preview(phaseId: number, stepIndex?: number): Promise<PreviewResponse> {
@@ -134,47 +136,54 @@ export class PhaseProgressionService {
     autoAssignedPlayers: number;
     preview: PreviewResponse;
   }> {
-    const preview = await this.preview(phaseId, stepIndex);
-    const phase = await this.phaseRepo.findOneBy({ id: phaseId });
-    if (!phase) {
-      throw new NotFoundException(`Phase ${phaseId} not found`);
-    }
-
-    const runId = `phase-${phaseId}-${Date.now()}`;
-    const records = preview.actions.map((action) => {
-      const entity = new PhaseProgressionResult();
-      entity.runId = runId;
-      entity.phase = phase;
-      entity.player = action.player;
-      entity.action = action.action;
-      entity.targetPhaseId = action.targetPhaseId;
-      entity.targetMatchId = action.targetMatchId;
-      entity.rankingPosition = action.rank;
-      entity.tiedAtBoundary = action.tiedAtBoundary;
-      entity.reason = action.reason;
-      return entity;
-    });
-
-    if (records.length > 0) {
-      await this.progressionRepo.save(records);
-    }
-
-    let autoAssignedPlayers = 0;
-    if (autoAssignPlayersToTargetMatches) {
-      autoAssignedPlayers = await this.autoAssignToTargetPhaseMatches(
-        preview.actions,
+    return await this.dataSource.transaction(async (manager) => {
+      const phase = await manager
+        .getRepository(Phase)
+        .findOneBy({ id: phaseId });
+      if (!phase) {
+        throw new NotFoundException(`Phase ${phaseId} not found`);
+      }
+      const preview = this.evaluateAndBuildPreview(
+        phase,
+        this.buildPhaseRanking(phase),
+        phaseId,
+        undefined,
+        stepIndex,
       );
-    }
 
-    return {
-      runId,
-      saved: records.length,
-      autoAssignedPlayers,
-      preview,
-    };
+      const runId = `phase-${phaseId}-${Date.now()}`;
+      const records = this.buildProgressionRecords(
+        runId,
+        phase,
+        preview.actions,
+        preview.matchId,
+      );
+
+      if (records.length > 0) {
+        await manager.getRepository(PhaseProgressionResult).save(records);
+      }
+
+      let autoAssignedPlayers = 0;
+      if (autoAssignPlayersToTargetMatches) {
+        autoAssignedPlayers = await this.autoAssignToTargetPhaseMatches(
+          preview.actions,
+          manager,
+        );
+      }
+
+      return {
+        runId,
+        saved: records.length,
+        autoAssignedPlayers,
+        preview,
+      };
+    });
   }
 
-  async previewMatch(matchId: number, stepIndex?: number): Promise<PreviewResponse> {
+  async previewMatch(
+    matchId: number,
+    stepIndex?: number,
+  ): Promise<PreviewResponse> {
     const match = await this.matchRepo.findOneBy({ id: matchId });
     if (!match) {
       throw new NotFoundException(`Match ${matchId} not found`);
@@ -186,7 +195,13 @@ export class PhaseProgressionService {
     }
 
     const ranking = this.buildMatchRanking(match);
-    return this.evaluateAndBuildPreview(phase, ranking, phase.id, matchId, stepIndex);
+    return this.evaluateAndBuildPreview(
+      phase,
+      ranking,
+      phase.id,
+      matchId,
+      stepIndex,
+    );
   }
 
   async commitMatch(
@@ -199,18 +214,61 @@ export class PhaseProgressionService {
     autoAssignedPlayers: number;
     preview: PreviewResponse;
   }> {
-    const preview = await this.previewMatch(matchId, stepIndex);
-    const match = await this.matchRepo.findOneBy({ id: matchId });
-    if (!match) {
-      throw new NotFoundException(`Match ${matchId} not found`);
-    }
-    const phase = await match.phase;
-    if (!phase) {
-      throw new BadRequestException(`Match ${matchId} has no phase`);
-    }
+    return await this.dataSource.transaction(async (manager) => {
+      const match = await manager
+        .getRepository(Match)
+        .findOneBy({ id: matchId });
+      if (!match) {
+        throw new NotFoundException(`Match ${matchId} not found`);
+      }
+      const phase = await match.phase;
+      if (!phase) {
+        throw new BadRequestException(`Match ${matchId} has no phase`);
+      }
+      const preview = this.evaluateAndBuildPreview(
+        phase,
+        this.buildMatchRanking(match),
+        phase.id,
+        matchId,
+        stepIndex,
+      );
 
-    const runId = `match-${matchId}-${Date.now()}`;
-    const records = preview.actions.map((action) => {
+      const runId = `match-${matchId}-${Date.now()}`;
+      const records = this.buildProgressionRecords(
+        runId,
+        phase,
+        preview.actions,
+        preview.matchId,
+      );
+
+      if (records.length > 0) {
+        await manager.getRepository(PhaseProgressionResult).save(records);
+      }
+
+      let autoAssignedPlayers = 0;
+      if (autoAssignPlayersToTargetMatches) {
+        autoAssignedPlayers = await this.autoAssignToTargetPhaseMatches(
+          preview.actions,
+          manager,
+        );
+      }
+
+      return {
+        runId,
+        saved: records.length,
+        autoAssignedPlayers,
+        preview,
+      };
+    });
+  }
+
+  private buildProgressionRecords(
+    runId: string,
+    phase: Phase,
+    actions: PlannedAction[],
+    sourceMatchId?: number,
+  ): PhaseProgressionResult[] {
+    return actions.map((action) => {
       const entity = new PhaseProgressionResult();
       entity.runId = runId;
       entity.phase = phase;
@@ -218,29 +276,12 @@ export class PhaseProgressionService {
       entity.action = action.action;
       entity.targetPhaseId = action.targetPhaseId;
       entity.targetMatchId = action.targetMatchId;
+      entity.sourceMatchId = sourceMatchId;
       entity.rankingPosition = action.rank;
       entity.tiedAtBoundary = action.tiedAtBoundary;
       entity.reason = action.reason;
       return entity;
     });
-
-    if (records.length > 0) {
-      await this.progressionRepo.save(records);
-    }
-
-    let autoAssignedPlayers = 0;
-    if (autoAssignPlayersToTargetMatches) {
-      autoAssignedPlayers = await this.autoAssignToTargetPhaseMatches(
-        preview.actions,
-      );
-    }
-
-    return {
-      runId,
-      saved: records.length,
-      autoAssignedPlayers,
-      preview,
-    };
   }
 
   private evaluateAndBuildPreview(
@@ -253,7 +294,7 @@ export class PhaseProgressionService {
     if (!phase.ruleset) {
       throw new BadRequestException(`Phase ${phaseId} has no ruleset assigned`);
     }
-    const config = this.getPhaseConfig(phase.ruleset.config);
+    const config = this.getPhaseConfig(phase.ruleset.config, phaseId);
     let activeRanking = ranking;
     let rules = config.rules ?? [];
     let tiePolicy = config.tiePolicy ?? 'MANUAL_EXTRA_SONG';
@@ -262,7 +303,11 @@ export class PhaseProgressionService {
     let resolvedStepName: string | undefined;
 
     if (config.steps && config.steps.length > 0) {
-      const selectedStepIndex = stepIndex ?? 0;
+      const selectedStepIndex = this.resolveStepIndexForEvaluation(
+        config.steps,
+        stepIndex,
+        matchId,
+      );
       const step = config.steps[selectedStepIndex];
       if (!step) {
         throw new BadRequestException(
@@ -270,7 +315,14 @@ export class PhaseProgressionService {
         );
       }
 
-      const sourceMatchId = step.sourceMatchId ?? matchId;
+      const rawSourceMatchId =
+        typeof step.sourceMatchId === 'number'
+          ? step.sourceMatchId
+          : Number(step.sourceMatchId);
+      const sourceMatchId =
+        Number.isFinite(rawSourceMatchId) && rawSourceMatchId > 0
+          ? rawSourceMatchId
+          : matchId;
       if (!sourceMatchId) {
         throw new BadRequestException(
           `Ruleset step ${selectedStepIndex} has no sourceMatchId`,
@@ -318,6 +370,53 @@ export class PhaseProgressionService {
     };
   }
 
+  private resolveStepIndexForEvaluation(
+    steps: PhaseRulesetConfig['steps'],
+    requestedStepIndex: number | undefined,
+    matchId: number | undefined,
+  ): number {
+    if (!steps || steps.length === 0) {
+      return 0;
+    }
+    if (requestedStepIndex !== undefined) {
+      return requestedStepIndex;
+    }
+    if (!matchId) {
+      return 0;
+    }
+
+    const matchesBySourceId = steps
+      .map((step, index) => ({
+        index,
+        sourceMatchId: this.parsePositiveInteger(step?.sourceMatchId),
+      }))
+      .filter(
+        (item): item is { index: number; sourceMatchId: number } =>
+          item.sourceMatchId !== undefined,
+      )
+      .filter((item) => item.sourceMatchId === matchId);
+
+    const hasAnySourceMapping = steps.some(
+      (step) => this.parsePositiveInteger(step?.sourceMatchId) !== undefined,
+    );
+    if (!hasAnySourceMapping) {
+      return 0;
+    }
+
+    if (matchesBySourceId.length === 1) {
+      return matchesBySourceId[0].index;
+    }
+    if (matchesBySourceId.length > 1) {
+      throw new BadRequestException(
+        `Multiple ruleset steps map to match ${matchId}; provide stepIndex explicitly`,
+      );
+    }
+
+    throw new BadRequestException(
+      `No ruleset step maps to match ${matchId}; provide stepIndex explicitly`,
+    );
+  }
+
   private buildMatchRanking(match: Match): RankingEntry[] {
     const tempPhase = new Phase();
     tempPhase.matches = [match];
@@ -350,7 +449,21 @@ export class PhaseProgressionService {
       }
 
       for (const round of match.rounds ?? []) {
+        const disabledPlayerIds = new Set(round.disabledPlayerIds ?? []);
+        const latestStandingByPlayerId = new Map<number, Standing>();
         for (const standing of round.standings ?? []) {
+          const playerId = standing.score?.player?.id;
+          if (!playerId || disabledPlayerIds.has(playerId)) {
+            continue;
+          }
+
+          const previous = latestStandingByPlayerId.get(playerId);
+          if (!previous || standing.id > previous.id) {
+            latestStandingByPlayerId.set(playerId, standing);
+          }
+        }
+
+        for (const standing of latestStandingByPlayerId.values()) {
           const player = standing.score?.player;
           if (!player) {
             continue;
@@ -395,7 +508,9 @@ export class PhaseProgressionService {
         if (a.failCount !== b.failCount) {
           return a.failCount - b.failCount;
         }
-        return (a.player.playerName ?? '').localeCompare(b.player.playerName ?? '');
+        return (a.player.playerName ?? '').localeCompare(
+          b.player.playerName ?? '',
+        );
       });
 
     this.assignRanks(sorted);
@@ -423,7 +538,9 @@ export class PhaseProgressionService {
     actionsByPlayer: Map<number, PlannedAction>,
     unresolvedTies: { playerIds: number[]; reason: string }[],
   ) {
-    const undecided = ranking.filter((entry) => !actionsByPlayer.has(entry.player.id));
+    const undecided = ranking.filter(
+      (entry) => !actionsByPlayer.has(entry.player.id),
+    );
     if (undecided.length === 0) {
       return;
     }
@@ -774,20 +891,190 @@ export class PhaseProgressionService {
     );
   }
 
-  private getPhaseConfig(rawConfig: Record<string, unknown>): PhaseRulesetConfig {
+  private parsePositiveInteger(value: unknown): number | undefined {
+    const parsed =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : Number.NaN;
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private parseNonNegativeInteger(value: unknown): number | undefined {
+    const parsed =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : Number.NaN;
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private parseNonNegativeNumber(value: unknown): number | undefined {
+    const parsed =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : Number.NaN;
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private ensureMoveRuleHasTarget(
+    rule: Record<string, unknown>,
+    context: string,
+  ) {
+    const targetPhaseId = this.parsePositiveInteger(rule.targetPhaseId);
+    const targetMatchId = this.parsePositiveInteger(rule.targetMatchId);
+    if (!targetPhaseId && !targetMatchId) {
+      throw new BadRequestException(
+        `${context} must include targetPhaseId or targetMatchId`,
+      );
+    }
+  }
+
+  private validateRule(rule: unknown, context: string) {
+    if (!rule || typeof rule !== 'object') {
+      throw new BadRequestException(`${context} must be an object`);
+    }
+
+    const typedRule = rule as Record<string, unknown>;
+    const type = typedRule.type;
+    if (typeof type !== 'string') {
+      throw new BadRequestException(`${context}.type must be a string`);
+    }
+
+    if (type === 'ADVANCE_TOP_N') {
+      if (this.parseNonNegativeInteger(typedRule.count) === undefined) {
+        throw new BadRequestException(`${context}.count must be >= 0`);
+      }
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'ADVANCE_TOP_PERCENT') {
+      const percent = this.parseNonNegativeNumber(typedRule.percent);
+      if (percent === undefined || percent > 100) {
+        throw new BadRequestException(
+          `${context}.percent must be between 0 and 100`,
+        );
+      }
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'SEND_RANK_RANGE_TO_PHASE') {
+      const fromRank = this.parsePositiveInteger(typedRule.fromRank);
+      const toRank = this.parsePositiveInteger(typedRule.toRank);
+      if (!fromRank || !toRank || fromRank > toRank) {
+        throw new BadRequestException(
+          `${context} requires valid fromRank/toRank values`,
+        );
+      }
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'SEND_REMAINING_TO_PHASE') {
+      this.ensureMoveRuleHasTarget(typedRule, context);
+      return;
+    }
+
+    if (type === 'ELIMINATE_BOTTOM_N') {
+      if (this.parseNonNegativeInteger(typedRule.count) === undefined) {
+        throw new BadRequestException(`${context}.count must be >= 0`);
+      }
+      return;
+    }
+
+    if (type === 'ELIMINATE_BOTTOM_PERCENT') {
+      const percent = this.parseNonNegativeNumber(typedRule.percent);
+      if (percent === undefined || percent > 100) {
+        throw new BadRequestException(
+          `${context}.percent must be between 0 and 100`,
+        );
+      }
+      return;
+    }
+
+    throw new BadRequestException(`${context}.type is not supported`);
+  }
+
+  private getPhaseConfig(
+    rawConfig: unknown,
+    phaseId: number,
+  ): PhaseRulesetConfig {
     if (!rawConfig || typeof rawConfig !== 'object') {
       throw new BadRequestException('Ruleset config must be an object');
     }
 
     const config = rawConfig as PhaseRulesetConfig;
-    if (config.rules && !Array.isArray(config.rules)) {
+    if (config.rules !== undefined && !Array.isArray(config.rules)) {
       throw new BadRequestException('ruleset.config.rules must be an array');
     }
+    if (config.steps !== undefined && !Array.isArray(config.steps)) {
+      throw new BadRequestException('ruleset.config.steps must be an array');
+    }
+
+    const hasRules = Array.isArray(config.rules) && config.rules.length > 0;
+    const hasSteps = Array.isArray(config.steps) && config.steps.length > 0;
+    if (!hasRules && !hasSteps) {
+      throw new BadRequestException(
+        `Phase ${phaseId} ruleset has no progression rules configured`,
+      );
+    }
+
+    if (Array.isArray(config.rules)) {
+      config.rules.forEach((rule, index) => {
+        this.validateRule(rule, `ruleset.config.rules[${index}]`);
+      });
+    }
+
+    if (Array.isArray(config.steps)) {
+      config.steps.forEach((step, stepIndex) => {
+        if (!step || typeof step !== 'object') {
+          throw new BadRequestException(
+            `ruleset.config.steps[${stepIndex}] must be an object`,
+          );
+        }
+        if (
+          step.sourceMatchId !== undefined &&
+          !this.parsePositiveInteger(step.sourceMatchId)
+        ) {
+          throw new BadRequestException(
+            `ruleset.config.steps[${stepIndex}].sourceMatchId must be > 0`,
+          );
+        }
+        if (!Array.isArray(step.rules) || step.rules.length === 0) {
+          throw new BadRequestException(
+            `ruleset.config.steps[${stepIndex}].rules must be a non-empty array`,
+          );
+        }
+        step.rules.forEach((rule, ruleIndex) => {
+          this.validateRule(
+            rule,
+            `ruleset.config.steps[${stepIndex}].rules[${ruleIndex}]`,
+          );
+        });
+      });
+    }
+
     return config;
   }
 
   private async autoAssignToTargetPhaseMatches(
     actions: PlannedAction[],
+    manager?: EntityManager,
   ): Promise<number> {
     const actionsWithTargets = actions.filter(
       (action) =>
@@ -800,41 +1087,94 @@ export class PhaseProgressionService {
       return 0;
     }
 
+    const activeManager = manager ?? this.dataSource.manager;
+    const matchRepo = activeManager.getRepository(Match);
+    const phaseRepo = activeManager.getRepository(Phase);
+    const playerRepo = activeManager.getRepository(Player);
+
+    const playerIds = Array.from(
+      new Set(actionsWithTargets.map((action) => action.player.id)),
+    );
+    const players = playerIds.length
+      ? await playerRepo.findBy({ id: In(playerIds) })
+      : [];
+    const playerById = new Map(players.map((player) => [player.id, player]));
+
+    const directTargetMatchIds = Array.from(
+      new Set(
+        actionsWithTargets
+          .map((action) => action.targetMatchId)
+          .filter((id): id is number => typeof id === 'number' && id > 0),
+      ),
+    );
+    const directTargetMatches = directTargetMatchIds.length
+      ? await matchRepo.findBy({ id: In(directTargetMatchIds) })
+      : [];
+
+    const targetPhaseIds = Array.from(
+      new Set(
+        actionsWithTargets
+          .map((action) => action.targetPhaseId)
+          .filter((id): id is number => typeof id === 'number' && id > 0),
+      ),
+    );
+    const targetPhases = targetPhaseIds.length
+      ? await phaseRepo.findBy({ id: In(targetPhaseIds) })
+      : [];
+    const targetPhaseById = new Map(
+      targetPhases.map((phase) => [phase.id, phase]),
+    );
+
+    const matchById = new Map<number, Match>();
+    for (const match of directTargetMatches) {
+      matchById.set(match.id, match);
+    }
+    for (const phase of targetPhases) {
+      for (const match of phase.matches ?? []) {
+        if (!matchById.has(match.id)) {
+          matchById.set(match.id, match);
+        }
+      }
+    }
+
     const assignedKeys = new Set<string>();
     const occupancyByMatchId = new Map<number, number>();
+    const dirtyMatches = new Map<number, Match>();
 
     for (const action of actionsWithTargets) {
-      const player = await this.playerRepo.findOneBy({ id: action.player.id });
+      const player = playerById.get(action.player.id);
       if (!player) {
         continue;
       }
 
-        if (action.targetMatchId) {
-          const targetMatch = await this.matchRepo.findOneBy({ id: action.targetMatchId });
-          if (!targetMatch) {
-            continue;
-          }
-          const currentCount =
-            occupancyByMatchId.get(targetMatch.id) ??
-            (targetMatch.players ?? []).length;
-          occupancyByMatchId.set(targetMatch.id, currentCount);
-          const maxPlayers = this.getMatchCapacityFromSetups(targetMatch);
-          if (maxPlayers !== undefined && currentCount >= maxPlayers) {
-            continue;
-          }
-          const hasPlayer = (targetMatch.players ?? []).some((p) => p.id === player.id);
-          if (!hasPlayer) {
-            targetMatch.players = [...(targetMatch.players ?? []), player];
-            await this.matchRepo.save(targetMatch);
-            occupancyByMatchId.set(targetMatch.id, currentCount + 1);
-            assignedKeys.add(`${player.id}-${targetMatch.id}`);
-          }
+      if (action.targetMatchId) {
+        const targetMatch = matchById.get(action.targetMatchId);
+        if (!targetMatch) {
           continue;
         }
+        const currentCount =
+          occupancyByMatchId.get(targetMatch.id) ??
+          (targetMatch.players ?? []).length;
+        occupancyByMatchId.set(targetMatch.id, currentCount);
+        const maxPlayers = this.getMatchCapacityFromSetups(targetMatch);
+        if (maxPlayers !== undefined && currentCount >= maxPlayers) {
+          continue;
+        }
+        const hasPlayer = (targetMatch.players ?? []).some(
+          (p) => p.id === player.id,
+        );
+        if (!hasPlayer) {
+          targetMatch.players = [...(targetMatch.players ?? []), player];
+          occupancyByMatchId.set(targetMatch.id, currentCount + 1);
+          assignedKeys.add(`${player.id}-${targetMatch.id}`);
+          dirtyMatches.set(targetMatch.id, targetMatch);
+        }
+        continue;
+      }
 
-      const targetPhase = await this.phaseRepo.findOneBy({
-        id: action.targetPhaseId,
-      });
+      const targetPhase = action.targetPhaseId
+        ? targetPhaseById.get(action.targetPhaseId)
+        : undefined;
       if (!targetPhase) {
         continue;
       }
@@ -849,11 +1189,16 @@ export class PhaseProgressionService {
       }
 
       const currentCount =
-        occupancyByMatchId.get(targetMatch.id) ?? (targetMatch.players ?? []).length;
+        occupancyByMatchId.get(targetMatch.id) ??
+        (targetMatch.players ?? []).length;
       targetMatch.players = [...(targetMatch.players ?? []), player];
-      await this.matchRepo.save(targetMatch);
       occupancyByMatchId.set(targetMatch.id, currentCount + 1);
       assignedKeys.add(`${player.id}-${targetMatch.id}`);
+      dirtyMatches.set(targetMatch.id, targetMatch);
+    }
+
+    if (dirtyMatches.size > 0) {
+      await matchRepo.save(Array.from(dirtyMatches.values()));
     }
 
     return assignedKeys.size;
@@ -865,7 +1210,9 @@ export class PhaseProgressionService {
     occupancyByMatchId: Map<number, number>,
   ): Match | undefined {
     const candidates = matches.filter((match) => {
-      const hasPlayer = (match.players ?? []).some((player) => player.id === playerId);
+      const hasPlayer = (match.players ?? []).some(
+        (player) => player.id === playerId,
+      );
       if (hasPlayer) {
         return false;
       }
@@ -901,7 +1248,7 @@ export class PhaseProgressionService {
 
     for (const round of match.rounds ?? []) {
       for (const assignment of round.matchAssignments ?? []) {
-        const setupId = assignment.setup?.id;
+        const setupId = assignment.setup?.id ?? assignment.setupId;
         if (setupId) {
           setupIds.add(setupId);
         }

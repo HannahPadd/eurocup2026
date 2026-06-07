@@ -8,6 +8,7 @@ import { Controllers } from './controllers';
         PersistenceModule
     ],
     providers: [...Services],
-    controllers: [...Controllers]
+    controllers: [...Controllers],
+	exports: [...Services]
 })
 export class TournamentModule {}

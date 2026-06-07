@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { RawScore } from "../../models/RawScore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheckCircle, faHeart } from "@fortawesome/free-solid-svg-icons";
@@ -7,12 +7,11 @@ import { Player } from "../../models/Player.ts";
 import { Team, TEAM_COLORS } from "../../models/Team.ts";
 import { countryToFlagUrl } from "../../utils/flags";
 import { connectJsonWebSocket } from "../../services/websocket/jsonWebSocket";
-import { getLiveLobbyCode, getLiveLobbyPassword } from "../../utils/liveLobbyCode";
+import { getLiveLobbyPassword } from "../../utils/liveLobbyCode";
 
 const normalizePercent = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
-  const scaled = value <= 1 ? value * 100 : value;
-  return Math.max(0, Math.min(100, scaled));
+  return Math.max(0, Math.min(100, value));
 };
 
 const normalizeDifficultyType = (diffType?: string): string => {
@@ -41,9 +40,10 @@ const normalizePlayerIdentity = (value?: string): string =>
   (value ?? "").trim().toLowerCase();
 
 type LobbyPlayer = {
-  name: string;
+  profileName: string;
   playerId: string;
   score: number;
+  exScore: number;
   health: number;
   failed: boolean;
   diffLevel?: number;
@@ -71,33 +71,264 @@ type LobbyStatePayload = {
   };
 };
 
+type SendScoreResultPayload = {
+  player?: LobbyPlayer;
+  songInfo?: {
+    songPath?: string;
+    title?: string;
+  };
+};
+
 type LiveScoresProps = {
   divisionName?: string;
+  scoreLead?: "FA" | "FA_PLUS";
   phaseName?: string;
   matchName?: string;
   roundLabel?: string;
 };
 
+type LiveScoreSnapshot = {
+  scores: RawScore[];
+  readyById: Record<string, boolean>;
+  songTitle: string;
+  songDiffType?: string;
+  songDiffLevel?: number;
+};
+
+let liveScoreSnapshot: LiveScoreSnapshot = {
+  scores: [],
+  readyById: {},
+  songTitle: "",
+  songDiffType: undefined,
+  songDiffLevel: undefined,
+};
+
+type LiveScoreEventName = "lobbyState" | "sendScoreResult";
+type LiveScoreEventListener = (
+  eventName: LiveScoreEventName,
+  payload: unknown,
+) => void;
+
+const liveScoreListeners = new Set<LiveScoreEventListener>();
+let liveScoreConnection: WebSocket | null = null;
+
+const stripSongNumberPrefix = (title: string): string =>
+  title.replace(/^\[\d+\]\s*-\s*/, "");
+
+const getSongTitle = (songInfo?: SendScoreResultPayload["songInfo"]): string =>
+  stripSongNumberPrefix(songInfo?.title ?? songInfo?.songPath?.split("/")?.[1] ?? "");
+
+const notifyLiveScoreListeners = (
+  eventName: LiveScoreEventName,
+  payload: unknown,
+) => {
+  liveScoreListeners.forEach((listener) => listener(eventName, payload));
+};
+
+const spectateLobby = (
+  conn: WebSocket,
+  password: string,
+) => {
+
+  const func = (e: MessageEvent<string>) => {
+    const msg = JSON.parse(e.data)
+    if(msg.event == 'lobbySearched') {
+      if(msg.data.lobbies.length > 0) {
+        const lobby = msg.data.lobbies[0];
+        conn.send(
+          JSON.stringify({
+            event: "spectateLobby",
+            data: {
+              code: lobby.code,
+              password,
+              spectator: {
+                profileName: "Tournament Viewer",
+              },
+            },
+          }),
+        );
+      }
+
+      conn.removeEventListener("message", func);
+    }
+  };
+  conn.addEventListener("message", func)
+  
+  conn.send(JSON.stringify({
+    event: 'searchLobby',
+    data: {
+      temporary: false
+    }
+  }))
+};
+
+const spectateLiveLobby = (conn: WebSocket) => {
+  const lobbyPassword = getLiveLobbyPassword();
+
+  spectateLobby(conn, lobbyPassword);
+};
+
+const ensureLiveScoreConnection = () => {
+  if (liveScoreConnection?.readyState === WebSocket.OPEN) {
+    spectateLiveLobby(liveScoreConnection);
+    return liveScoreConnection;
+  }
+
+  if (liveScoreConnection?.readyState === WebSocket.CONNECTING) {
+    return liveScoreConnection;
+  }
+
+  liveScoreConnection = connectJsonWebSocket("/", {
+    lobbyState: (payload: unknown) =>
+      notifyLiveScoreListeners("lobbyState", payload),
+    sendScoreResult: (payload: unknown) =>
+      notifyLiveScoreListeners("sendScoreResult", payload),
+  }, { target: "itgonline", disableOnFailure: false });
+
+  if (liveScoreConnection) {
+    liveScoreConnection.onopen = () => {
+      console.log("Now listening to scores changes.");
+      spectateLiveLobby(liveScoreConnection as WebSocket);
+    };
+    liveScoreConnection.addEventListener("close", () => {
+      liveScoreConnection = null;
+    });
+  }
+
+  return liveScoreConnection;
+};
+
+const toRawScore = (
+  player: LobbyPlayer,
+  songPath: string,
+  scoreLead: "FA" | "FA_PLUS",
+): RawScore => {
+  const faScore = normalizePercent(Number(player.score));
+  const faPlusScore = normalizePercent(Number(player.exScore ?? player.score));
+  const displayedScore = scoreLead === "FA_PLUS" ? faPlusScore : faScore;
+  const judgments = player.judgments;
+  if (!judgments) {
+    return {
+      score: {
+        playerName: player.profileName,
+        song: songPath,
+        formattedScore: displayedScore.toFixed(2),
+        faPercentage: faScore.toFixed(2),
+        faPlusPercentage: faPlusScore.toFixed(2),
+        life: 0,
+        isFailed: Boolean(player.failed),
+        actualDancePoints: 0,
+        currentPossibleDancePoints: 0,
+        possibleDancePoints: 0,
+        totalHoldsCount: 0,
+        playerNumber: parseInt(String(player.playerId ?? "").replace("P", ""), 10),
+        id: player.playerId,
+        holdNote: { held: 0, letGo: 0, missed: 0, none: 0 },
+        tapNote: {
+          W0: 0,
+          W1: 0,
+          W2: 0,
+          W3: 0,
+          W4: 0,
+          W5: 0,
+          miss: 0,
+          avoidMine: 0,
+          checkpointHit: 0,
+          checkpointMiss: 0,
+          hitMine: 0,
+          none: 0,
+        },
+      },
+    };
+  }
+
+  const lifePercent = normalizePercent(Number(player.health));
+
+  return {
+      score: {
+        playerName: player.profileName,
+        song: songPath,
+        formattedScore: displayedScore.toFixed(2),
+        faPercentage: faScore.toFixed(2),
+        faPlusPercentage: faPlusScore.toFixed(2),
+      life: lifePercent,
+      isFailed: Boolean(player.failed),
+      actualDancePoints: 0,
+      currentPossibleDancePoints: 0,
+      possibleDancePoints: 0,
+      totalHoldsCount: judgments.totalHolds,
+      playerNumber: parseInt(String(player.playerId ?? "").replace("P", ""), 10),
+      id: player.playerId,
+      holdNote: {
+        held: judgments.holdsHeld,
+        letGo: 0,
+        missed: 0,
+        none: 0,
+      },
+      tapNote: {
+        W0: judgments.fantasticPlus,
+        W1: judgments.fantastics,
+        W2: judgments.excellents,
+        W3: judgments.greats,
+        W4: judgments.decents,
+        W5: judgments.wayOffs,
+        miss: judgments.misses,
+        avoidMine: 0,
+        checkpointHit: 0,
+        checkpointMiss: 0,
+        hitMine: judgments.minesHit,
+        none: 0,
+      },
+    },
+  };
+};
+
 export default function LiveScores({
   divisionName,
+  scoreLead = "FA",
   phaseName,
   matchName,
   roundLabel,
 }: LiveScoresProps) {
-  const [scores, setScores] = useState<RawScore[]>([]);
+  const [scores, setScores] = useState<RawScore[]>(
+    () => liveScoreSnapshot.scores,
+  );
   const [showJudgements, setShowJudgements] = useState(true);
   const [showFaPlusSplit, setShowFaPlusSplit] = useState(true);
-  const [readyById, setReadyById] = useState<Record<string, boolean>>({});
-  const [songTitle, setSongTitle] = useState("");
-  const [songDiffType, setSongDiffType] = useState<string | undefined>();
-  const [songDiffLevel, setSongDiffLevel] = useState<number | undefined>();
+  const [readyById, setReadyById] = useState<Record<string, boolean>>(
+    () => liveScoreSnapshot.readyById,
+  );
+  const [songTitle, setSongTitle] = useState(liveScoreSnapshot.songTitle);
+  const [songDiffType, setSongDiffType] = useState<string | undefined>(
+    liveScoreSnapshot.songDiffType,
+  );
+  const [songDiffLevel, setSongDiffLevel] = useState<number | undefined>(
+    liveScoreSnapshot.songDiffLevel,
+  );
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const scoreLeadRef = useRef(scoreLead);
 
   useEffect(() => {
-    const conn = connectJsonWebSocket("/", {
-      lobbyState: (payload: unknown) => {
+    scoreLeadRef.current = scoreLead;
+  }, [scoreLead]);
+
+  const applyLiveScoreSnapshot = (snapshot: LiveScoreSnapshot) => {
+    liveScoreSnapshot = snapshot;
+    setScores(snapshot.scores);
+    setReadyById(snapshot.readyById);
+    setSongTitle(snapshot.songTitle);
+    setSongDiffType(snapshot.songDiffType);
+    setSongDiffLevel(snapshot.songDiffLevel);
+  };
+
+  useEffect(() => {
+    const handleLiveScoreEvent: LiveScoreEventListener = (
+      eventName,
+      payload,
+    ) => {
+      if (eventName === "lobbyState") {
         const typedPayload = payload as LobbyStatePayload;
         const oldScores = typedPayload?.players;
 
@@ -105,127 +336,65 @@ export default function LiveScores({
           console.log("Skip", oldScores);
           return;
         }
-
-        const newScores: RawScore[] = oldScores.map((player) => {
-          const judgments = player.judgments;
-          if (!judgments) {
-            return {
-              score: {
-                playerName: player.name,
-                song: typedPayload.songInfo?.songPath ?? "",
-                formattedScore: "0.00",
-                life: 0,
-                isFailed: Boolean(player.failed),
-                actualDancePoints: 0,
-                currentPossibleDancePoints: 0,
-                possibleDancePoints: 0,
-                totalHoldsCount: 0,
-                playerNumber: parseInt(player.playerId.replace("P", ""), 10),
-                id: player.playerId,
-                holdNote: { held: 0, letGo: 0, missed: 0, none: 0 },
-                tapNote: {
-                  W0: 0,
-                  W1: 0,
-                  W2: 0,
-                  W3: 0,
-                  W4: 0,
-                  W5: 0,
-                  miss: 0,
-                  avoidMine: 0,
-                  checkpointHit: 0,
-                  checkpointMiss: 0,
-                  hitMine: 0,
-                  none: 0,
-                },
-              },
-            };
-          }
-
-          const formattedScore = normalizePercent(Number(player.score));
-          const lifePercent = normalizePercent(Number(player.health));
-
-          return {
-            score: {
-              playerName: player.name,
-              song: typedPayload.songInfo?.songPath ?? "",
-              formattedScore: formattedScore.toFixed(2),
-              life: lifePercent,
-              isFailed: Boolean(player.failed),
-              actualDancePoints: 0,
-              currentPossibleDancePoints: 0,
-              possibleDancePoints: 0,
-              totalHoldsCount: judgments.totalHolds,
-              playerNumber: parseInt(player.playerId.replace("P", ""), 10),
-              id: player.playerId,
-              holdNote: {
-                held: judgments.holdsHeld,
-                letGo: 0,
-                missed: 0,
-                none: 0,
-              },
-              tapNote: {
-                W0: judgments.fantasticPlus,
-                W1: judgments.fantastics,
-                W2: judgments.excellents,
-                W3: judgments.greats,
-                W4: judgments.decents,
-                W5: judgments.wayOffs,
-                miss: judgments.misses,
-                avoidMine: 0,
-                checkpointHit: 0,
-                checkpointMiss: 0,
-                hitMine: judgments.minesHit,
-                none: 0,
-              },
-            },
-          };
-        });
-
-        setScores(() => {
-          return newScores;
-        });
-        setReadyById(
-          Object.fromEntries(
-            oldScores.map((player) => [player.playerId, Boolean(player.ready)]),
-          ),
+        const songPath = typedPayload.songInfo?.songPath ?? "";
+        const newScores: RawScore[] = oldScores.map((player) =>
+          toRawScore(player, songPath, scoreLeadRef.current),
         );
-        setSongTitle(
-          typedPayload?.songInfo?.title ??
-            typedPayload?.songInfo?.songPath?.split("/")?.[1] ??
-            "",
+
+        const nextReadyById = Object.fromEntries(
+          oldScores.map((player) => [player.playerId, Boolean(player.ready)]),
         );
-        setSongDiffType(oldScores[0]?.diffType);
-        setSongDiffLevel(oldScores[0]?.diffLevel);
+        const nextSongTitle = getSongTitle(typedPayload.songInfo);
+        const nextSongDiffType = oldScores[0]?.diffType;
+        const nextSongDiffLevel = oldScores[0]?.diffLevel;
+
+        applyLiveScoreSnapshot({
+          scores: newScores,
+          readyById: nextReadyById,
+          songTitle: nextSongTitle,
+          songDiffType: nextSongDiffType,
+          songDiffLevel: nextSongDiffLevel,
+        });
         console.log("SetScores");
-        // const msg = payload as RawScore;
-        // setScores((prev) => {
-        //   const newScores = prev.filter(
-        //     (score) => score.score.playerName !== msg.score.playerName,
-        //   );
-        //   return [...newScores, msg];
-        // });
+        return;
       }
-    });
 
-    if (conn) {
-      conn.onopen = () => {
-        console.log("Now listening to scores changes.");
-        const lobbyCode = getLiveLobbyCode();
-        const lobbyPassword = getLiveLobbyPassword();
-        conn.send(
-          JSON.stringify({
-            event: "spectateLobby",
-            data: {
-              code: lobbyCode,
-              password: lobbyPassword,
-              spectator: {
-                profileName: "Tournament Viewer",
-              },
-            },
-          }),
-        );
-      };
-    }
+      if (eventName === "sendScoreResult") {
+        const typedPayload = payload as SendScoreResultPayload;
+        const finalPlayer = typedPayload?.player;
+        if (!finalPlayer) {
+          return;
+        }
+
+        const songPath = typedPayload.songInfo?.songPath ?? "";
+        const nextScore = toRawScore(finalPlayer, songPath, scoreLeadRef.current);
+        const nextSongTitle = getSongTitle(typedPayload.songInfo);
+        const nextSongDiffType = finalPlayer.diffType;
+        const nextSongDiffLevel = finalPlayer.diffLevel;
+
+        setScores((prev) => {
+          const filtered = prev.filter(
+            (item) => item.score.playerName !== nextScore.score.playerName,
+          );
+          const nextScores = [...filtered, nextScore];
+          liveScoreSnapshot = {
+            ...liveScoreSnapshot,
+            scores: nextScores,
+            songTitle: nextSongTitle,
+            songDiffType: nextSongDiffType,
+            songDiffLevel: nextSongDiffLevel,
+          };
+          return nextScores;
+        });
+
+        setSongTitle(nextSongTitle);
+        setSongDiffType(nextSongDiffType);
+        setSongDiffLevel(nextSongDiffLevel);
+      }
+    };
+
+    liveScoreListeners.add(handleLiveScoreEvent);
+    ensureLiveScoreConnection();
 
     axios.get("players").then((response) => {
       setPlayers(response.data);
@@ -236,14 +405,24 @@ export default function LiveScores({
     });
 
     return () => {
-      conn?.close();
+      liveScoreListeners.delete(handleLiveScoreEvent);
     };
   }, []);
 
+  const getDisplayedScore = useCallback(
+    (score: RawScore): string => {
+      if (scoreLead === "FA_PLUS") {
+        return score.score.faPlusPercentage ?? score.score.formattedScore;
+      }
+      return score.score.faPercentage ?? score.score.formattedScore;
+    },
+    [scoreLead],
+  );
+
   const sortedScores = useMemo(() => {
     return [...scores].sort((a, b) => {
-      const scoreA = +a.score.formattedScore;
-      const scoreB = +b.score.formattedScore;
+      const scoreA = +getDisplayedScore(a);
+      const scoreB = +getDisplayedScore(b);
       const isDeadA = a.score.isFailed || a.score.life <= 0;
       const isDeadB = b.score.isFailed || b.score.life <= 0;
 
@@ -251,7 +430,7 @@ export default function LiveScores({
       if (!isDeadA && isDeadB) return -1;
       return scoreB - scoreA;
     });
-  }, [scores]);
+  }, [scores, getDisplayedScore]);
 
   const playersByIdentity = useMemo(() => {
     const map = new Map<string, Player>();
@@ -373,8 +552,12 @@ export default function LiveScores({
                 </span>
               </span>
 
-              <span className=" font-bold text-xl">
-                {score.score.formattedScore}%
+              <span
+                className={`font-bold text-xl ${
+                  scoreLead === "FA_PLUS" ? "text-sky-200" : ""
+                }`}
+              >
+                {getDisplayedScore(score)}%
               </span>
               </div>
             {showJudgements && (

@@ -17,7 +17,7 @@ type onEditMatchNotes = {
 
 type onSetActiveMatch = {
   type: "onSetActiveMatch";
-  payload: Match;
+  payload: Match | null;
 };
 
 type onDeleteMatch = {

@@ -1,27 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Phase } from "../../../models/Phase";
 import { Division } from "../../../models/Division";
 import { Match } from "../../../models/Match";
 import Select from "react-select";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faPlus,
-  faTrash,
-  faMusic,
-} from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faTrash, faMusic } from "@fortawesome/free-solid-svg-icons";
 import OkModal from "../../layout/OkModal";
 import AddEditSongToMatchModal from "./modals/AddEditSongToMatchModal";
 
 type PhaseListProps = {
   divisionId: number;
   controls?: boolean;
+  hideEmptyHistoryPhases?: boolean;
   onPhaseSelect: (phase: Phase | null) => void;
 };
+
+const hasRoundsWithPlayers = (phase: Phase) =>
+  (phase.matches ?? []).some(
+    (match) =>
+      (match.players ?? []).length > 0 && (match.rounds ?? []).length > 0,
+  );
 
 export default function PhaseList({
   divisionId,
   controls = false,
+  hideEmptyHistoryPhases = false,
   onPhaseSelect,
 }: PhaseListProps) {
   const [phases, setPhases] = useState<Phase[]>([]);
@@ -31,14 +35,21 @@ export default function PhaseList({
   const [qualifierMatchModalOpen, setQualifierMatchModalOpen] = useState(false);
   const [qualifierSongModalOpen, setQualifierSongModalOpen] = useState(false);
   const [qualifierError, setQualifierError] = useState<string | null>(null);
+  const hasPrefilledRef = useRef(false);
 
   useEffect(() => {
+    hasPrefilledRef.current = false;
     axios.get<Division>(`divisions/${divisionId}`).then((response) => {
-      const phases = response.data.phases;
+      const phases = hideEmptyHistoryPhases
+        ? (response.data.phases ?? []).filter(hasRoundsWithPlayers)
+        : response.data.phases;
       setPhases(phases);
       if (phases.length > 0) {
         setSelectedPhaseId(phases[0].id);
         onPhaseSelect(phases[0]);
+      } else {
+        setSelectedPhaseId(-1);
+        onPhaseSelect(null);
       }
     });
     setQualifierMatches([]);
@@ -48,7 +59,42 @@ export default function PhaseList({
     setQualifierError(null);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [divisionId]);
+  }, [divisionId, hideEmptyHistoryPhases]);
+
+  useEffect(() => {
+    if (hasPrefilledRef.current || phases.length === 0) {
+      return;
+    }
+    hasPrefilledRef.current = true;
+    const prefillPhaseFromActiveMatch = async () => {
+      try {
+        const activeMatchResponse = await axios.get<Match | null>(
+          "tournament/activeMatch",
+        );
+        const activeMatchId = activeMatchResponse.data?.id;
+        if (!activeMatchId) {
+          return;
+        }
+        for (const phase of phases) {
+          const matchesResponse = await axios.get<Match[]>(
+            `matches/phase/${phase.id}`,
+          );
+          if (
+            (matchesResponse.data ?? []).some(
+              (match) => match.id === activeMatchId,
+            )
+          ) {
+            setSelectedPhaseId(phase.id);
+            onPhaseSelect(phase);
+            return;
+          }
+        }
+      } catch {
+        // keep manual/default selection if prefill fails
+      }
+    };
+    void prefillPhaseFromActiveMatch();
+  }, [onPhaseSelect, phases]);
 
   const selectedPhase = useMemo(
     () => phases.find((phase) => phase.id === selectedPhaseId) ?? null,
@@ -73,7 +119,7 @@ export default function PhaseList({
     setQualifierError(null);
     try {
       const response = await axios.get<Match[]>(
-        `tournament/expandphase/${selectedPhase.id}`,
+        `matches/phase/${selectedPhase.id}`,
       );
       setQualifierMatches(response.data);
       if (response.data.length > 0) {
@@ -103,17 +149,12 @@ export default function PhaseList({
     }
     setQualifierError(null);
     try {
-      const response = await axios.post<Match>(`tournament/addMatch`, {
-        divisionId,
+      const response = await axios.post<Match>(`matches`, {
         phaseId: selectedPhase.id,
-        matchName: "Qualifier",
+        name: "Qualifier",
         subtitle: "Seeding",
-        multiplier: 1,
-        group: "",
         scoringSystem: "EurocupScoreCalculator",
-        isManualMatch: true,
-        levels: "",
-        songIds: [],
+        notes: "",
         playerIds: [],
       });
       const createdMatch = response.data;
@@ -166,10 +207,34 @@ export default function PhaseList({
     }
   };
 
+  const phaseSelectStyles = {
+    singleValue: (base: Record<string, unknown>) => ({
+      ...base,
+      color: "#000000",
+    }),
+    input: (base: Record<string, unknown>) => ({
+      ...base,
+      color: "#000000",
+    }),
+    option: (
+      base: Record<string, unknown>,
+      state: { isFocused: boolean; isSelected: boolean },
+    ) => ({
+      ...base,
+      color: "#000000",
+      backgroundColor: state.isSelected
+        ? "#dbeafe"
+        : state.isFocused
+          ? "#eff6ff"
+          : "#ffffff",
+    }),
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <Select
         className="min-w-[300px]"
+        styles={phaseSelectStyles}
         placeholder="Select phase"
         options={phases.map((p) => ({ value: p.id, label: p.name }))}
         onChange={(e) => {
@@ -268,8 +333,9 @@ export default function PhaseList({
                   ? {
                       value: qualifierMatchId,
                       label:
-                        qualifierMatches.find((match) => match.id === qualifierMatchId)
-                          ?.name ?? "Select match",
+                        qualifierMatches.find(
+                          (match) => match.id === qualifierMatchId,
+                        )?.name ?? "Select match",
                     }
                   : null
               }

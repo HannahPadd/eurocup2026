@@ -3,13 +3,10 @@ import axios from "axios";
 import { faCamera } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Division } from "../../../models/Division";
-import { Phase } from "../../../models/Phase";
 import { Player } from "../../../models/Player";
 import OkModal from "../../layout/OkModal";
-
-const isSeedingPhase = (phase?: Phase) =>
-  (phase?.ruleset?.name ?? "").trim().toLowerCase() === "seeding" ||
-  (phase?.name ?? "").toLowerCase().includes("seeding");
+import { isQualifierPhase } from "../../../utils/qualifierPhase";
+import QualifierProgressionPanel from "./QualifierProgressionPanel";
 
 type AdminSubmission = {
   id: number;
@@ -30,6 +27,18 @@ type AdminSubmission = {
     difficulty: number;
   };
   divisionIds: number[];
+};
+
+type DivisionRankingExportRow = {
+  playerName: string;
+  playerCountry?: string;
+  averagePercentage: number;
+  submittedCount: number;
+};
+
+type DivisionRankingExport = {
+  divisionName: string;
+  rankings?: DivisionRankingExportRow[];
 };
 
 const normalizeStatus = (status?: string) =>
@@ -54,16 +63,11 @@ const formatStatusLabel = (status?: string) => {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
-const downloadCsv = (
-  filename: string,
-  rows: Array<Array<string | number>>,
-) => {
+const downloadCsv = (filename: string, rows: Array<Array<string | number>>) => {
   const csv = rows
     .map((row) =>
       row
-        .map((cell) =>
-          `"${String(cell ?? "").replace(/"/g, '""')}"`,
-        )
+        .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
         .join(","),
     )
     .join("\n");
@@ -85,7 +89,7 @@ const getQualifierSongsForDivision = (division: Division) => {
   const songs: { id: number; title: string }[] = [];
   const seen = new Set<number>();
   const phases = (division.phases || []).filter((phase) =>
-    isSeedingPhase(phase),
+    isQualifierPhase(phase),
   );
 
   for (const phase of phases) {
@@ -192,9 +196,7 @@ export default function QualifiersAdmin() {
       );
       setSubmissions((prev) =>
         prev.map((submission) =>
-          ids.includes(submission.id)
-            ? { ...submission, status }
-            : submission,
+          ids.includes(submission.id) ? { ...submission, status } : submission,
         ),
       );
       setSelectedIds(new Set());
@@ -235,19 +237,20 @@ export default function QualifiersAdmin() {
       ],
       ...filteredSubmissions.map(
         (submission): Array<string | number> => [
-        submission.id,
-        submission.player?.playerName ?? "",
-        submission.song?.title ?? "",
-        submission.song?.group ?? "",
-        submission.song?.difficulty ?? "",
-        submission.percentage ?? "",
-        submission.status ?? "",
-        submission.divisionIds
-          .map((id) => divisionNameById.get(id) ?? id)
-          .join("; "),
-        submission.screenshotUrl ?? "",
-        submission.updatedAt ?? "",
-      ]),
+          submission.id,
+          submission.player?.playerName ?? "",
+          submission.song?.title ?? "",
+          submission.song?.group ?? "",
+          submission.song?.difficulty ?? "",
+          submission.percentage ?? "",
+          submission.status ?? "",
+          submission.divisionIds
+            .map((id) => divisionNameById.get(id) ?? id)
+            .join("; "),
+          submission.screenshotUrl ?? "",
+          submission.updatedAt ?? "",
+        ],
+      ),
     ];
     downloadCsv("qualifier-submissions.csv", rows);
   };
@@ -259,20 +262,15 @@ export default function QualifiersAdmin() {
       return;
     }
     try {
-      const response = await axios.get("qualifiers/rankings");
+      const response = await axios.get<DivisionRankingExport[]>(
+        "qualifiers/rankings",
+      );
       const rows: string[][] = [
-        [
-          "Division",
-          "Rank",
-          "Player",
-          "Country",
-          "Average %",
-          "Submitted",
-        ],
+        ["Division", "Rank", "Player", "Country", "Average %", "Submitted"],
       ];
-      response.data.forEach((division: any) => {
+      response.data.forEach((division) => {
         const top = (division.rankings || []).slice(0, count);
-        top.forEach((entry: any, index: number) => {
+        top.forEach((entry, index: number) => {
           rows.push([
             division.divisionName,
             String(index + 1),
@@ -356,6 +354,8 @@ export default function QualifiersAdmin() {
           {error}
         </div>
       )}
+
+      <QualifierProgressionPanel divisions={divisions} onRefresh={loadData} />
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -444,9 +444,7 @@ export default function QualifiersAdmin() {
                     type="checkbox"
                     checked={
                       filteredSubmissions.length > 0 &&
-                      filteredSubmissions.every((s) =>
-                        selectedIds.has(s.id),
-                      )
+                      filteredSubmissions.every((s) => selectedIds.has(s.id))
                     }
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -478,9 +476,7 @@ export default function QualifiersAdmin() {
                       onChange={() => toggleSelection(submission.id)}
                     />
                   </td>
-                  <td className="py-2 pr-2">
-                    {submission.player?.playerName}
-                  </td>
+                  <td className="py-2 pr-2">{submission.player?.playerName}</td>
                   <td className="py-2 pr-2">
                     {submission.song?.title}
                     <div className="text-[10px] text-gray-400">
@@ -526,16 +522,24 @@ export default function QualifiersAdmin() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => updateStatus([submission.id], "approved")}
-                        disabled={normalizeStatus(submission.status) === "approved"}
+                        onClick={() =>
+                          updateStatus([submission.id], "approved")
+                        }
+                        disabled={
+                          normalizeStatus(submission.status) === "approved"
+                        }
                         className="rounded-md border border-emerald-500 px-2 py-1 text-[10px] font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Approve
                       </button>
                       <button
                         type="button"
-                        onClick={() => updateStatus([submission.id], "rejected")}
-                        disabled={normalizeStatus(submission.status) === "rejected"}
+                        onClick={() =>
+                          updateStatus([submission.id], "rejected")
+                        }
+                        disabled={
+                          normalizeStatus(submission.status) === "rejected"
+                        }
                         className="rounded-md border border-amber-500 px-2 py-1 text-[10px] font-semibold text-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Reject

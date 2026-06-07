@@ -19,13 +19,24 @@ export default function LivePhase() {
     MatchesApi.getActiveMatch()
       .then((match) => {
         setActiveMatch(match);
+        if (!match) {
+          setPhase(null);
+          setDivision(null);
+          return null;
+        }
         return axios.get("/phases/" + match.phaseId);
       })
       .then((response) => {
+        if (!response) {
+          return null;
+        }
         setPhase(response.data);
         return axios.get("/divisions/" + response.data.divisionId);
       })
       .then((response) => {
+        if (!response) {
+          return;
+        }
         setDivision(response.data);
       })
       .catch(() => {
@@ -41,7 +52,7 @@ export default function LivePhase() {
 
     const conn = connectJsonWebSocket("/matchupdatehub", {
       OnMatchUpdate: () => fetchData(),
-    });
+    }, { target: "api" });
     if (conn) {
       conn.onopen = () => {
         console.log("Now listening to match changes.");
@@ -61,6 +72,7 @@ export default function LivePhase() {
       {import.meta.env.VITE_PUBLIC_ENABLE_LIVE_SCORES === "true" && (
         <LiveScores
           divisionName={division?.name}
+          scoreLead={division?.scoreLead}
           phaseName={phase?.name}
           matchName={activeMatch?.name}
           roundLabel={

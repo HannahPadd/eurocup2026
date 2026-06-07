@@ -13,8 +13,14 @@ export class Score {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column("decimal")
+  @Column('decimal', { precision: 5, scale: 2 })
   percentage: number;
+
+  @Column('decimal', { precision: 5, scale: 2, nullable: true })
+  faPercentage?: number;
+
+  @Column('decimal', { precision: 5, scale: 2, nullable: true })
+  faPlusPercentage?: number;
 
   @Column()
   isFailed: boolean;
@@ -24,4 +30,7 @@ export class Score {
 
   @ManyToOne(() => Player, (player) => player.scores, { eager: true,  onDelete: 'CASCADE' })
   player: Player
+
+  @Column("simple-json", {default: "{}"})
+  data: object
 }

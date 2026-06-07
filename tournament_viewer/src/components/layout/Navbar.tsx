@@ -40,12 +40,6 @@ export default function Navbar() {
                 Tournament
               </NavLink>
             ) : null}
-            <NavLink
-              to="/faq"
-              className={navLinkClass}
-            >
-              FAQ
-            </NavLink>
             {auth?.username ? (
               <NavLink
                 to="/"
@@ -123,13 +117,6 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
             >
               Tournament
-            </NavLink>
-            <NavLink
-              to="/faq"
-              className={mobileNavLinkClass}
-              onClick={() => setMenuOpen(false)}
-            >
-              FAQ
             </NavLink>
             {auth?.username ? (
               <NavLink

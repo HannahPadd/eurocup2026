@@ -7,6 +7,12 @@ export const getPlayerDivisionIds = (player: Player): number[] =>
 export const isPlayerInDivision = (player: Player, divisionId: number) =>
   getPlayerDivisionIds(player).includes(divisionId);
 
+export const getPlayerForcedDivisionIds = (player: Player): number[] =>
+  player.forcedDivisionIds ?? [];
+
+export const isPlayerForcedInDivision = (player: Player, divisionId: number) =>
+  getPlayerForcedDivisionIds(player).includes(divisionId);
+
 export const togglePlayerDivisionIds = (
   player: Player,
   division: Division,

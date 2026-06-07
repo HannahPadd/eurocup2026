@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, IsOptional, ValidateNested } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsString, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { Tournament } from '@persistence/entities';
@@ -15,6 +15,16 @@ export class CreateDivisionDto {
   @IsNumber()
   @Type(() => Number)
   tournamentId: number;
+
+  @ApiProperty({
+    description: 'Score type used as the lead score for this division',
+    example: 'FA',
+    enum: ['FA', 'FA_PLUS'],
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['FA', 'FA_PLUS'])
+  scoreLead?: 'FA' | 'FA_PLUS';
 }
 
 export class UpdateDivisionDto {
@@ -29,6 +39,16 @@ export class UpdateDivisionDto {
   @IsNumber()
   @Type(() => Number)
   tournamentId: number;
+
+  @ApiProperty({
+    description: 'Score type used as the lead score for this division',
+    example: 'FA_PLUS',
+    enum: ['FA', 'FA_PLUS'],
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['FA', 'FA_PLUS'])
+  scoreLead?: 'FA' | 'FA_PLUS';
 
   tournament?: Tournament;
 }

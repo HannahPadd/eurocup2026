@@ -41,6 +41,9 @@ export class PhaseProgressionResult {
   @Column({ nullable: true })
   targetMatchId: number;
 
+  @Column({ nullable: true })
+  sourceMatchId: number;
+
   @Column()
   rankingPosition: number;
 
