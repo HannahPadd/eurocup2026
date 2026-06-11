@@ -337,9 +337,17 @@ export default function LiveScores({
           return;
         }
         const songPath = typedPayload.songInfo?.songPath ?? "";
-        const newScores: RawScore[] = oldScores.map((player) =>
+        let newScores: RawScore[] = oldScores.map((player) =>
           toRawScore(player, songPath, scoreLeadRef.current),
         );
+
+        // To fix dupplicate player names
+        let scoreMap = new Map<string, RawScore>();
+        newScores.forEach(s => {
+          scoreMap.set(s.score.playerName, s)
+        })
+
+        newScores = Array.from(scoreMap.values());
 
         const nextReadyById = Object.fromEntries(
           oldScores.map((player) => [player.playerId, Boolean(player.ready)]),
