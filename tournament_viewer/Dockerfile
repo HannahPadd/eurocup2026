@@ -16,6 +16,7 @@ COPY ./ ./
 
 ARG VITE_API_BASE_URL
 ARG VITE_ITGONLINE_URL
+ARG VITE_PUBLIC_ENABLE_LIVE_SCORES
 
 # Build the app using either a build arg or an optional secret.
 # Secrets are only available during this RUN.
@@ -24,6 +25,16 @@ RUN --mount=type=secret,id=vite_api_base_url \
       export VITE_API_BASE_URL="$(cat /run/secrets/vite_api_base_url)"; \
     else \
       export VITE_API_BASE_URL="${VITE_API_BASE_URL}"; \
+    fi && \
+    if [ -f /run/secrets/vite_itgonline_url ]; then \
+      export VITE_ITGONLINE_URL="$(cat /run/secrets/vite_itgonline_url)"; \
+    else \
+      export VITE_ITGONLINE_URL="${VITE_ITGONLINE_URL}"; \
+    fi && \
+    if [ -f /run/secrets/vite_public_enable_live_scores ]; then \
+      export VITE_PUBLIC_ENABLE_LIVE_SCORES="$(cat /run/secrets/vite_public_enable_live_scores)"; \
+    else \
+      export VITE_PUBLIC_ENABLE_LIVE_SCORES="${VITE_PUBLIC_ENABLE_LIVE_SCORES}"; \
     fi && \
     npm run build
 
