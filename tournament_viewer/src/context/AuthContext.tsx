@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 import { registerAuthTokenGetter, registerLogoutHandler } from "../api/authHelper";
 import { useNavigate } from "react-router-dom";
 
@@ -20,20 +20,48 @@ const AuthContext = createContext<AuthContextProps>({
     logout: () => {},
 });
 
+const isTokenExpired = (token?: string): boolean => {
+    if (!token) return false;
+    try {
+        const [, payload] = token.split(".");
+        if (!payload) return false;
+        const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = normalized.padEnd(
+            normalized.length + ((4 - (normalized.length % 4)) % 4),
+            "="
+        );
+        const parsed = JSON.parse(atob(padded)) as { exp?: number };
+        if (typeof parsed.exp !== "number") return false;
+        return Date.now() >= parsed.exp * 1000;
+    } catch {
+        return false;
+    }
+};
+
 export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
     const [auth, setAuth] = useState<Auth | null>(() => {
         const stored = localStorage.getItem("auth");
-        return stored ? (JSON.parse(stored) as Auth) : null;
+        if (!stored) return null;
+        try {
+            const parsed = JSON.parse(stored) as Auth;
+            if (parsed?.accessToken && isTokenExpired(parsed.accessToken)) {
+                localStorage.removeItem("auth");
+                return null;
+            }
+            return parsed;
+        } catch {
+            localStorage.removeItem("auth");
+            return null;
+        }
     });
 
     const navigate = useNavigate();
 
-    const logout = () => {
+    const logout = useCallback(() => {
         setAuth(null);
         localStorage.removeItem("auth");
-        navigate("/login");
-
-    };
+        navigate("/login", { replace: true });
+    }, [navigate]);
 
     useEffect(() => {
         if (auth) {
@@ -45,7 +73,24 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         registerAuthTokenGetter(() => auth?.accessToken ?? null);
 
         registerLogoutHandler(logout);
-    }, [auth]);
+    }, [auth, logout]);
+
+    useEffect(() => {
+        if (!auth?.accessToken) return;
+
+        const checkToken = () => {
+            if (isTokenExpired(auth.accessToken)) {
+                logout();
+            }
+        };
+
+        checkToken();
+        const intervalId = window.setInterval(checkToken, 60_000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [auth?.accessToken, logout]);
 
     return (
         <AuthContext.Provider value={{ auth, setAuth, logout }}>
